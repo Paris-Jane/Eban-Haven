@@ -1,0 +1,28 @@
+@EbanHaven.Api_HostAddress = http://localhost:5277
+
+GET {{EbanHaven.Api_HostAddress}}/api/site
+Accept: application/json
+
+###
+
+GET {{EbanHaven.Api_HostAddress}}/api/admin/dashboard
+Accept: application/json
+
+###
+
+GET {{EbanHaven.Api_HostAddress}}/api/admin/donors
+Accept: application/json
+
+###
+
+POST {{EbanHaven.Api_HostAddress}}/api/admin/donors
+Content-Type: application/json
+
+{
+  "donorName": "API Test Donor",
+  "amount": 100,
+  "date": null,
+  "note": "From .http file"
+}
+
+###

@@ -1,0 +1,31 @@
+@import 'tailwindcss';
+
+@theme {
+  --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
+  --font-serif: 'Playfair Display', Georgia, 'Times New Roman', serif;
+
+  --color-background: hsl(40 33% 98%);
+  --color-foreground: hsl(200 25% 12%);
+  --color-card: hsl(0 0% 100%);
+  --color-primary: hsl(174 55% 28%);
+  --color-primary-foreground: hsl(0 0% 100%);
+  --color-secondary: hsl(37 65% 90%);
+  --color-muted: hsl(40 20% 94%);
+  --color-muted-foreground: hsl(200 10% 45%);
+  --color-accent: hsl(32 80% 55%);
+  --color-accent-foreground: hsl(0 0% 100%);
+  --color-border: hsl(40 15% 88%);
+
+  --radius-lg: 0.75rem;
+  --radius-xl: 0.75rem;
+  --radius-2xl: 1rem;
+}
+
+@layer base {
+  html {
+    @apply antialiased;
+  }
+  body {
+    @apply bg-background text-foreground font-sans m-0 min-h-svh;
+  }
+}

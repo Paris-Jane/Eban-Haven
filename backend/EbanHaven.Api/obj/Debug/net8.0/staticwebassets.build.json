@@ -1,0 +1,11 @@
+{
+  "Version": 1,
+  "Hash": "mNYZWANZywYVvJ7ovDNNC81SWFqLtGJtv19S9Tq5pwo=",
+  "Source": "EbanHaven.Api",
+  "BasePath": "_content/EbanHaven.Api",
+  "Mode": "Default",
+  "ManifestType": "Build",
+  "ReferencedProjectsConfiguration": [],
+  "DiscoveryPatterns": [],
+  "Assets": []
+}
