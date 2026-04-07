@@ -169,9 +169,9 @@ export function LoginPage() {
             <p className="mt-2 text-sm text-muted-foreground">
               {tab === 'login'
                 ? `Access your ${SITE_DISPLAY_NAME} portal.`
-                : 'Register as a supporter with the details we use in our donor records.'}
+                : ' '}
               {tab === 'login' && (
-                <span className="mt-2 block">Use your staff username and password.</span>
+                <span className="mt-2 block">Use your username and password.</span>
               )}
             </p>
           </div>
@@ -362,7 +362,6 @@ export function LoginPage() {
                   </select>
                 </label>
               </div>
-              <p className="text-xs text-muted-foreground">Status defaults to Active for new donor accounts.</p>
               <button
                 type="submit"
                 disabled={submitting}

@@ -212,7 +212,7 @@ export function ImpactPage() {
         </div>
       </section>
 
-      <section className="py-20 lg:py-28">
+      <section className="border-t border-border bg-muted py-20 lg:py-28">
         <div className="mx-auto max-w-3xl px-6 text-center lg:px-8">
           <p className="text-xs font-semibold uppercase tracking-widest text-accent">Life inside our homes</p>
           <h2 className="mt-3 font-heading text-3xl font-bold text-foreground lg:text-4xl">
