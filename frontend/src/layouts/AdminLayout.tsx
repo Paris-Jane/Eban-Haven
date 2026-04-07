@@ -7,6 +7,7 @@ import {
   ClipboardList,
   FileText,
   Gift,
+  GitBranch,
   Heart,
   Home,
   LayoutDashboard,
@@ -14,6 +15,7 @@ import {
   Menu,
   PieChart,
   Video,
+  Waypoints,
   X,
 } from 'lucide-react'
 import { logout } from '../api/auth'
@@ -31,9 +33,11 @@ type NavItem = {
 const nav: NavItem[] = [
   { to: '/admin', label: 'Dashboard', icon: LayoutDashboard, end: true },
   { to: '/admin/donors', label: 'Donors', icon: Heart },
+  { to: '/admin/donor-pipeline', label: 'Donor pipeline', icon: GitBranch },
   { to: '/admin/contributions', label: 'Contributions', icon: Gift },
   { to: '/admin/allocations', label: 'Allocations', icon: PieChart },
   { to: '/admin/residents', label: 'Residents', icon: ClipboardList },
+  { to: '/admin/resident-pipeline', label: 'Resident pipeline', icon: Waypoints },
   { to: '/admin/process-recordings', label: 'Process recording', icon: FileText },
   { to: '/admin/home-visitations', label: 'Home visitation', icon: Video },
   { to: '/admin/case-conferences', label: 'Case conferences', icon: CalendarDays },

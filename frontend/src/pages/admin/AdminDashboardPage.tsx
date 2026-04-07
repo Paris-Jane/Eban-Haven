@@ -5,13 +5,15 @@ import {
   CalendarDays,
   ClipboardList,
   FileText,
+  GitBranch,
   Heart,
   Home,
   Users,
   Video,
+  Waypoints,
 } from 'lucide-react'
 import { getDashboard, type DashboardSummary } from '../../api/admin'
-import { card, linkTile, pageDesc, pageTitle, statCardInner, statCardSub, statCardValue } from './adminStyles'
+import { btnPrimary, card, linkTile, pageDesc, pageTitle, statCardInner, statCardSub, statCardValue } from './adminStyles'
 
 function StatCard({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
@@ -67,6 +69,22 @@ export function AdminDashboardPage() {
           High-level view of active residents across safehouses, recent supporter activity, upcoming case
           conferences, and reintegration progress (Lighthouse CSV dataset + in-session updates).
         </p>
+        <div className="mt-4 flex flex-wrap gap-3">
+          <Link
+            to="/admin/donor-pipeline"
+            className={`${btnPrimary} inline-flex items-center gap-2`}
+          >
+            <GitBranch className="h-4 w-4" />
+            Donor pipeline
+          </Link>
+          <Link
+            to="/admin/resident-pipeline"
+            className={`${btnPrimary} inline-flex items-center gap-2`}
+          >
+            <Waypoints className="h-4 w-4" />
+            Resident pipeline
+          </Link>
+        </div>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -187,15 +205,27 @@ export function AdminDashboardPage() {
           </span>
           <ArrowRight className="h-4 w-4 opacity-70" />
         </Link>
-        <Link to="/admin/caseload" className={linkTile}>
+        <Link to="/admin/donor-pipeline" className={linkTile}>
           <span className="flex items-center gap-2">
-            <ClipboardList className="h-4 w-4" /> Caseload
+            <GitBranch className="h-4 w-4" /> Donor pipeline
           </span>
           <ArrowRight className="h-4 w-4 opacity-70" />
         </Link>
-        <Link to="/admin/visitations" className={linkTile}>
+        <Link to="/admin/residents" className={linkTile}>
           <span className="flex items-center gap-2">
-            <Video className="h-4 w-4" /> Visits & conferences
+            <ClipboardList className="h-4 w-4" /> Residents
+          </span>
+          <ArrowRight className="h-4 w-4 opacity-70" />
+        </Link>
+        <Link to="/admin/resident-pipeline" className={linkTile}>
+          <span className="flex items-center gap-2">
+            <Waypoints className="h-4 w-4" /> Resident pipeline
+          </span>
+          <ArrowRight className="h-4 w-4 opacity-70" />
+        </Link>
+        <Link to="/admin/home-visitations" className={linkTile}>
+          <span className="flex items-center gap-2">
+            <Video className="h-4 w-4" /> Home visitation
           </span>
           <ArrowRight className="h-4 w-4 opacity-70" />
         </Link>
