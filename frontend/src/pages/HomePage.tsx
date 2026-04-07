@@ -120,7 +120,7 @@ export function HomePage() {
               className="font-heading text-4xl font-bold leading-tight text-white md:text-5xl lg:text-6xl"
             >
               Every girl deserves
-              <span className="block text-accent">EDIT THIS LATER!! a safe haven</span>
+              <span className="block text-accent">EDIT/FIX THIS LATER!! a safe haven</span>
             </motion.h1>
             <motion.p
               variants={fadeUp}
