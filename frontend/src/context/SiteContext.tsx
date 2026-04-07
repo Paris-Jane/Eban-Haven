@@ -9,6 +9,7 @@ import {
 } from 'react'
 import { getSupabase, isSupabaseConfigured } from '../lib/supabase'
 import { useSupabaseForLighthouseData } from '../lib/useSupabaseLighthouse'
+import { apiFetch } from '../api/client'
 import { DEFAULT_SITE_NAME } from '../site'
 
 export type SiteInfo = {
@@ -44,7 +45,7 @@ export function SiteProvider({ children }: { children: ReactNode }) {
       }
     }
     try {
-      const res = await fetch('/api/site')
+      const res = await apiFetch('/api/site')
       if (!res.ok) return
       const data = (await res.json()) as { name?: string; description?: string | null }
       setInfo({
