@@ -1,4 +1,4 @@
-import { createSupporter } from './admin'
+import { apiFetch, parseJson } from './client'
 
 export type DonorRegistrationInput = {
   email: string
@@ -20,18 +20,14 @@ export type DonorRegistrationInput = {
  * Requires RLS policy profiles_insert_self and lighthouse insert permissions.
  */
 export async function registerDonorAccount(input: DonorRegistrationInput): Promise<void> {
-  await createSupporter({
-    supporterType: input.supporterType.trim() || 'MonetaryDonor',
-    displayName: input.displayName.trim(),
-    email: input.email.trim().toLowerCase(),
-    region: input.region.trim() || undefined,
-    status: 'Active',
-    organizationName: input.organizationName.trim() || undefined,
-    firstName: input.firstName.trim() || undefined,
-    lastName: input.lastName.trim() || undefined,
-    relationshipType: input.relationshipType.trim() || undefined,
-    country: input.country.trim() || undefined,
-    phone: input.phone.trim() || undefined,
-    acquisitionChannel: input.acquisitionChannel.trim() || 'Website',
+  const res = await apiFetch('/api/public/supporters', {
+    method: 'POST',
+    body: JSON.stringify({
+      supporterType: input.supporterType.trim() || 'MonetaryDonor',
+      displayName: input.displayName.trim(),
+      email: input.email.trim().toLowerCase(),
+      region: input.region.trim() || undefined,
+    }),
   })
+  await parseJson(res)
 }
