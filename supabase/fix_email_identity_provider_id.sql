@@ -1,5 +1,5 @@
--- Run in Supabase SQL Editor if you already ran seed_auth_profiles.sql with
--- provider_id = email. GoTrue requires provider_id = user UUID for email logins.
+-- Deprecated: use fix_auth_sql_seed_users.sql (token columns + provider_id).
+-- Or run only the UPDATE below if you already fixed NULL tokens.
 UPDATE auth.identities AS i
 SET provider_id = i.user_id::text
 WHERE i.provider = 'email'

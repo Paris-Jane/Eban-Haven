@@ -81,6 +81,7 @@ BEGIN
 
   -- Admin
   IF NOT EXISTS (SELECT 1 FROM auth.users WHERE id = uid_admin OR email = 'admin@ebanhaven.demo') THEN
+    -- GoTrue cannot scan NULL into string fields; omitting these causes "Database error querying schema".
     INSERT INTO auth.users (
       instance_id,
       id,
@@ -93,7 +94,10 @@ BEGIN
       raw_user_meta_data,
       created_at,
       updated_at,
-      confirmation_token
+      confirmation_token,
+      email_change,
+      email_change_token_new,
+      recovery_token
     ) VALUES (
       inst,
       uid_admin,
@@ -106,6 +110,9 @@ BEGIN
       '{"full_name":"Demo Admin"}'::jsonb,
       now(),
       now(),
+      '',
+      '',
+      '',
       ''
     );
 
@@ -135,12 +142,14 @@ BEGIN
   IF NOT EXISTS (SELECT 1 FROM auth.users WHERE id = uid_donor OR email = 'donor@ebanhaven.demo') THEN
     INSERT INTO auth.users (
       instance_id, id, aud, "role", email, encrypted_password, email_confirmed_at,
-      raw_app_meta_data, raw_user_meta_data, created_at, updated_at, confirmation_token
+      raw_app_meta_data, raw_user_meta_data, created_at, updated_at,
+      confirmation_token, email_change, email_change_token_new, recovery_token
     ) VALUES (
       inst, uid_donor, 'authenticated', 'authenticated', 'donor@ebanhaven.demo', pw, now(),
       '{"provider":"email","providers":["email"]}'::jsonb,
       '{"full_name":"Demo Donor"}'::jsonb,
-      now(), now(), ''
+      now(), now(),
+      '', '', '', ''
     );
     INSERT INTO auth.identities (
       id, user_id, provider_id, identity_data, provider, last_sign_in_at, created_at, updated_at
@@ -155,12 +164,14 @@ BEGIN
   IF NOT EXISTS (SELECT 1 FROM auth.users WHERE id = uid_sw OR email = 'socialworker@ebanhaven.demo') THEN
     INSERT INTO auth.users (
       instance_id, id, aud, "role", email, encrypted_password, email_confirmed_at,
-      raw_app_meta_data, raw_user_meta_data, created_at, updated_at, confirmation_token
+      raw_app_meta_data, raw_user_meta_data, created_at, updated_at,
+      confirmation_token, email_change, email_change_token_new, recovery_token
     ) VALUES (
       inst, uid_sw, 'authenticated', 'authenticated', 'socialworker@ebanhaven.demo', pw, now(),
       '{"provider":"email","providers":["email"]}'::jsonb,
       '{"full_name":"Demo Social Worker"}'::jsonb,
-      now(), now(), ''
+      now(), now(),
+      '', '', '', ''
     );
     INSERT INTO auth.identities (
       id, user_id, provider_id, identity_data, provider, last_sign_in_at, created_at, updated_at
@@ -175,12 +186,14 @@ BEGIN
   IF NOT EXISTS (SELECT 1 FROM auth.users WHERE id = uid_res OR email = 'resident@ebanhaven.demo') THEN
     INSERT INTO auth.users (
       instance_id, id, aud, "role", email, encrypted_password, email_confirmed_at,
-      raw_app_meta_data, raw_user_meta_data, created_at, updated_at, confirmation_token
+      raw_app_meta_data, raw_user_meta_data, created_at, updated_at,
+      confirmation_token, email_change, email_change_token_new, recovery_token
     ) VALUES (
       inst, uid_res, 'authenticated', 'authenticated', 'resident@ebanhaven.demo', pw, now(),
       '{"provider":"email","providers":["email"]}'::jsonb,
       '{"full_name":"Demo Resident"}'::jsonb,
-      now(), now(), ''
+      now(), now(),
+      '', '', '', ''
     );
     INSERT INTO auth.identities (
       id, user_id, provider_id, identity_data, provider, last_sign_in_at, created_at, updated_at
