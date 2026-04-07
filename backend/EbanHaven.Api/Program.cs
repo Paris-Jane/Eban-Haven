@@ -58,10 +58,19 @@ builder.Services.AddCors(options =>
     options.AddDefaultPolicy(policy =>
     {
         var cors = builder.Configuration.GetSection(CorsOptions.SectionName).Get<CorsOptions>() ?? new CorsOptions();
-        var origins = cors.Origins;
-        if (origins.Length == 0)
-            origins = ["http://localhost:5173", "http://127.0.0.1:5173"];
-        policy.WithOrigins(origins).AllowAnyHeader().AllowAnyMethod().AllowCredentials();
+        // Merge config with known origins. Azure App Settings (Cors__Origins__*) can override appsettings.json;
+        // if misconfigured, browsers show "No Access-Control-Allow-Origin" even when the real bug is elsewhere.
+        var origins = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var o in cors.Origins ?? [])
+        {
+            if (!string.IsNullOrWhiteSpace(o)) origins.Add(o.TrimEnd('/'));
+        }
+
+        origins.Add("https://eban-haven.vercel.app");
+        origins.Add("http://localhost:5173");
+        origins.Add("http://127.0.0.1:5173");
+
+        policy.WithOrigins(origins.ToArray()).AllowAnyHeader().AllowAnyMethod().AllowCredentials();
     });
 });
 
