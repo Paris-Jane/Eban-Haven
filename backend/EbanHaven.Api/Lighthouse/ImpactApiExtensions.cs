@@ -5,7 +5,7 @@ public static class ImpactApiExtensions
     public static void MapImpactApi(this WebApplication app)
     {
         var g = app.MapGroup("/api/impact");
-        g.MapGet("/summary", (LighthouseDataStore db) => Results.Ok(db.GetPublicImpactSummary()));
-        g.MapGet("/snapshots", (LighthouseDataStore db) => Results.Ok(db.GetPublishedSnapshots()));
+        g.MapGet("/summary", (ILighthouseRepository repo) => Results.Ok(repo.GetPublicImpactSummary()));
+        g.MapGet("/snapshots", (ILighthouseRepository repo) => Results.Ok(repo.GetPublishedSnapshots()));
     }
 }

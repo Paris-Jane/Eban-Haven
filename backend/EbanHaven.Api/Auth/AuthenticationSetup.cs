@@ -71,8 +71,9 @@ internal static class AuthenticationSetup
     {
         options.Cookie.Name = "haven_staff";
         options.Cookie.HttpOnly = true;
-        options.Cookie.SameSite = SameSiteMode.Lax;
-        options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
+        // Required for cross-site cookie auth (Vercel frontend → Azure backend).
+        options.Cookie.SameSite = SameSiteMode.None;
+        options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
         options.SlidingExpiration = true;
         options.ExpireTimeSpan = TimeSpan.FromHours(8);
         options.Events.OnRedirectToLogin = context =>

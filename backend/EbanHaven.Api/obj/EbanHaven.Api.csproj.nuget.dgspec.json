@@ -10,7 +10,7 @@
         "projectUniqueName": "/Users/ethan/Desktop/Documents IS Junior Core (WINTER)/INTEX/Eban-Haven/backend/EbanHaven.Api/EbanHaven.Api.csproj",
         "projectName": "EbanHaven.Api",
         "projectPath": "/Users/ethan/Desktop/Documents IS Junior Core (WINTER)/INTEX/Eban-Haven/backend/EbanHaven.Api/EbanHaven.Api.csproj",
-        "packagesPath": "/Users/ethan/.nuget/packages/",
+        "packagesPath": "/var/folders/dv/s0rsxjqs12dg8hj5s7ss2jgc0000gn/T/cursor-sandbox-cache/f3c39bd8e96668d5e796b9a699d829f6/nuget",
         "outputPath": "/Users/ethan/Desktop/Documents IS Junior Core (WINTER)/INTEX/Eban-Haven/backend/EbanHaven.Api/obj/",
         "projectStyle": "PackageReference",
         "configFilePaths": [
@@ -50,7 +50,11 @@
             },
             "Microsoft.AspNetCore.Authentication.JwtBearer": {
               "target": "Package",
-              "version": "[8.0.11, )"
+              "version": "[10.0.1, )"
+            },
+            "Npgsql.EntityFrameworkCore.PostgreSQL": {
+              "target": "Package",
+              "version": "[10.0.1, )"
             }
           },
           "imports": [

@@ -3,6 +3,6 @@ namespace EbanHaven.Api.Auth;
 public sealed class StaffOptions
 {
     public const string SectionName = "Staff";
-    public string Username { get; set; } = "staff";
-    public string Password { get; set; } = "haven2026";
+    public string Username { get; set; } = "";
+    public string Password { get; set; } = "";
 }

@@ -1,6 +1,6 @@
 using System.Globalization;
-using EbanHaven.Api.Lighthouse;
 using Microsoft.AspNetCore.Mvc;
+using EbanHaven.Api.Lighthouse;
 
 namespace EbanHaven.Api.Admin;
 
@@ -10,19 +10,19 @@ public static class AdminApiExtensions
     {
         var admin = app.MapGroup("/api/admin").RequireAuthorization();
 
-        admin.MapGet("/dashboard", (LighthouseDataStore db) => Results.Ok(db.GetAdminDashboard()));
+        admin.MapGet("/dashboard", (ILighthouseRepository repo) => Results.Ok(repo.GetAdminDashboard()));
 
-        admin.MapGet("/safehouses", (LighthouseDataStore db) => Results.Ok(db.ListSafehousesOptions()));
+        admin.MapGet("/safehouses", (ILighthouseRepository repo) => Results.Ok(repo.ListSafehousesOptions()));
 
-        admin.MapGet("/supporters", (LighthouseDataStore db) => Results.Ok(db.ListSupporters()));
-        admin.MapPost("/supporters", (CreateSupporterRequest body, LighthouseDataStore db) =>
+        admin.MapGet("/supporters", (ILighthouseRepository repo) => Results.Ok(repo.ListSupporters()));
+        admin.MapPost("/supporters", (CreateSupporterRequest body, ILighthouseRepository repo) =>
         {
             if (string.IsNullOrWhiteSpace(body.SupporterType))
                 return Results.BadRequest(new { error = "SupporterType is required." });
             if (string.IsNullOrWhiteSpace(body.DisplayName))
                 return Results.BadRequest(new { error = "DisplayName is required." });
             var status = string.IsNullOrWhiteSpace(body.Status) ? "Active" : body.Status.Trim();
-            var created = db.CreateSupporter(
+            var created = repo.CreateSupporter(
                 body.SupporterType.Trim(),
                 body.DisplayName.Trim(),
                 body.Email?.Trim(),
@@ -30,15 +30,15 @@ public static class AdminApiExtensions
                 status);
             return Results.Created($"/api/admin/supporters/{created.Id}", created);
         });
-        admin.MapPatch("/supporters/{id:int}", (int id, PatchSupporterRequest body, LighthouseDataStore db) =>
+        admin.MapPatch("/supporters/{id:int}", (int id, PatchSupporterRequest body, ILighthouseRepository repo) =>
         {
-            var u = db.UpdateSupporter(id, body.Status, body.SupporterType);
+            var u = repo.UpdateSupporter(id, body.Status, body.SupporterType);
             return u is null ? Results.NotFound() : Results.Ok(u);
         });
 
-        admin.MapGet("/donations", (int? supporterId, LighthouseDataStore db) =>
-            Results.Ok(db.ListDonations(supporterId)));
-        admin.MapPost("/donations", (CreateDonationRequest body, LighthouseDataStore db) =>
+        admin.MapGet("/donations", (int? supporterId, ILighthouseRepository repo) =>
+            Results.Ok(repo.ListDonations(supporterId)));
+        admin.MapPost("/donations", (CreateDonationRequest body, ILighthouseRepository repo) =>
         {
             if (body.SupporterId <= 0)
                 return Results.BadRequest(new { error = "SupporterId is required." });
@@ -47,7 +47,7 @@ public static class AdminApiExtensions
             try
             {
                 var dt = body.DonationDate ?? DateTime.UtcNow.Date;
-                var created = db.CreateDonation(
+                var created = repo.CreateDonation(
                     body.SupporterId,
                     body.DonationType.Trim(),
                     dt,
@@ -63,50 +63,50 @@ public static class AdminApiExtensions
             }
         });
 
-        admin.MapGet("/donation-allocations", (int? donationId, int? safehouseId, LighthouseDataStore db) =>
-            Results.Ok(db.ListAllocations(donationId, safehouseId)));
+        admin.MapGet("/donation-allocations", (int? donationId, int? safehouseId, ILighthouseRepository repo) =>
+            Results.Ok(repo.ListAllocations(donationId, safehouseId)));
 
         admin.MapGet("/residents", (
             [FromQuery] string? status,
             [FromQuery] int? safehouseId,
             [FromQuery] string? category,
             [FromQuery] string? q,
-            LighthouseDataStore db) => Results.Ok(db.ListResidents(status, safehouseId, category, q)));
+            ILighthouseRepository repo) => Results.Ok(repo.ListResidents(status, safehouseId, category, q)));
 
-        admin.MapGet("/residents/{id:int}", (int id, LighthouseDataStore db) =>
+        admin.MapGet("/residents/{id:int}", (int id, ILighthouseRepository repo) =>
         {
-            var r = db.GetResident(id);
+            var r = repo.GetResident(id);
             return r is null ? Results.NotFound() : Results.Ok(r);
         });
 
-        admin.MapPatch("/residents/{id:int}", (int id, IReadOnlyDictionary<string, string?> body, LighthouseDataStore db) =>
+        admin.MapPatch("/residents/{id:int}", (int id, IReadOnlyDictionary<string, string?> body, ILighthouseRepository repo) =>
         {
-            var ok = db.UpdateResident(id, body);
-            return ok ? Results.Ok(db.GetResident(id)) : Results.NotFound();
+            var ok = repo.UpdateResident(id, body);
+            return ok ? Results.Ok(repo.GetResident(id)) : Results.NotFound();
         });
 
-        admin.MapPost("/residents", (CreateResidentRequest body, LighthouseDataStore db) =>
+        admin.MapPost("/residents", (CreateResidentRequest body, ILighthouseRepository repo) =>
         {
             if (string.IsNullOrWhiteSpace(body.InternalCode))
                 return Results.BadRequest(new { error = "InternalCode is required." });
             if (string.IsNullOrWhiteSpace(body.CaseStatus))
                 return Results.BadRequest(new { error = "CaseStatus is required." });
-            var created = db.CreateResident(body.InternalCode.Trim(), body.CaseStatus.Trim(), body.CaseCategory?.Trim());
+            var created = repo.CreateResident(body.InternalCode.Trim(), body.CaseStatus.Trim(), body.CaseCategory?.Trim());
             return Results.Created($"/api/admin/residents/{created.Id}", created);
         });
 
-        admin.MapPatch("/residents/{id:int}/status", (int id, UpdateCaseStatusRequest body, LighthouseDataStore db) =>
+        admin.MapPatch("/residents/{id:int}/status", (int id, UpdateCaseStatusRequest body, ILighthouseRepository repo) =>
         {
             if (string.IsNullOrWhiteSpace(body.Status))
                 return Results.BadRequest(new { error = "Status is required." });
-            var u = db.UpdateResidentStatus(id, body.Status.Trim());
+            var u = repo.UpdateResidentStatus(id, body.Status.Trim());
             return u is null ? Results.NotFound() : Results.Ok(u);
         });
 
-        admin.MapGet("/process-recordings", (int? residentId, LighthouseDataStore db) =>
-            Results.Ok(db.ListProcessRecordings(residentId)));
+        admin.MapGet("/process-recordings", (int? residentId, ILighthouseRepository repo) =>
+            Results.Ok(repo.ListProcessRecordings(residentId)));
 
-        admin.MapPost("/process-recordings", (CreateProcessRecordingRequest body, LighthouseDataStore db) =>
+        admin.MapPost("/process-recordings", (CreateProcessRecordingRequest body, ILighthouseRepository repo) =>
         {
             if (body.ResidentId <= 0)
                 return Results.BadRequest(new { error = "ResidentId is required." });
@@ -119,7 +119,7 @@ public static class AdminApiExtensions
             try
             {
                 var at = body.SessionDate ?? DateTime.UtcNow;
-                var created = db.CreateProcessRecording(
+                var created = repo.CreateProcessRecording(
                     body.ResidentId,
                     at,
                     body.SocialWorker.Trim(),
@@ -138,10 +138,10 @@ public static class AdminApiExtensions
             }
         });
 
-        admin.MapGet("/home-visitations", (int? residentId, LighthouseDataStore db) =>
-            Results.Ok(db.ListHomeVisitations(residentId)));
+        admin.MapGet("/home-visitations", (int? residentId, ILighthouseRepository repo) =>
+            Results.Ok(repo.ListHomeVisitations(residentId)));
 
-        admin.MapPost("/home-visitations", (CreateHomeVisitationRequest body, LighthouseDataStore db) =>
+        admin.MapPost("/home-visitations", (CreateHomeVisitationRequest body, ILighthouseRepository repo) =>
         {
             if (body.ResidentId <= 0)
                 return Results.BadRequest(new { error = "ResidentId is required." });
@@ -152,7 +152,7 @@ public static class AdminApiExtensions
             try
             {
                 var at = body.VisitDate ?? DateTime.UtcNow;
-                var created = db.CreateHomeVisitation(
+                var created = repo.CreateHomeVisitation(
                     body.ResidentId,
                     at,
                     body.SocialWorker.Trim(),
@@ -171,33 +171,33 @@ public static class AdminApiExtensions
             }
         });
 
-        admin.MapGet("/intervention-plans", (int? residentId, LighthouseDataStore db) =>
-            Results.Ok(db.ListInterventionPlans(residentId)));
+        admin.MapGet("/intervention-plans", (int? residentId, ILighthouseRepository repo) =>
+            Results.Ok(repo.ListInterventionPlans(residentId)));
 
-        admin.MapGet("/reports/summary", (LighthouseDataStore db) => Results.Ok(db.GetReportsSummary()));
+        admin.MapGet("/reports/summary", (ILighthouseRepository repo) => Results.Ok(repo.GetReportsSummary()));
 
         // Legacy aliases for older clients (map residents ↔ cases naming)
-        admin.MapGet("/cases", (LighthouseDataStore db) =>
-            Results.Ok(db.ListResidents(null, null, null, null).Select(LegacyCaseFromSummary).ToList()));
-        admin.MapPost("/cases", (LegacyCreateCaseRequest body, LighthouseDataStore db) =>
+        admin.MapGet("/cases", (ILighthouseRepository repo) =>
+            Results.Ok(repo.ListResidents(null, null, null, null).Select(LegacyCaseFromSummary).ToList()));
+        admin.MapPost("/cases", (LegacyCreateCaseRequest body, ILighthouseRepository repo) =>
         {
             if (string.IsNullOrWhiteSpace(body.ReferenceCode))
                 return Results.BadRequest(new { error = "ReferenceCode is required." });
             if (string.IsNullOrWhiteSpace(body.Status))
                 return Results.BadRequest(new { error = "Status is required." });
-            var created = db.CreateResident(body.ReferenceCode.Trim(), body.Status.Trim(), null);
+            var created = repo.CreateResident(body.ReferenceCode.Trim(), body.Status.Trim(), null);
             return Results.Created($"/api/admin/cases/{created.Id}", LegacyCaseFromSummary(created));
         });
-        admin.MapPatch("/cases/{id:int}/status", (int id, UpdateCaseStatusRequest body, LighthouseDataStore db) =>
+        admin.MapPatch("/cases/{id:int}/status", (int id, UpdateCaseStatusRequest body, ILighthouseRepository repo) =>
         {
             if (string.IsNullOrWhiteSpace(body.Status))
                 return Results.BadRequest(new { error = "Status is required." });
-            var u = db.UpdateResidentStatus(id, body.Status.Trim());
+            var u = repo.UpdateResidentStatus(id, body.Status.Trim());
             return u is null ? Results.NotFound() : Results.Ok(LegacyCaseFromSummary(u));
         });
 
-        admin.MapGet("/visitations", (LighthouseDataStore db) => Results.Ok(db.ListHomeVisitations(null)));
-        admin.MapPost("/visitations", (LegacyCreateVisitationRequest body, LighthouseDataStore db) =>
+        admin.MapGet("/visitations", (ILighthouseRepository repo) => Results.Ok(repo.ListHomeVisitations(null)));
+        admin.MapPost("/visitations", (LegacyCreateVisitationRequest body, ILighthouseRepository repo) =>
         {
             if (string.IsNullOrWhiteSpace(body.VisitorName))
                 return Results.BadRequest(new { error = "VisitorName is required." });
@@ -206,7 +206,7 @@ public static class AdminApiExtensions
             try
             {
                 var at = body.ScheduledAt;
-                var created = db.CreateHomeVisitation(
+                var created = repo.CreateHomeVisitation(
                     body.CaseId.Value,
                     at,
                     body.VisitorName.Trim(),
