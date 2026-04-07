@@ -1,0 +1,47 @@
+{
+  "model_name": "reintegration_readiness_gbm",
+  "model_version": "1.0.0",
+  "target": "reintegration_status == Completed",
+  "feature_columns": [
+    "safehouse_id",
+    "age_at_entry",
+    "days_in_program",
+    "referral_source",
+    "total_sessions",
+    "pct_progress_noted",
+    "pct_concerns_flagged",
+    "latest_attendance_rate",
+    "avg_progress_percent",
+    "avg_general_health_score",
+    "pct_psych_checkup_done",
+    "num_health_records",
+    "total_incidents",
+    "num_severe_incidents",
+    "total_plans",
+    "pct_plans_achieved"
+  ],
+  "numerical_features": [
+    "age_at_entry",
+    "days_in_program",
+    "total_sessions",
+    "pct_progress_noted",
+    "pct_concerns_flagged",
+    "latest_attendance_rate",
+    "avg_progress_percent",
+    "avg_general_health_score",
+    "pct_psych_checkup_done",
+    "num_health_records",
+    "total_incidents",
+    "num_severe_incidents",
+    "total_plans",
+    "pct_plans_achieved"
+  ],
+  "categorical_features": [
+    "safehouse_id",
+    "referral_source"
+  ],
+  "roc_auc_test": 0.8289,
+  "f0_5_test": 0.6135,
+  "best_threshold": 0.7012,
+  "trained_on": "2026-04-06"
+}

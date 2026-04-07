@@ -1,0 +1,42 @@
+{
+  "model_name": "donor_churn_gbm",
+  "model_version": "1.0.0",
+  "target": "supporters.status == Inactive",
+  "feature_columns": [
+    "days_since_last_donation",
+    "days_since_first_donation",
+    "days_since_joined",
+    "total_donations",
+    "pct_recurring",
+    "avg_days_between_donations",
+    "total_amount",
+    "avg_amount",
+    "max_amount",
+    "amount_trend",
+    "acquisition_channel",
+    "supporter_type",
+    "relationship_type"
+  ],
+  "numerical_features": [
+    "days_since_last_donation",
+    "days_since_first_donation",
+    "days_since_joined",
+    "total_donations",
+    "pct_recurring",
+    "avg_days_between_donations",
+    "total_amount",
+    "avg_amount",
+    "max_amount",
+    "amount_trend"
+  ],
+  "categorical_features": [
+    "acquisition_channel",
+    "supporter_type",
+    "relationship_type"
+  ],
+  "roc_auc_test": 0.7611,
+  "f1_test": 0.6173,
+  "best_threshold": 0.1154,
+  "trained_on": "2026-04-07",
+  "currency": "PHP"
+}

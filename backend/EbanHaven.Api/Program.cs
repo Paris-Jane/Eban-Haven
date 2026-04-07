@@ -3,6 +3,7 @@ using EbanHaven.Api.Auth;
 using EbanHaven.Api.Configuration;
 using EbanHaven.Api.DataAccess;
 using EbanHaven.Api.Lighthouse;
+using EbanHaven.Api.ML;
 using EbanHaven.Api.SocialChat;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.HttpOverrides;
@@ -52,6 +53,9 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
     options.KnownIPNetworks.Clear();
     options.KnownProxies.Clear();
 });
+
+// ML prediction microservice (reintegration readiness + donor churn)
+builder.Services.AddMlService(builder.Configuration);
 
 builder.Services.AddCors(options =>
 {

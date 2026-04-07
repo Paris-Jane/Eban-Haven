@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
+import { ReintegrationReadiness } from '../../components/ml/ReintegrationReadiness'
 import {
   alertError,
   btnPrimary,
@@ -286,6 +287,9 @@ export function CaseloadPage() {
             <p className="text-sm text-muted-foreground">Loading record…</p>
           ) : detail ? (
             <div className="space-y-4">
+              {/* ── ML: Reintegration Readiness ── */}
+              <ReintegrationReadiness residentId={selectedId} />
+
               <form onSubmit={onPatch} className={`${card} space-y-3`}>
                 <p className="text-sm font-medium text-foreground">Quick update</p>
                 <div className="grid gap-3 sm:grid-cols-2">

@@ -191,3 +191,40 @@ public sealed record PublicImpactSnapshotDto(
     bool IsPublished);
 
 public sealed record SafehouseOptionDto(int Id, string Code, string Name, string Region);
+
+// ── ML feature extraction DTOs ────────────────────────────────────────────────
+
+/// <summary>Pre-computed feature vector for the Reintegration Readiness model.</summary>
+public sealed record ReintegrationFeaturesDto(
+    int    ResidentId,
+    string SafehouseId,
+    int    AgeAtEntry,
+    int    DaysInProgram,
+    string ReferralSource,
+    double TotalSessions,
+    double PctProgressNoted,
+    double PctConcernsFlagged,
+    double LatestAttendanceRate,
+    double AvgProgressPercent,
+    double AvgGeneralHealthScore,
+    double PctPsychCheckupDone,
+    double NumHealthRecords,
+    double TotalIncidents,
+    double NumSevereIncidents,
+    double TotalPlans,
+    double PctPlansAchieved
+);
+
+/// <summary>Pre-computed feature vector for the Donor Churn model.</summary>
+public sealed record DonorChurnFeaturesDto(
+    int    SupporterId,
+    string SupporterType,
+    double TotalDonations,
+    double TotalAmountPhp,
+    double MonthsSinceLastGift,
+    double AvgGiftAmount,
+    double DonationFrequency,
+    double IsRecurring,
+    double NumCampaigns,
+    double ChannelDiversity
+);

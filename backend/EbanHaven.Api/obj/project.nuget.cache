@@ -1,27 +1,18 @@
 {
   "version": 2,
-  "dgSpecHash": "bDPRQ1tR00M=",
+  "dgSpecHash": "pzHN8WG6cJ8=",
   "success": true,
-  "projectFilePath": "/Users/ethan/Desktop/Documents IS Junior Core (WINTER)/INTEX/Eban-Haven/backend/EbanHaven.Api/EbanHaven.Api.csproj",
+  "projectFilePath": "/Users/lukecarr/Desktop/IS 455 Pipelines/Eban-Haven/backend/EbanHaven.Api/EbanHaven.Api.csproj",
   "expectedPackageFiles": [
-    "/var/folders/dv/s0rsxjqs12dg8hj5s7ss2jgc0000gn/T/cursor-sandbox-cache/f3c39bd8e96668d5e796b9a699d829f6/nuget/csvhelper/33.0.1/csvhelper.33.0.1.nupkg.sha512",
-    "/var/folders/dv/s0rsxjqs12dg8hj5s7ss2jgc0000gn/T/cursor-sandbox-cache/f3c39bd8e96668d5e796b9a699d829f6/nuget/microsoft.aspnetcore.authentication.jwtbearer/10.0.1/microsoft.aspnetcore.authentication.jwtbearer.10.0.1.nupkg.sha512",
-    "/var/folders/dv/s0rsxjqs12dg8hj5s7ss2jgc0000gn/T/cursor-sandbox-cache/f3c39bd8e96668d5e796b9a699d829f6/nuget/microsoft.entityframeworkcore/10.0.4/microsoft.entityframeworkcore.10.0.4.nupkg.sha512",
-    "/var/folders/dv/s0rsxjqs12dg8hj5s7ss2jgc0000gn/T/cursor-sandbox-cache/f3c39bd8e96668d5e796b9a699d829f6/nuget/microsoft.entityframeworkcore.abstractions/10.0.4/microsoft.entityframeworkcore.abstractions.10.0.4.nupkg.sha512",
-    "/var/folders/dv/s0rsxjqs12dg8hj5s7ss2jgc0000gn/T/cursor-sandbox-cache/f3c39bd8e96668d5e796b9a699d829f6/nuget/microsoft.entityframeworkcore.analyzers/10.0.4/microsoft.entityframeworkcore.analyzers.10.0.4.nupkg.sha512",
-    "/var/folders/dv/s0rsxjqs12dg8hj5s7ss2jgc0000gn/T/cursor-sandbox-cache/f3c39bd8e96668d5e796b9a699d829f6/nuget/microsoft.entityframeworkcore.relational/10.0.4/microsoft.entityframeworkcore.relational.10.0.4.nupkg.sha512",
-    "/var/folders/dv/s0rsxjqs12dg8hj5s7ss2jgc0000gn/T/cursor-sandbox-cache/f3c39bd8e96668d5e796b9a699d829f6/nuget/microsoft.identitymodel.abstractions/8.0.1/microsoft.identitymodel.abstractions.8.0.1.nupkg.sha512",
-    "/var/folders/dv/s0rsxjqs12dg8hj5s7ss2jgc0000gn/T/cursor-sandbox-cache/f3c39bd8e96668d5e796b9a699d829f6/nuget/microsoft.identitymodel.jsonwebtokens/8.0.1/microsoft.identitymodel.jsonwebtokens.8.0.1.nupkg.sha512",
-    "/var/folders/dv/s0rsxjqs12dg8hj5s7ss2jgc0000gn/T/cursor-sandbox-cache/f3c39bd8e96668d5e796b9a699d829f6/nuget/microsoft.identitymodel.logging/8.0.1/microsoft.identitymodel.logging.8.0.1.nupkg.sha512",
-    "/var/folders/dv/s0rsxjqs12dg8hj5s7ss2jgc0000gn/T/cursor-sandbox-cache/f3c39bd8e96668d5e796b9a699d829f6/nuget/microsoft.identitymodel.protocols/8.0.1/microsoft.identitymodel.protocols.8.0.1.nupkg.sha512",
-    "/var/folders/dv/s0rsxjqs12dg8hj5s7ss2jgc0000gn/T/cursor-sandbox-cache/f3c39bd8e96668d5e796b9a699d829f6/nuget/microsoft.identitymodel.protocols.openidconnect/8.0.1/microsoft.identitymodel.protocols.openidconnect.8.0.1.nupkg.sha512",
-    "/var/folders/dv/s0rsxjqs12dg8hj5s7ss2jgc0000gn/T/cursor-sandbox-cache/f3c39bd8e96668d5e796b9a699d829f6/nuget/microsoft.identitymodel.tokens/8.0.1/microsoft.identitymodel.tokens.8.0.1.nupkg.sha512",
-    "/var/folders/dv/s0rsxjqs12dg8hj5s7ss2jgc0000gn/T/cursor-sandbox-cache/f3c39bd8e96668d5e796b9a699d829f6/nuget/npgsql/10.0.2/npgsql.10.0.2.nupkg.sha512",
-    "/var/folders/dv/s0rsxjqs12dg8hj5s7ss2jgc0000gn/T/cursor-sandbox-cache/f3c39bd8e96668d5e796b9a699d829f6/nuget/npgsql.entityframeworkcore.postgresql/10.0.1/npgsql.entityframeworkcore.postgresql.10.0.1.nupkg.sha512",
-    "/var/folders/dv/s0rsxjqs12dg8hj5s7ss2jgc0000gn/T/cursor-sandbox-cache/f3c39bd8e96668d5e796b9a699d829f6/nuget/openai/2.1.0/openai.2.1.0.nupkg.sha512",
-    "/var/folders/dv/s0rsxjqs12dg8hj5s7ss2jgc0000gn/T/cursor-sandbox-cache/f3c39bd8e96668d5e796b9a699d829f6/nuget/system.clientmodel/1.2.1/system.clientmodel.1.2.1.nupkg.sha512",
-    "/var/folders/dv/s0rsxjqs12dg8hj5s7ss2jgc0000gn/T/cursor-sandbox-cache/f3c39bd8e96668d5e796b9a699d829f6/nuget/system.identitymodel.tokens.jwt/8.0.1/system.identitymodel.tokens.jwt.8.0.1.nupkg.sha512",
-    "/var/folders/dv/s0rsxjqs12dg8hj5s7ss2jgc0000gn/T/cursor-sandbox-cache/f3c39bd8e96668d5e796b9a699d829f6/nuget/system.memory.data/6.0.0/system.memory.data.6.0.0.nupkg.sha512"
+    "/Users/lukecarr/.nuget/packages/csvhelper/33.0.1/csvhelper.33.0.1.nupkg.sha512",
+    "/Users/lukecarr/.nuget/packages/microsoft.aspnetcore.authentication.jwtbearer/10.0.1/microsoft.aspnetcore.authentication.jwtbearer.10.0.1.nupkg.sha512",
+    "/Users/lukecarr/.nuget/packages/microsoft.identitymodel.abstractions/8.0.1/microsoft.identitymodel.abstractions.8.0.1.nupkg.sha512",
+    "/Users/lukecarr/.nuget/packages/microsoft.identitymodel.jsonwebtokens/8.0.1/microsoft.identitymodel.jsonwebtokens.8.0.1.nupkg.sha512",
+    "/Users/lukecarr/.nuget/packages/microsoft.identitymodel.logging/8.0.1/microsoft.identitymodel.logging.8.0.1.nupkg.sha512",
+    "/Users/lukecarr/.nuget/packages/microsoft.identitymodel.protocols/8.0.1/microsoft.identitymodel.protocols.8.0.1.nupkg.sha512",
+    "/Users/lukecarr/.nuget/packages/microsoft.identitymodel.protocols.openidconnect/8.0.1/microsoft.identitymodel.protocols.openidconnect.8.0.1.nupkg.sha512",
+    "/Users/lukecarr/.nuget/packages/microsoft.identitymodel.tokens/8.0.1/microsoft.identitymodel.tokens.8.0.1.nupkg.sha512",
+    "/Users/lukecarr/.nuget/packages/system.identitymodel.tokens.jwt/8.0.1/system.identitymodel.tokens.jwt.8.0.1.nupkg.sha512"
   ],
   "logs": []
 }

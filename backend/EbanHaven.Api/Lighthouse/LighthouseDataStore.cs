@@ -810,6 +810,163 @@ public sealed class LighthouseDataStore
         }
     }
 
+    // ── ML feature extraction ─────────────────────────────────────────────────
+
+    /// <summary>
+    /// Aggregates CSV data into the feature vector expected by the
+    /// Reintegration Readiness model. Returns null if the resident is unknown.
+    /// </summary>
+    public ReintegrationFeaturesDto? GetReintegrationFeatures(int residentId)
+    {
+        lock (_lock)
+        {
+            var r = _residents.FirstOrDefault(x => GetInt(x, "resident_id") == residentId);
+            if (r is null) return null;
+
+            var now = DateTime.UtcNow;
+
+            int ageAtEntry = GetInt(r, "age_at_entry");
+            var safeId     = GetStr(r, "safehouse_id");
+            var referral   = GetStr(r, "referral_source");
+            int daysInProg = 0;
+            if (DateTime.TryParse(GetStr(r, "date_of_admission"), out var admDate))
+                daysInProg = Math.Max(0, (int)(now - admDate).TotalDays);
+
+            // Process recordings
+            var recs = _processRecordings.Where(p => GetInt(p, "resident_id") == residentId).ToList();
+            int totalSessions   = recs.Count;
+            double pctProgress  = totalSessions == 0 ? 0.0 : recs.Count(p => GetBool(p, "progress_noted"))  / (double)totalSessions;
+            double pctConcerns  = totalSessions == 0 ? 0.0 : recs.Count(p => GetBool(p, "concerns_flagged")) / (double)totalSessions;
+            int totalIncidents  = recs.Count(p => GetBool(p, "concerns_flagged"));
+
+            // Education records
+            var edRecs = _educationRecords.Where(e => GetInt(e, "resident_id") == residentId).ToList();
+            double latestAttendance = 0.0;
+            double avgProgress      = 0.0;
+            if (edRecs.Count > 0)
+            {
+                var latest = edRecs
+                    .OrderByDescending(e => int.TryParse(GetStr(e, "record_seq"), out var seq) ? seq : 0)
+                    .First();
+                if (double.TryParse(GetStr(latest, "attendance_rate"), NumberStyles.Any, CultureInfo.InvariantCulture, out var ar))
+                    latestAttendance = ar;
+                var progVals = edRecs
+                    .Select(e => double.TryParse(GetStr(e, "progress_percent"), NumberStyles.Any, CultureInfo.InvariantCulture, out var v) ? v : (double?)null)
+                    .Where(v => v.HasValue).Select(v => v!.Value).ToList();
+                if (progVals.Count > 0) avgProgress = progVals.Average();
+            }
+
+            // Health records
+            var hlRecs = _healthRecords.Where(h => GetInt(h, "resident_id") == residentId).ToList();
+            double avgHealth = 5.0;
+            double pctPsych  = 0.0;
+            if (hlRecs.Count > 0)
+            {
+                var hlVals = hlRecs
+                    .Select(h => double.TryParse(GetStr(h, "general_health_score"), NumberStyles.Any, CultureInfo.InvariantCulture, out var v) ? v : (double?)null)
+                    .Where(v => v.HasValue).Select(v => v!.Value).ToList();
+                if (hlVals.Count > 0) avgHealth = hlVals.Average();
+                pctPsych = hlRecs.Count(h => GetBool(h, "psychological_checkup_done")) / (double)hlRecs.Count;
+            }
+
+            // Intervention plans
+            var plans    = _interventionPlans.Where(p => GetInt(p, "resident_id") == residentId).ToList();
+            int totalPl  = plans.Count;
+            double pctAch = totalPl == 0 ? 0.0
+                : plans.Count(p => GetStr(p, "status").Equals("Achieved", StringComparison.OrdinalIgnoreCase)) / (double)totalPl;
+
+            return new ReintegrationFeaturesDto(
+                ResidentId:           residentId,
+                SafehouseId:          string.IsNullOrWhiteSpace(safeId) ? "Unknown" : safeId,
+                AgeAtEntry:           ageAtEntry == 0 ? 15 : Math.Clamp(ageAtEntry, 10, 25),
+                DaysInProgram:        daysInProg,
+                ReferralSource:       string.IsNullOrWhiteSpace(referral) ? "Unknown" : referral,
+                TotalSessions:        totalSessions,
+                PctProgressNoted:     pctProgress,
+                PctConcernsFlagged:   pctConcerns,
+                LatestAttendanceRate: latestAttendance,
+                AvgProgressPercent:   avgProgress,
+                AvgGeneralHealthScore: Math.Clamp(avgHealth, 1.0, 10.0),
+                PctPsychCheckupDone:  pctPsych,
+                NumHealthRecords:     hlRecs.Count,
+                TotalIncidents:       totalIncidents,
+                NumSevereIncidents:   0,
+                TotalPlans:           totalPl,
+                PctPlansAchieved:     pctAch
+            );
+        }
+    }
+
+    /// <summary>
+    /// Returns one feature vector per monetary-donor supporter for the
+    /// Donor Churn model.
+    /// </summary>
+    public IReadOnlyList<DonorChurnFeaturesDto> GetDonorChurnFeatures()
+    {
+        lock (_lock)
+        {
+            var now = DateTime.UtcNow;
+            return _supporters
+                .Where(s =>
+                {
+                    var t = GetStr(s, "supporter_type");
+                    return t.Equals("MonetaryDonor", StringComparison.OrdinalIgnoreCase)
+                        || t.Equals("PartnerOrganization", StringComparison.OrdinalIgnoreCase);
+                })
+                .Select(s =>
+                {
+                    var sid   = GetInt(s, "supporter_id");
+                    var sType = GetStr(s, "supporter_type");
+                    var chan  = GetStr(s, "acquisition_channel");
+
+                    var gifts = _donations
+                        .Where(d => GetInt(d, "supporter_id") == sid
+                                 && GetStr(d, "donation_type").Equals("Monetary", StringComparison.OrdinalIgnoreCase)
+                                 && double.TryParse(GetStr(d, "amount"), NumberStyles.Any, CultureInfo.InvariantCulture, out _))
+                        .ToList();
+
+                    double totalDon  = gifts.Count;
+                    double totalAmt  = gifts.Sum(d => double.TryParse(GetStr(d, "amount"), NumberStyles.Any, CultureInfo.InvariantCulture, out var a) ? a : 0);
+                    double avgAmt    = totalDon > 0 ? totalAmt / totalDon : 0;
+                    double monthsAgo = 999;
+                    if (gifts.Count > 0)
+                    {
+                        var lastDate = gifts
+                            .Select(d => ParseDateTime(GetStr(d, "donation_date")))
+                            .Where(d => d.HasValue)
+                            .Select(d => d!.Value)
+                            .DefaultIfEmpty(now)
+                            .Max();
+                        monthsAgo = (now - lastDate).TotalDays / 30.4;
+                    }
+                    var datesOrdered = gifts
+                        .Select(d => ParseDateTime(GetStr(d, "donation_date")))
+                        .Where(d => d.HasValue).Select(d => d!.Value)
+                        .OrderBy(d => d).ToList();
+                    double freq = datesOrdered.Count > 1
+                        ? totalDon / Math.Max(1, (datesOrdered.Last() - datesOrdered.First()).TotalDays / 30.4)
+                        : 0;
+                    double isRec  = gifts.Any(d => GetBool(d, "is_recurring")) ? 1.0 : 0.0;
+                    double numCam = gifts.Select(d => GetStr(d, "campaign_name")).Distinct().Count(c => !string.IsNullOrWhiteSpace(c));
+                    double chanDiv = string.IsNullOrWhiteSpace(chan) ? 1 : 1; // single channel per supporter in this schema
+
+                    return new DonorChurnFeaturesDto(
+                        SupporterId:        sid,
+                        SupporterType:      sType,
+                        TotalDonations:     totalDon,
+                        TotalAmountPhp:     totalAmt,
+                        MonthsSinceLastGift: monthsAgo,
+                        AvgGiftAmount:      avgAmt,
+                        DonationFrequency:  freq,
+                        IsRecurring:        isRec,
+                        NumCampaigns:       numCam,
+                        ChannelDiversity:   chanDiv
+                    );
+                })
+                .ToList();
+        }
+    }
+
     private static IReadOnlyDictionary<string, string?> ParsePythonishMetrics(string raw)
     {
         var d = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);

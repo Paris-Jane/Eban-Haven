@@ -18,6 +18,7 @@ import {
 } from 'lucide-react'
 import { logout } from '../api/auth'
 import type { LucideIcon } from 'lucide-react'
+import { SiteLogoMark } from '../components/SiteLogoMark'
 import { SITE_DISPLAY_NAME } from '../site'
 
 type NavItem = {
@@ -68,12 +69,12 @@ export function AdminLayout() {
         <div className="flex h-16 items-center justify-between border-b border-sidebar-border px-4">
           <Link
             to="/"
-            className="flex items-center gap-2 font-heading text-lg font-semibold text-sidebar-primary-foreground"
+            className="flex min-w-0 items-center gap-2 font-heading text-lg font-semibold text-sidebar-primary-foreground"
             onClick={() => setSidebarOpen(false)}
           >
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-sidebar-primary">
-              <Heart className="h-4 w-4 fill-current text-sidebar-primary-foreground" />
-            </div>
+            <span className="flex shrink-0 rounded-lg bg-white p-1 shadow-sm ring-1 ring-sidebar-border/40">
+              <SiteLogoMark className="h-7 max-h-7 max-w-[8.5rem] sm:h-8 sm:max-h-8 sm:max-w-[9.5rem]" />
+            </span>
             <span className="truncate">{SITE_DISPLAY_NAME}</span>
           </Link>
           <button

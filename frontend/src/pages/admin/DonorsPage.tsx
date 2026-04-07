@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
+import { AtRiskDonors } from '../../components/ml/AtRiskDonors'
 import {
   alertError,
   btnPrimary,
@@ -250,6 +251,9 @@ export function DonorsPage() {
           </div>
         </form>
       </section>
+
+      {/* ── ML: At-Risk Donors ── */}
+      <AtRiskDonors />
 
       <section>
         <h3 className="mb-3 text-sm font-semibold text-foreground">Supporters</h3>
