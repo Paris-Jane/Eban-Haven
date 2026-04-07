@@ -1,4 +1,5 @@
 import { motion } from 'framer-motion'
+import { PUBLIC_CONTACT, SITE_DISPLAY_NAME } from '../site'
 
 const fade = {
   hidden: { opacity: 0, y: 16 },
@@ -12,7 +13,7 @@ export function AccessibilityPage() {
         <motion.div initial="hidden" animate="visible" variants={fade}>
           <h1 className="font-heading text-4xl font-bold text-foreground">Accessibility</h1>
           <p className="mt-4 text-muted-foreground">
-            Haven of Hope is committed to making our public website usable for as many people as possible. We
+            {SITE_DISPLAY_NAME} is committed to making our public website usable for as many people as possible. We
             aim to follow WCAG 2.1 Level AA practices for structure, contrast, keyboard access, and form labels.
           </p>
           <h2 className="mt-10 font-heading text-xl font-semibold text-foreground">What we do</h2>
@@ -29,8 +30,8 @@ export function AccessibilityPage() {
           <h2 className="mt-10 font-heading text-xl font-semibold text-foreground">Feedback</h2>
           <p className="mt-4 text-muted-foreground">
             To report a barrier or request a reasonable adjustment, email{' '}
-            <a href="mailto:accessibility@havenofhope.org" className="text-primary hover:underline">
-              accessibility@havenofhope.org
+            <a href={`mailto:${PUBLIC_CONTACT.accessibilityEmail}`} className="text-primary hover:underline">
+              {PUBLIC_CONTACT.accessibilityEmail}
             </a>
             .
           </p>

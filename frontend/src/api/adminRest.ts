@@ -15,15 +15,16 @@ export async function getSupporters(): Promise<T.Supporter[]> {
   return parseJson<T.Supporter[]>(await apiFetch(`${base}/supporters`))
 }
 
-export async function createSupporter(body: {
-  supporterType: string
-  displayName: string
-  email?: string
-  region?: string
-  status?: string
-}): Promise<T.Supporter> {
+export async function createSupporter(body: T.CreateSupporterBody): Promise<T.Supporter> {
+  const payload = {
+    supporterType: body.supporterType,
+    displayName: body.displayName,
+    email: body.email,
+    region: body.region,
+    status: body.status,
+  }
   return parseJson<T.Supporter>(
-    await apiFetch(`${base}/supporters`, { method: 'POST', body: JSON.stringify(body) }),
+    await apiFetch(`${base}/supporters`, { method: 'POST', body: JSON.stringify(payload) }),
   )
 }
 

@@ -2,7 +2,7 @@ import { useEffect } from 'react'
 import { useSite } from '../context/SiteContext'
 import { SITE_BROWSER_TITLE, SITE_META_DESCRIPTION } from '../site'
 
-/** Exact reference document title: `HavenOfHope Management`. */
+/** Sets document title from {@link SITE_BROWSER_TITLE}. */
 export function DocumentTitle() {
   const { description } = useSite()
 

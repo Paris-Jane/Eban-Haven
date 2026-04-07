@@ -95,3 +95,73 @@ export async function getInterventionPlans(residentId?: number) {
 export async function getReportsSummary() {
   return useSupabaseForLighthouseData() ? sb.getReportsSummary() : rest.getReportsSummary()
 }
+
+function sbDataOnly(): never {
+  throw new Error(
+    'This action needs Supabase program data. Set VITE_USE_SUPABASE_DATA=true and apply lighthouse migrations.',
+  )
+}
+
+export async function patchSupporterFields(id: number, fields: Record<string, string | null | undefined>) {
+  return useSupabaseForLighthouseData() ? sb.patchSupporterFields(id, fields) : sbDataOnly()
+}
+
+export async function deleteSupporter(id: number) {
+  return useSupabaseForLighthouseData() ? sb.deleteSupporter(id) : sbDataOnly()
+}
+
+export async function patchDonationFields(id: number, fields: Record<string, string | null | undefined>) {
+  return useSupabaseForLighthouseData() ? sb.patchDonationFields(id, fields) : sbDataOnly()
+}
+
+export async function deleteDonation(id: number) {
+  return useSupabaseForLighthouseData() ? sb.deleteDonation(id) : sbDataOnly()
+}
+
+export async function createAllocation(body: Parameters<typeof sb.createAllocation>[0]) {
+  return useSupabaseForLighthouseData() ? sb.createAllocation(body) : sbDataOnly()
+}
+
+export async function patchAllocationFields(id: number, fields: Record<string, string | null | undefined>) {
+  return useSupabaseForLighthouseData() ? sb.patchAllocationFields(id, fields) : sbDataOnly()
+}
+
+export async function deleteAllocation(id: number) {
+  return useSupabaseForLighthouseData() ? sb.deleteAllocation(id) : sbDataOnly()
+}
+
+export async function listEducationRecords(residentId?: number) {
+  return useSupabaseForLighthouseData() ? sb.listEducationRecords(residentId) : []
+}
+
+export async function listHealthRecords(residentId?: number) {
+  return useSupabaseForLighthouseData() ? sb.listHealthRecords(residentId) : []
+}
+
+export async function listIncidentReports(residentId?: number) {
+  return useSupabaseForLighthouseData() ? sb.listIncidentReports(residentId) : []
+}
+
+export async function createEducationRecord(residentId: number, fields: Record<string, string>) {
+  return useSupabaseForLighthouseData() ? sb.createEducationRecord(residentId, fields) : sbDataOnly()
+}
+
+export async function patchEducationRecord(id: number, fields: Record<string, string | null | undefined>) {
+  return useSupabaseForLighthouseData() ? sb.patchEducationRecord(id, fields) : sbDataOnly()
+}
+
+export async function createHealthRecord(residentId: number, fields: Record<string, string>) {
+  return useSupabaseForLighthouseData() ? sb.createHealthRecord(residentId, fields) : sbDataOnly()
+}
+
+export async function patchHealthRecord(id: number, fields: Record<string, string | null | undefined>) {
+  return useSupabaseForLighthouseData() ? sb.patchHealthRecord(id, fields) : sbDataOnly()
+}
+
+export async function createIncidentReport(residentId: number, fields: Record<string, string>) {
+  return useSupabaseForLighthouseData() ? sb.createIncidentReport(residentId, fields) : sbDataOnly()
+}
+
+export async function patchIncidentReport(id: number, fields: Record<string, string | null | undefined>) {
+  return useSupabaseForLighthouseData() ? sb.patchIncidentReport(id, fields) : sbDataOnly()
+}

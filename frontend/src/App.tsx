@@ -1,18 +1,27 @@
 import { Routes, Route } from 'react-router-dom'
 import { PublicLayout } from './layouts/PublicLayout'
 import { AdminLayout } from './layouts/AdminLayout'
+import { RequireAdmin } from './components/RequireAdmin'
 import { RequireStaff } from './components/RequireStaff'
+import { RequireAuth } from './components/RequireAuth'
 import { HomePage } from './pages/HomePage'
 import { ImpactPage } from './pages/ImpactPage'
 import { PrivacyPage } from './pages/PrivacyPage'
 import { LoginPage } from './pages/LoginPage'
 import { AccessibilityPage } from './pages/AccessibilityPage'
+import { DonorDashboardPage } from './pages/DonorDashboardPage'
 import { AdminDashboardPage } from './pages/admin/AdminDashboardPage'
-import { DonorsPage } from './pages/admin/DonorsPage'
-import { CaseloadPage } from './pages/admin/CaseloadPage'
+import { DonorsAdminPage } from './pages/admin/DonorsAdminPage'
+import { DonorDetailPage } from './pages/admin/DonorDetailPage'
+import { ContributionsAdminPage } from './pages/admin/ContributionsAdminPage'
+import { AllocationsAdminPage } from './pages/admin/AllocationsAdminPage'
+import { ResidentsPage } from './pages/admin/ResidentsPage'
+import { ResidentDetailPage } from './pages/admin/ResidentDetailPage'
 import { ProcessRecordingsPage } from './pages/admin/ProcessRecordingsPage'
-import { VisitationsPage } from './pages/admin/VisitationsPage'
+import { HomeVisitationsAdminPage } from './pages/admin/HomeVisitationsAdminPage'
+import { CaseConferencesAdminPage } from './pages/admin/CaseConferencesAdminPage'
 import { ReportsPage } from './pages/admin/ReportsPage'
+import { SocialPlannerPage } from './pages/admin/SocialPlannerPage'
 
 export default function App() {
   return (
@@ -23,6 +32,14 @@ export default function App() {
         <Route path="/privacy" element={<PrivacyPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/accessibility" element={<AccessibilityPage />} />
+        <Route
+          path="/donor-dashboard"
+          element={
+            <RequireAuth>
+              <DonorDashboardPage />
+            </RequireAuth>
+          }
+        />
       </Route>
       <Route
         path="/admin"
@@ -33,11 +50,24 @@ export default function App() {
         }
       >
         <Route index element={<AdminDashboardPage />} />
-        <Route path="donors" element={<DonorsPage />} />
-        <Route path="caseload" element={<CaseloadPage />} />
+        <Route path="donors" element={<DonorsAdminPage />} />
+        <Route path="donors/:id" element={<DonorDetailPage />} />
+        <Route path="contributions" element={<ContributionsAdminPage />} />
+        <Route path="allocations" element={<AllocationsAdminPage />} />
+        <Route path="residents" element={<ResidentsPage />} />
+        <Route path="residents/:id" element={<ResidentDetailPage />} />
         <Route path="process-recordings" element={<ProcessRecordingsPage />} />
-        <Route path="visitations" element={<VisitationsPage />} />
+        <Route path="home-visitations" element={<HomeVisitationsAdminPage />} />
+        <Route path="case-conferences" element={<CaseConferencesAdminPage />} />
         <Route path="reports" element={<ReportsPage />} />
+        <Route
+          path="social-planner"
+          element={
+            <RequireAdmin>
+              <SocialPlannerPage />
+            </RequireAdmin>
+          }
+        />
       </Route>
     </Routes>
   )

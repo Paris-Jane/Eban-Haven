@@ -1,47 +1,46 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import {
-  GraduationCap,
-  Heart,
-  Home,
-  UserCheck,
-  Users,
-} from 'lucide-react'
+import { GraduationCap, Heart, Home, UserCheck, Users } from 'lucide-react'
 import { getImpactSnapshots, getImpactSummary, type PublicImpactSnapshot, type PublicImpactSummary } from '../api/impact'
+import { SITE_DISPLAY_NAME } from '../site'
 
 const fade = {
   hidden: { opacity: 0, y: 20 },
   visible: { opacity: 1, y: 0, transition: { duration: 0.5 } },
 }
 
+const crisisStats = [
+  { value: '1 in 3', label: 'girls in Ghana experiences physical or sexual violence before age 18' },
+  { value: '40%', label: 'of trafficking victims in West Africa are children under 18' },
+  { value: '600,000+', label: 'children estimated in situations of child labor in Ghana (global estimates context)' },
+  { value: '72%', label: 'of survivors lack consistent access to formal rehabilitation services' },
+] as const
+
 const allocation = [
   {
     pct: '45%',
     area: 'Wellbeing & counseling',
-    desc: 'Trauma-informed therapy, health services, and nutritional support',
+    desc: 'Trauma-informed therapy, health services, and nutritional support for every resident.',
   },
   {
     pct: '30%',
     area: 'Education',
-    desc: 'Bridge programs, school supplies, vocational training, and tutoring',
+    desc: 'School enrollment, bridge programs, vocational training, and tutoring.',
   },
   {
     pct: '25%',
     area: 'Operations',
-    desc: 'Safehouse maintenance, staff support, transport, and administrative costs',
+    desc: 'Safehouse maintenance, dedicated staff, transport, and administration.',
   },
 ] as const
 
-const staggerHeader = {
-  visible: { transition: { staggerChildren: 0.12 } },
-}
-
-const yf = {
-  hidden: { opacity: 0, y: 30 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.6 } },
-}
-
 const moneyPhp = new Intl.NumberFormat(undefined, { style: 'currency', currency: 'PHP' })
+
+const btnPrimary =
+  'inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-primary px-8 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90'
+const btnOutline =
+  'inline-flex h-11 items-center justify-center rounded-lg border border-primary bg-transparent px-8 text-sm font-medium text-primary transition-colors hover:bg-primary/10'
 
 function buildStats(summary: PublicImpactSummary | null) {
   const base = [
@@ -52,28 +51,24 @@ function buildStats(summary: PublicImpactSummary | null) {
     { icon: UserCheck, color: 'text-primary' as const },
     { icon: Users, color: 'text-accent' as const },
   ]
+  const labels = [
+    'Girls currently in our care (active aggregate)',
+    'Active safehouses',
+    'School enrollment / progress (avg. %)',
+    'Health improvement (avg. score)',
+    'Successful family reintegration (rate)',
+    'Supporters worldwide',
+  ]
   if (!summary) {
-    return base.map((b, i) => ({
-      ...b,
-      value: '—',
-      label: ['Active residents', 'Safehouses', 'Education (avg.)', 'Health score (avg.)', 'Reintegration rate', 'Supporters'][i],
-    }))
+    return base.map((b, i) => ({ ...b, value: '—', label: labels[i] ?? '' }))
   }
   return [
-    { ...base[0], value: String(summary.activeResidents), label: 'Active residents (aggregate)' },
-    { ...base[1], value: String(summary.safehouseCount), label: 'Active safehouses' },
-    {
-      ...base[2],
-      value: `${summary.avgEducationProgressPercent.toFixed(0)}%`,
-      label: 'Avg. education progress (records)',
-    },
-    { ...base[3], value: summary.avgHealthScore.toFixed(2), label: 'Avg. general health score (1–5 scale)' },
-    {
-      ...base[4],
-      value: `${summary.reintegrationSuccessRatePercent.toFixed(0)}%`,
-      label: 'Reintegration success rate (anonymized)',
-    },
-    { ...base[5], value: String(summary.supporterCount), label: 'Supporters in network' },
+    { ...base[0], value: String(summary.activeResidents), label: labels[0] },
+    { ...base[1], value: String(summary.safehouseCount), label: labels[1] },
+    { ...base[2], value: `${summary.avgEducationProgressPercent.toFixed(0)}%`, label: labels[2] },
+    { ...base[3], value: summary.avgHealthScore.toFixed(2), label: labels[3] },
+    { ...base[4], value: `${summary.reintegrationSuccessRatePercent.toFixed(0)}%`, label: labels[4] },
+    { ...base[5], value: String(summary.supporterCount), label: labels[5] },
   ]
 }
 
@@ -106,37 +101,25 @@ export function ImpactPage() {
     <div>
       <section className="relative overflow-hidden py-20 lg:py-28">
         <div className="absolute inset-0 bg-gradient-to-b from-primary/5 to-transparent" />
-        <div className="relative mx-auto max-w-7xl px-6 text-center lg:px-8">
-          <motion.div
-            initial="hidden"
-            animate="visible"
-            variants={staggerHeader}
-            className="mx-auto max-w-3xl"
-          >
-            <motion.span
-              variants={yf}
-              className="text-xs font-semibold uppercase tracking-widest text-accent"
-            >
-              Transparency report
-            </motion.span>
-            <motion.h1
-              variants={yf}
-              className="mt-3 font-heading text-4xl font-bold text-foreground lg:text-5xl"
-            >
+        <div className="relative mx-auto max-w-4xl px-6 text-center lg:px-8">
+          <motion.div initial="hidden" animate="visible" variants={{ visible: { transition: { staggerChildren: 0.1 } } }}>
+            <motion.p variants={fade} className="text-xs font-semibold uppercase tracking-widest text-accent">
               Our impact
-            </motion.h1>
-            <motion.p variants={yf} className="mx-auto mt-4 max-w-2xl text-muted-foreground">
-              Aggregated, anonymized metrics from our operational dataset: outcomes, progress indicators, and
-              resource use — no personally identifying information is shown on this public dashboard.
             </motion.p>
-            {summary && (
-              <motion.p variants={yf} className="mx-auto mt-3 max-w-xl text-sm text-muted-foreground">
-                Public monetary support (prior calendar month):{' '}
-                <span className="font-medium text-foreground">{moneyPhp.format(summary.donationsLastMonthPhp)}</span>
-              </motion.p>
-            )}
+            <motion.h1 variants={fade} className="mt-3 font-heading text-4xl font-bold text-foreground lg:text-5xl">
+              Restoring hope, one life at a time.
+            </motion.h1>
+            <motion.p variants={fade} className="mx-auto mt-4 max-w-2xl text-muted-foreground">
+              Every number on this page represents a girl who deserved safety, love, and a future — and found it
+              through {SITE_DISPLAY_NAME}. Your generosity makes this possible.
+            </motion.p>
+            <motion.div variants={fade} className="mt-8 flex flex-wrap justify-center gap-3">
+              <Link to="/login" className={btnPrimary}>
+                Donate today
+              </Link>
+            </motion.div>
             {loadError && (
-              <motion.p variants={yf} className="mt-4 text-sm text-destructive">
+              <motion.p variants={fade} className="mt-4 text-sm text-destructive">
                 {loadError}
               </motion.p>
             )}
@@ -144,24 +127,70 @@ export function ImpactPage() {
         </div>
       </section>
 
-      <section className="pb-20 lg:pb-28">
-        <div className="mx-auto max-w-6xl px-6 lg:px-8">
+      <section className="border-t border-border bg-muted/40 py-20 lg:py-28">
+        <div className="mx-auto max-w-7xl px-6 lg:px-8">
+          <div className="mx-auto mb-14 max-w-3xl text-center">
+            <p className="text-xs font-semibold uppercase tracking-widest text-accent">Why this matters</p>
+            <h2 className="mt-3 font-heading text-3xl font-bold text-foreground lg:text-4xl">
+              The crisis facing girls in Ghana
+            </h2>
+            <p className="mt-4 text-muted-foreground">
+              Ghana faces serious risks of child abuse, exploitation, and trafficking. Behind every statistic is a
+              child who needed someone to step in. We are that someone — and so are you.
+            </p>
+          </div>
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+            {crisisStats.map((c, i) => (
+              <motion.div
+                key={c.label}
+                initial={{ opacity: 0, y: 16 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: i * 0.05 }}
+                className="rounded-2xl border border-border bg-card p-6 text-center"
+              >
+                <p className="font-heading text-3xl font-bold text-primary">{c.value}</p>
+                <p className="mt-2 text-sm text-muted-foreground">{c.label}</p>
+              </motion.div>
+            ))}
+          </div>
+          <p className="mx-auto mt-10 max-w-3xl text-center text-sm text-muted-foreground">
+            The cycle of poverty and abuse is not inevitable. Girls who receive holistic rehabilitation — safe
+            housing, counseling, education, and family support — are far more likely to heal and thrive.{' '}
+            {SITE_DISPLAY_NAME} exists to make that real.
+          </p>
+          <div className="mt-10 text-center">
+            <Link to="/login" className={btnOutline}>
+              Be part of the solution
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      <section className="py-20 lg:py-28">
+        <div className="mx-auto max-w-3xl px-6 text-center lg:px-8">
+          <p className="text-xs font-semibold uppercase tracking-widest text-accent">Our growth</p>
+          <h2 className="mt-3 font-heading text-3xl font-bold text-foreground lg:text-4xl">
+            Girls helped over the years
+          </h2>
+          <p className="mt-4 text-muted-foreground">
+            From a small first cohort to growing safehouse capacity today — every year, more lives change because of
+            donors and partners who show up. Live figures below reflect our current operational dataset.
+          </p>
+        </div>
+        <div className="mx-auto mt-14 max-w-6xl px-6 lg:px-8">
+          <p className="mb-6 text-center text-xs font-semibold uppercase tracking-widest text-accent">
+            By the numbers
+          </p>
           <div className="grid grid-cols-2 gap-4 lg:grid-cols-3 lg:gap-6">
             {stats.map((s, t) => (
               <motion.div
                 key={s.label}
-                initial="hidden"
-                whileInView="visible"
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
-                variants={{
-                  hidden: { opacity: 0, y: 20 },
-                  visible: {
-                    opacity: 1,
-                    y: 0,
-                    transition: { duration: 0.5, delay: t * 0.08 },
-                  },
-                }}
-                className="rounded-2xl border border-border bg-card p-6 text-center transition-shadow hover:shadow-md lg:p-8"
+                transition={{ delay: t * 0.06 }}
+                className="rounded-2xl border border-border bg-card p-6 text-center lg:p-8"
               >
                 <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10">
                   <s.icon className={`h-6 w-6 ${s.color}`} />
@@ -171,44 +200,35 @@ export function ImpactPage() {
               </motion.div>
             ))}
           </div>
+          {summary && (
+            <p className="mt-8 text-center text-sm text-muted-foreground">
+              Public monetary support (prior calendar month):{' '}
+              <span className="font-medium text-foreground">{moneyPhp.format(summary.donationsLastMonthPhp)}</span>
+            </p>
+          )}
         </div>
       </section>
 
       <section className="bg-muted/50 py-20 lg:py-28">
         <div className="mx-auto max-w-4xl px-6 lg:px-8">
-          <motion.div
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true }}
-            variants={fade}
-            className="mb-16 text-center"
-          >
-            <span className="text-xs font-semibold uppercase tracking-widest text-accent">Published snapshots</span>
-            <h2 className="mt-3 font-heading text-3xl font-bold text-foreground lg:text-4xl">
-              Monthly impact updates
-            </h2>
+          <div className="mb-12 text-center">
+            <p className="text-xs font-semibold uppercase tracking-widest text-accent">Monthly updates</p>
+            <h2 className="mt-3 font-heading text-3xl font-bold text-foreground lg:text-4xl">Impact snapshots</h2>
             <p className="mx-auto mt-3 max-w-xl text-sm text-muted-foreground">
-              Selected rows from our public impact snapshot feed (anonymized aggregates).
+              Real stories of progress and milestones your generosity makes possible.
             </p>
-          </motion.div>
+          </div>
           <div className="space-y-6">
             {snapshots.length === 0 && !loadError ? (
               <p className="text-center text-sm text-muted-foreground">Loading snapshots…</p>
             ) : (
               snapshots.map((u, t) => (
-                <motion.div
+                <motion.article
                   key={u.id}
-                  initial="hidden"
-                  whileInView="visible"
+                  initial={{ opacity: 0, x: -12 }}
+                  whileInView={{ opacity: 1, x: 0 }}
                   viewport={{ once: true }}
-                  variants={{
-                    hidden: { opacity: 0, x: -20 },
-                    visible: {
-                      opacity: 1,
-                      x: 0,
-                      transition: { duration: 0.5, delay: t * 0.05 },
-                    },
-                  }}
+                  transition={{ delay: t * 0.04 }}
                   className="rounded-2xl border border-border bg-card p-6 lg:p-8"
                 >
                   <span className="text-xs font-medium text-accent">
@@ -228,7 +248,7 @@ export function ImpactPage() {
                       )}
                     </dl>
                   )}
-                </motion.div>
+                </motion.article>
               ))
             )}
           </div>
@@ -236,40 +256,41 @@ export function ImpactPage() {
       </section>
 
       <section className="py-20 lg:py-28">
+        <div className="mx-auto max-w-3xl px-6 text-center lg:px-8">
+          <p className="text-xs font-semibold uppercase tracking-widest text-accent">Life inside our homes</p>
+          <h2 className="mt-3 font-heading text-3xl font-bold text-foreground lg:text-4xl">
+            A safe place to heal, learn, and grow
+          </h2>
+          <p className="mt-4 text-muted-foreground">
+            Each safehouse is more than shelter — it is a community of healing. Girls receive trauma-informed support,
+            attend school, build skills, and are surrounded by caregivers who believe in their futures. Many arrive
+            frightened; with consistent care, they begin to laugh, dream, and plan again.
+          </p>
+          <div className="mt-8">
+            <Link to="/login" className={btnPrimary}>
+              Help a girl today
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      <section className="border-t border-border bg-muted/40 py-20 lg:py-28">
         <div className="mx-auto max-w-7xl px-6 lg:px-8">
-          <motion.div
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true }}
-            variants={fade}
-            className="mb-16 text-center"
-          >
-            <span className="text-xs font-semibold uppercase tracking-widest text-accent">
-              Your generosity at work
-            </span>
-            <h2 className="mt-3 font-heading text-3xl font-bold text-foreground lg:text-4xl">
-              Where donations go
-            </h2>
+          <div className="mb-12 text-center">
+            <p className="text-xs font-semibold uppercase tracking-widest text-accent">Transparency</p>
+            <h2 className="mt-3 font-heading text-3xl font-bold text-foreground lg:text-4xl">Every peso counts</h2>
             <p className="mx-auto mt-3 max-w-2xl text-sm text-muted-foreground">
-              Illustrative allocation mix aligned with program areas tracked in our donation allocation dataset
-              (education, wellbeing, operations, transport, outreach).
+              We are committed to responsible stewardship. Here is how donations typically support our program areas.
             </p>
-          </motion.div>
+          </div>
           <div className="mx-auto grid max-w-4xl grid-cols-1 gap-6 md:grid-cols-3">
             {allocation.map((a, t) => (
               <motion.div
                 key={a.area}
-                initial="hidden"
-                whileInView="visible"
+                initial={{ opacity: 0, y: 16 }}
+                whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
-                variants={{
-                  hidden: { opacity: 0, y: 20 },
-                  visible: {
-                    opacity: 1,
-                    y: 0,
-                    transition: { duration: 0.5, delay: t * 0.1 },
-                  },
-                }}
+                transition={{ delay: t * 0.08 }}
                 className="rounded-2xl border border-border bg-card p-8 text-center"
               >
                 <p className="font-heading text-4xl font-bold text-primary">{a.pct}</p>
@@ -277,6 +298,27 @@ export function ImpactPage() {
                 <p className="mt-2 text-sm text-muted-foreground">{a.desc}</p>
               </motion.div>
             ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="bg-primary py-20 lg:py-28">
+        <div className="mx-auto max-w-3xl px-6 text-center text-primary-foreground lg:px-8">
+          <h2 className="font-heading text-3xl font-bold lg:text-4xl">A girl is waiting. Will you answer?</h2>
+          <p className="mx-auto mt-4 max-w-xl text-primary-foreground/85">
+            Your gift — no matter the size — provides safety, healing, and a future for a girl who has nowhere else to
+            turn.
+          </p>
+          <div className="mt-8 flex flex-wrap justify-center gap-3">
+            <Link to="/login" className={btnPrimary}>
+              Donate now
+            </Link>
+            <Link
+              to="/login"
+              className="inline-flex h-11 items-center justify-center rounded-lg border border-primary-foreground/40 bg-transparent px-8 text-sm font-medium text-primary-foreground hover:bg-primary-foreground/10"
+            >
+              Become a monthly supporter
+            </Link>
           </div>
         </div>
       </section>

@@ -79,6 +79,24 @@ export type Supporter = {
   acquisitionChannel: string | null
 }
 
+/** Create supporter (REST accepts a subset; Supabase can persist all optional fields). */
+export type CreateSupporterBody = {
+  supporterType: string
+  displayName: string
+  email?: string
+  region?: string
+  status?: string
+  organizationName?: string
+  firstName?: string
+  lastName?: string
+  relationshipType?: string
+  country?: string
+  phone?: string
+  acquisitionChannel?: string
+}
+
+export type JsonTableRow = { id: number; fields: Record<string, string> }
+
 export type Donation = {
   id: number
   supporterId: number

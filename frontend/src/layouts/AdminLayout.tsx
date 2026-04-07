@@ -2,18 +2,23 @@ import { useState } from 'react'
 import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom'
 import {
   BarChart3,
+  Bot,
+  CalendarDays,
   ClipboardList,
   FileText,
+  Gift,
   Heart,
+  Home,
   LayoutDashboard,
   LogOut,
   Menu,
-  Users,
+  PieChart,
   Video,
   X,
 } from 'lucide-react'
 import { logout } from '../api/auth'
 import type { LucideIcon } from 'lucide-react'
+import { SITE_DISPLAY_NAME } from '../site'
 
 type NavItem = {
   to: string
@@ -24,11 +29,15 @@ type NavItem = {
 
 const nav: NavItem[] = [
   { to: '/admin', label: 'Dashboard', icon: LayoutDashboard, end: true },
-  { to: '/admin/donors', label: 'Donors & Contributions', icon: Heart },
-  { to: '/admin/caseload', label: 'Caseload Inventory', icon: ClipboardList },
-  { to: '/admin/process-recordings', label: 'Process Recording', icon: FileText },
-  { to: '/admin/visitations', label: 'Visits & conferences', icon: Video },
+  { to: '/admin/donors', label: 'Donors', icon: Heart },
+  { to: '/admin/contributions', label: 'Contributions', icon: Gift },
+  { to: '/admin/allocations', label: 'Allocations', icon: PieChart },
+  { to: '/admin/residents', label: 'Residents', icon: ClipboardList },
+  { to: '/admin/process-recordings', label: 'Process recording', icon: FileText },
+  { to: '/admin/home-visitations', label: 'Home visitation', icon: Video },
+  { to: '/admin/case-conferences', label: 'Case conferences', icon: CalendarDays },
   { to: '/admin/reports', label: 'Reports & Analytics', icon: BarChart3 },
+  { to: '/admin/social-planner', label: 'Social planner', icon: Bot },
 ]
 
 export function AdminLayout() {
@@ -58,14 +67,14 @@ export function AdminLayout() {
       >
         <div className="flex h-16 items-center justify-between border-b border-sidebar-border px-4">
           <Link
-            to="/admin"
+            to="/"
             className="flex items-center gap-2 font-heading text-lg font-semibold text-sidebar-primary-foreground"
             onClick={() => setSidebarOpen(false)}
           >
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-sidebar-primary">
-              <LayoutDashboard className="h-4 w-4 text-sidebar-primary-foreground" />
+              <Heart className="h-4 w-4 fill-current text-sidebar-primary-foreground" />
             </div>
-            Staff
+            <span className="truncate">{SITE_DISPLAY_NAME}</span>
           </Link>
           <button
             type="button"
@@ -109,7 +118,7 @@ export function AdminLayout() {
             to="/"
             className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-sidebar-foreground/75 transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
           >
-            <Users className="h-4 w-4" />
+            <Home className="h-4 w-4" />
             Back to public site
           </Link>
         </div>
@@ -126,7 +135,7 @@ export function AdminLayout() {
             <Menu className="h-5 w-5" />
           </button>
           <h1 className="font-heading text-lg font-semibold text-foreground">
-            Haven of Hope — Management
+            {SITE_DISPLAY_NAME} — Management
           </h1>
         </header>
         <main className="flex-1 overflow-auto bg-background p-4 lg:p-8">

@@ -1,25 +1,26 @@
 {
   "format": 1,
   "restore": {
-    "/Users/ethan/Desktop/Documents IS Junior Core (WINTER)/INTEX/Eban-Haven/backend/EbanHaven.Api/EbanHaven.Api.csproj": {}
+    "/Users/parisward/Documents/GitHub/testinggg/backend/EbanHaven.Api/EbanHaven.Api.csproj": {}
   },
   "projects": {
-    "/Users/ethan/Desktop/Documents IS Junior Core (WINTER)/INTEX/Eban-Haven/backend/EbanHaven.Api/EbanHaven.Api.csproj": {
+    "/Users/parisward/Documents/GitHub/testinggg/backend/EbanHaven.Api/EbanHaven.Api.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "/Users/ethan/Desktop/Documents IS Junior Core (WINTER)/INTEX/Eban-Haven/backend/EbanHaven.Api/EbanHaven.Api.csproj",
+        "projectUniqueName": "/Users/parisward/Documents/GitHub/testinggg/backend/EbanHaven.Api/EbanHaven.Api.csproj",
         "projectName": "EbanHaven.Api",
-        "projectPath": "/Users/ethan/Desktop/Documents IS Junior Core (WINTER)/INTEX/Eban-Haven/backend/EbanHaven.Api/EbanHaven.Api.csproj",
-        "packagesPath": "/Users/ethan/.nuget/packages/",
-        "outputPath": "/Users/ethan/Desktop/Documents IS Junior Core (WINTER)/INTEX/Eban-Haven/backend/EbanHaven.Api/obj/",
+        "projectPath": "/Users/parisward/Documents/GitHub/testinggg/backend/EbanHaven.Api/EbanHaven.Api.csproj",
+        "packagesPath": "/tmp/dotnet-home/.nuget/packages/",
+        "outputPath": "/Users/parisward/Documents/GitHub/testinggg/backend/EbanHaven.Api/obj/",
         "projectStyle": "PackageReference",
         "configFilePaths": [
-          "/Users/ethan/.nuget/NuGet/NuGet.Config"
+          "/tmp/dotnet-home/.nuget/NuGet/NuGet.Config"
         ],
         "originalTargetFrameworks": [
           "net10.0"
         ],
         "sources": {
+          "/opt/homebrew/Cellar/dotnet/10.0.105/libexec/library-packs": {},
           "https://api.nuget.org/v3/index.json": {}
         },
         "frameworks": {
@@ -55,6 +56,10 @@
             "Npgsql.EntityFrameworkCore.PostgreSQL": {
               "target": "Package",
               "version": "[10.0.1, )"
+            },
+            "OpenAI": {
+              "target": "Package",
+              "version": "[2.1.0, )"
             }
           },
           "imports": [
@@ -76,7 +81,7 @@
               "privateAssets": "all"
             }
           },
-          "runtimeIdentifierGraphPath": "/usr/local/share/dotnet/sdk/10.0.101/PortableRuntimeIdentifierGraph.json",
+          "runtimeIdentifierGraphPath": "/opt/homebrew/Cellar/dotnet/10.0.105/libexec/sdk/10.0.105/PortableRuntimeIdentifierGraph.json",
           "packagesToPrune": {
             "Microsoft.AspNetCore": "(,10.0.32767]",
             "Microsoft.AspNetCore.Antiforgery": "(,10.0.32767]",

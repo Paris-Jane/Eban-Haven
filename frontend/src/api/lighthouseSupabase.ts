@@ -15,6 +15,7 @@ type LighthouseTable =
   | 'lighthouse_education_records'
   | 'lighthouse_health_wellbeing_records'
   | 'lighthouse_safehouse_monthly_metrics'
+  | 'lighthouse_incident_reports'
 
 function gs(r: Row, k: string): string {
   return r[k] ?? ''
@@ -254,31 +255,25 @@ export async function getSupporters(): Promise<T.Supporter[]> {
     }))
 }
 
-export async function createSupporter(body: {
-  supporterType: string
-  displayName: string
-  email?: string
-  region?: string
-  status?: string
-}): Promise<T.Supporter> {
+export async function createSupporter(body: T.CreateSupporterBody): Promise<T.Supporter> {
   const next = await nextPk('lighthouse_supporters', 'supporter_id')
   const now = new Date().toISOString().slice(0, 19).replace('T', ' ')
   const row: Row = {
     supporter_id: String(next),
     supporter_type: body.supporterType,
     display_name: body.displayName,
-    organization_name: '',
-    first_name: '',
-    last_name: '',
-    relationship_type: 'Local',
+    organization_name: body.organizationName ?? '',
+    first_name: body.firstName ?? '',
+    last_name: body.lastName ?? '',
+    relationship_type: body.relationshipType?.trim() || 'Local',
     region: body.region ?? '',
-    country: 'Philippines',
+    country: body.country?.trim() || 'Ghana',
     email: body.email ?? '',
-    phone: '',
+    phone: body.phone ?? '',
     status: body.status ?? 'Active',
     created_at: now,
     first_donation_date: '',
-    acquisition_channel: 'Website',
+    acquisition_channel: body.acquisitionChannel?.trim() || 'Website',
   }
   const { error } = await getSupabase().from('lighthouse_supporters').insert({
     supporter_id: next,
@@ -292,6 +287,17 @@ export async function patchSupporter(
   id: number,
   body: { status?: string; supporterType?: string },
 ): Promise<T.Supporter> {
+  const patch: Record<string, string | null> = {}
+  if (body.status != null) patch.status = body.status
+  if (body.supporterType != null) patch.supporter_type = body.supporterType
+  return patchSupporterFields(id, patch)
+}
+
+/** Merge snake_case CSV field keys into supporter `data` jsonb. */
+export async function patchSupporterFields(
+  id: number,
+  fields: Record<string, string | null | undefined>,
+): Promise<T.Supporter> {
   const { data: row, error: fe } = await getSupabase()
     .from('lighthouse_supporters')
     .select('data')
@@ -300,14 +306,22 @@ export async function patchSupporter(
   if (fe) throw fe
   if (!row?.data) throw new Error('Supporter not found')
   const r = mergeRow('supporter_id', id, row.data)
-  if (body.status?.trim()) r.status = body.status.trim()
-  if (body.supporterType?.trim()) r.supporter_type = body.supporterType.trim()
+  for (const [k, v] of Object.entries(fields)) {
+    if (v === undefined) continue
+    if (v === null) continue
+    r[k] = v
+  }
   const { error } = await getSupabase()
     .from('lighthouse_supporters')
     .update({ data: r })
     .eq('supporter_id', id)
   if (error) throw error
   return (await getSupporters()).find((x) => x.id === id)!
+}
+
+export async function deleteSupporter(id: number): Promise<void> {
+  const { error } = await getSupabase().from('lighthouse_supporters').delete().eq('supporter_id', id)
+  if (error) throw error
 }
 
 export async function getDonations(supporterId?: number): Promise<T.Donation[]> {
@@ -888,4 +902,155 @@ export async function getReportsSummary(): Promise<T.ReportsSummary> {
       programOutcomeHighlights: highlights,
     },
   }
+}
+
+async function patchJsonRow(
+  table: LighthouseTable,
+  pk: string,
+  id: number,
+  fields: Record<string, string | null | undefined>,
+): Promise<void> {
+  const { data: row, error: fe } = await getSupabase().from(table).select('data').eq(pk, id).maybeSingle()
+  if (fe) throw fe
+  if (!row?.data) throw new Error('Record not found')
+  const r = mergeRow(pk, id, row.data)
+  for (const [k, v] of Object.entries(fields)) {
+    if (v === undefined || v === null) continue
+    r[k] = v
+  }
+  const { error } = await getSupabase().from(table).update({ data: r }).eq(pk, id)
+  if (error) throw error
+}
+
+export async function patchDonationFields(
+  id: number,
+  fields: Record<string, string | null | undefined>,
+): Promise<T.Donation> {
+  await patchJsonRow('lighthouse_donations', 'donation_id', id, fields)
+  return (await getDonations()).find((x) => x.id === id)!
+}
+
+export async function deleteDonation(id: number): Promise<void> {
+  const { error } = await getSupabase().from('lighthouse_donations').delete().eq('donation_id', id)
+  if (error) throw error
+}
+
+export async function createAllocation(body: {
+  donationId: number
+  safehouseId: number
+  programArea: string
+  amountAllocated: number
+  allocationDate?: string
+  notes?: string
+}): Promise<T.DonationAllocation> {
+  const next = await nextPk('lighthouse_donation_allocations', 'allocation_id')
+  const d = body.allocationDate ?? new Date().toISOString().slice(0, 10)
+  const row: Row = {
+    allocation_id: String(next),
+    donation_id: String(body.donationId),
+    safehouse_id: String(body.safehouseId),
+    program_area: body.programArea,
+    amount_allocated: String(body.amountAllocated),
+    allocation_date: d,
+    allocation_notes: body.notes ?? '',
+  }
+  const { error } = await getSupabase().from('lighthouse_donation_allocations').insert({
+    allocation_id: next,
+    data: row,
+  })
+  if (error) throw error
+  return (await getAllocations({ donationId: body.donationId })).find((x) => x.id === next)!
+}
+
+export async function patchAllocationFields(
+  id: number,
+  fields: Record<string, string | null | undefined>,
+): Promise<T.DonationAllocation> {
+  await patchJsonRow('lighthouse_donation_allocations', 'allocation_id', id, fields)
+  return (await getAllocations()).find((x) => x.id === id)!
+}
+
+export async function deleteAllocation(id: number): Promise<void> {
+  const { error } = await getSupabase().from('lighthouse_donation_allocations').delete().eq('allocation_id', id)
+  if (error) throw error
+}
+
+export async function listEducationRecords(residentId?: number): Promise<T.JsonTableRow[]> {
+  let rows = await loadTable('lighthouse_education_records', 'education_record_id')
+  if (residentId != null && residentId > 0) rows = rows.filter((r) => gi(r, 'resident_id') === residentId)
+  return rows
+    .sort((a, b) => gs(a, 'record_date').localeCompare(gs(b, 'record_date')))
+    .map((r) => ({ id: gi(r, 'education_record_id'), fields: { ...r } }))
+}
+
+export async function listHealthRecords(residentId?: number): Promise<T.JsonTableRow[]> {
+  let rows = await loadTable('lighthouse_health_wellbeing_records', 'health_record_id')
+  if (residentId != null && residentId > 0) rows = rows.filter((r) => gi(r, 'resident_id') === residentId)
+  return rows
+    .sort((a, b) => gs(a, 'record_date').localeCompare(gs(b, 'record_date')))
+    .map((r) => ({ id: gi(r, 'health_record_id'), fields: { ...r } }))
+}
+
+export async function listIncidentReports(residentId?: number): Promise<T.JsonTableRow[]> {
+  let rows: Row[] = []
+  try {
+    rows = await loadTable('lighthouse_incident_reports', 'incident_id')
+  } catch {
+    return []
+  }
+  if (residentId != null && residentId > 0) rows = rows.filter((r) => gi(r, 'resident_id') === residentId)
+  return rows
+    .sort((a, b) => gs(b, 'incident_date').localeCompare(gs(a, 'incident_date')))
+    .map((r) => ({ id: gi(r, 'incident_id'), fields: { ...r } }))
+}
+
+export async function createEducationRecord(residentId: number, fields: Record<string, string>): Promise<void> {
+  const next = await nextPk('lighthouse_education_records', 'education_record_id')
+  const row: Row = { education_record_id: String(next), resident_id: String(residentId), ...fields }
+  const { error } = await getSupabase().from('lighthouse_education_records').insert({
+    education_record_id: next,
+    data: row,
+  })
+  if (error) throw error
+}
+
+export async function patchEducationRecord(
+  id: number,
+  fields: Record<string, string | null | undefined>,
+): Promise<void> {
+  await patchJsonRow('lighthouse_education_records', 'education_record_id', id, fields)
+}
+
+export async function createHealthRecord(residentId: number, fields: Record<string, string>): Promise<void> {
+  const next = await nextPk('lighthouse_health_wellbeing_records', 'health_record_id')
+  const row: Row = { health_record_id: String(next), resident_id: String(residentId), ...fields }
+  const { error } = await getSupabase().from('lighthouse_health_wellbeing_records').insert({
+    health_record_id: next,
+    data: row,
+  })
+  if (error) throw error
+}
+
+export async function patchHealthRecord(
+  id: number,
+  fields: Record<string, string | null | undefined>,
+): Promise<void> {
+  await patchJsonRow('lighthouse_health_wellbeing_records', 'health_record_id', id, fields)
+}
+
+export async function createIncidentReport(residentId: number, fields: Record<string, string>): Promise<void> {
+  const next = await nextPk('lighthouse_incident_reports', 'incident_id')
+  const row: Row = { incident_id: String(next), resident_id: String(residentId), ...fields }
+  const { error } = await getSupabase().from('lighthouse_incident_reports').insert({
+    incident_id: next,
+    data: row,
+  })
+  if (error) throw error
+}
+
+export async function patchIncidentReport(
+  id: number,
+  fields: Record<string, string | null | undefined>,
+): Promise<void> {
+  await patchJsonRow('lighthouse_incident_reports', 'incident_id', id, fields)
 }

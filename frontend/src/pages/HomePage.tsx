@@ -135,7 +135,7 @@ export function HomePage() {
                 <ArrowRight className="h-4 w-4" />
               </Link>
               <Link to="/login" className={btnOutlineLight}>
-                Staff login
+                Login
               </Link>
             </motion.div>
           </motion.div>
@@ -217,6 +217,30 @@ export function HomePage() {
               <div className="absolute -bottom-4 -left-4 -z-10 h-24 w-24 rounded-2xl bg-accent/20" />
               <div className="absolute -right-4 -top-4 -z-10 h-32 w-32 rounded-2xl bg-primary/10" />
             </motion.div>
+          </div>
+        </div>
+      </section>
+
+      <section className="border-t border-border bg-muted/40 py-20 lg:py-28">
+        <div className="mx-auto max-w-7xl px-6 lg:px-8">
+          <div className="mx-auto mb-10 max-w-3xl text-center">
+            <span className="text-xs font-semibold uppercase tracking-widest text-accent">Ghana focus</span>
+            <h2 className="mt-3 font-heading text-3xl font-bold text-foreground lg:text-4xl">
+              Women and girls in Ghana deserve safety and dignity
+            </h2>
+            <p className="mt-4 leading-relaxed text-muted-foreground">
+              Ghanaian women and girls — especially adolescents — face heightened risks of gender-based violence,
+              exploitation, and interrupted education. Poverty, mobility, and uneven access to services can leave
+              survivors isolated. {SITE_DISPLAY_NAME} works with trusted in-country partners to provide{' '}
+              <strong className="text-foreground">safe shelter</strong>,{' '}
+              <strong className="text-foreground">trauma-informed care</strong>, and{' '}
+              <strong className="text-foreground">pathways back to school and family</strong> where it is safe to do so.
+            </p>
+            <p className="mt-4 leading-relaxed text-muted-foreground">
+              Investing in girls in Ghana strengthens families, communities, and the leaders of tomorrow. When you
+              support {SITE_DISPLAY_NAME}, you help ensure that geography and circumstance do not decide whether a
+              child gets to heal.
+            </p>
           </div>
         </div>
       </section>

@@ -7,7 +7,6 @@ import { SITE_DISPLAY_NAME } from '../site'
 const links = [
   { to: '/', label: 'Home' },
   { to: '/impact', label: 'Our Impact' },
-  { to: '/privacy', label: 'Privacy Policy' },
 ] as const
 
 export function Navigation() {
@@ -46,7 +45,7 @@ export function Navigation() {
               to="/login"
               className="rounded-lg bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90"
             >
-              Staff login
+              Login
             </Link>
           </div>
 
@@ -84,7 +83,7 @@ export function Navigation() {
                   className="block text-sm font-medium text-primary"
                   onClick={() => setOpen(false)}
                 >
-                  Staff login →
+                  Login →
                 </Link>
               </div>
             </motion.div>

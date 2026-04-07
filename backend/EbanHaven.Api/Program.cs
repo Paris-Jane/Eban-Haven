@@ -3,6 +3,8 @@ using EbanHaven.Api.Auth;
 using EbanHaven.Api.Configuration;
 using EbanHaven.Api.DataAccess;
 using EbanHaven.Api.Lighthouse;
+using EbanHaven.Api.SocialChat;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
 
@@ -11,6 +13,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.Configure<SiteOptions>(builder.Configuration.GetSection(SiteOptions.SectionName));
 builder.Services.Configure<StaffOptions>(builder.Configuration.GetSection(StaffOptions.SectionName));
 builder.Services.Configure<CorsOptions>(builder.Configuration.GetSection(CorsOptions.SectionName));
+builder.Services.Configure<OpenAIOptions>(builder.Configuration.GetSection(OpenAIOptions.SectionName));
 builder.Services.AddControllers();
 
 var conn =
@@ -30,6 +33,19 @@ else
 }
 
 builder.Services.AddHavenAuthentication(builder.Configuration);
+builder.Services.AddSingleton<IProfileRoleLookup, ProfileRoleLookup>();
+builder.Services.AddSingleton<IAuthorizationHandler, AdminOnlyHandler>();
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy(AdminOnlyPolicy.Name, policy =>
+    {
+        policy.RequireAuthenticatedUser();
+        policy.Requirements.Add(new AdminOnlyRequirement());
+    });
+});
+
+builder.Services.AddScoped<ISocialChatContextService, SocialChatContextService>();
+builder.Services.AddScoped<ISocialChatService, OpenAISocialChatService>();
 
 builder.Services.Configure<ForwardedHeadersOptions>(options =>
 {
