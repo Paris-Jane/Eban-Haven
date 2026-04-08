@@ -8,6 +8,7 @@ import {
   FileText,
   Gift,
   Heart,
+  Layers,
   LayoutDashboard,
   LineChart,
   LogOut,
@@ -63,6 +64,7 @@ const navGroups: NavGroup[] = [
     title: 'Funding',
     items: [
       { to: '/admin/donor-dashboard', label: 'Donor Dashboard', icon: TrendingUp },
+      { to: '/admin/donor-all', label: 'Donor All', icon: Layers },
       { to: '/admin/email-hub', label: 'Donor Retention', icon: RefreshCcw },
       { to: '/admin/donors', label: 'Donors', icon: Heart },
       { to: '/admin/contributions', label: 'Donations', icon: Gift },
