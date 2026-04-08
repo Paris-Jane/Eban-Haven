@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom'
 import {
   alertError,
   btnPrimary,
-  card,
   cardForm,
   emptyCell,
   input,
@@ -25,41 +24,46 @@ import {
   type ResidentSummary,
 } from '../../api/admin'
 import { AdminListToolbar } from './AdminListToolbar'
-import { matchesColFilter, nextSortState, sortRows, SortableTh, type SortDirection } from './SortableTh'
+import { nextSortState, sortRows, SortableTh, type SortDirection } from './SortableTh'
+import { AdminBulkActionsBar } from './adminDataTable/AdminBulkActionsBar'
+import { AdminDeleteModal } from './adminDataTable/AdminDeleteModal'
+import { BoolPill, NeutralPill } from './adminDataTable/AdminBadges'
+import {
+  FilterPanelCard,
+  DateRangeFilter,
+  MinMaxFilter,
+  MultiSelectFilter,
+  SearchableEntityMultiFilter,
+  TextSearchFilter,
+  TriBoolFilter,
+} from './adminDataTable/AdminFilterPrimitives'
+import {
+  formatAdminDate,
+  inAmountRange,
+  inDateRange,
+  matchesIdMulti,
+  matchesStringMulti,
+  matchesTriBool,
+  type TriBool,
+  uniqSortedStrings,
+} from './adminDataTable/adminFormatters'
 
 const sessionTypes = ['Individual', 'Group'] as const
 
-type ColFilters = {
-  sessionDate: string
-  residentId: string
-  socialWorker: string
-  sessionType: string
-  sessionDurationMinutes: string
-  emotionalStateObserved: string
-  progressNoted: string
-  concernsFlagged: string
-}
-
-const emptyFilters = (): ColFilters => ({
-  sessionDate: '',
-  residentId: '',
-  socialWorker: '',
-  sessionType: '',
-  sessionDurationMinutes: '',
-  emotionalStateObserved: '',
-  progressNoted: '',
-  concernsFlagged: '',
-})
-
-const FILTER_LABELS: Record<keyof ColFilters, string> = {
-  sessionDate: 'Session date',
-  residentId: 'Resident ID',
-  socialWorker: 'Social worker',
-  sessionType: 'Session type',
-  sessionDurationMinutes: 'Session duration (minutes)',
-  emotionalStateObserved: 'Emotional state observed',
-  progressNoted: 'Progress noted (yes/no)',
-  concernsFlagged: 'Concerns flagged (yes/no)',
+function emptyFilters() {
+  return {
+    dateFrom: '',
+    dateTo: '',
+    residentIds: new Set<number>(),
+    socialWorker: '',
+    socialWorkers: new Set<string>(),
+    sessionTypes: new Set<string>(),
+    durationMin: '',
+    durationMax: '',
+    emotionalStates: new Set<string>(),
+    progress: 'all' as TriBool,
+    concerns: 'all' as TriBool,
+  }
 }
 
 export function ProcessRecordingsPage() {
@@ -71,10 +75,12 @@ export function ProcessRecordingsPage() {
   const [search, setSearch] = useState('')
   const [showNew, setShowNew] = useState(false)
   const [filterOpen, setFilterOpen] = useState(false)
-  const [colFilters, setColFilters] = useState<ColFilters>(emptyFilters)
+  const [filters, setFilters] = useState(emptyFilters)
+  const [resSearch, setResSearch] = useState('')
   const [sortKey, setSortKey] = useState<string | null>(null)
   const [sortDir, setSortDir] = useState<SortDirection>(null)
   const [selected, setSelected] = useState<Set<number>>(new Set())
+  const [deleteModal, setDeleteModal] = useState<{ ids: number[]; labels: string[] } | null>(null)
   const [formResidentId, setFormResidentId] = useState<number>(0)
   const [saving, setSaving] = useState(false)
 
@@ -112,26 +118,41 @@ export function ProcessRecordingsPage() {
     setFormResidentId((prev) => (prev && residents.some((r) => r.id === prev) ? prev : residents[0]?.id ?? 0))
   }, [showNew, residents])
 
+  const residentOptions = useMemo(
+    () => residents.map((r) => ({ id: r.id, label: `${r.internalCode} (#${r.id})` })),
+    [residents],
+  )
+
+  const emoOpts = useMemo(() => uniqSortedStrings(rows.map((r) => r.emotionalStateObserved)), [rows])
+  const swOpts = useMemo(() => uniqSortedStrings(rows.map((r) => r.socialWorker)), [rows])
+  const typeOpts = useMemo(() => uniqSortedStrings(rows.map((r) => r.sessionType)), [rows])
+
   const filteredSorted = useMemo(() => {
     let list = rows.filter((r) => {
-      const hay = `${r.residentInternalCode} ${r.sessionType} ${r.socialWorker} ${r.sessionNarrative} ${r.interventionsApplied ?? ''} ${r.followUpActions ?? ''} ${r.id} ${r.residentId}`.toLowerCase()
+      const hay = `${r.residentInternalCode} ${r.sessionType} ${r.socialWorker} ${r.sessionNarrative}`.toLowerCase()
       if (search.trim() && !hay.includes(search.trim().toLowerCase())) return false
-      if (!matchesColFilter(r.sessionDate, colFilters.sessionDate)) return false
-      if (!matchesColFilter(r.residentId, colFilters.residentId)) return false
-      if (!matchesColFilter(r.socialWorker, colFilters.socialWorker)) return false
-      if (!matchesColFilter(r.sessionType, colFilters.sessionType)) return false
-      if (!matchesColFilter(r.sessionDurationMinutes, colFilters.sessionDurationMinutes)) return false
-      if (!matchesColFilter(r.emotionalStateObserved, colFilters.emotionalStateObserved)) return false
-      if (!matchesColFilter(r.progressNoted, colFilters.progressNoted)) return false
-      if (!matchesColFilter(r.concernsFlagged, colFilters.concernsFlagged)) return false
+      if (filters.dateFrom || filters.dateTo) {
+        if (!inDateRange(r.sessionDate, filters.dateFrom, filters.dateTo)) return false
+      }
+      if (!matchesIdMulti(r.residentId, filters.residentIds)) return false
+      const swListOk = filters.socialWorkers.size === 0 || matchesStringMulti(r.socialWorker, filters.socialWorkers)
+      const swTextOk =
+        !filters.socialWorker.trim() ||
+        r.socialWorker.toLowerCase().includes(filters.socialWorker.trim().toLowerCase())
+      if (!swListOk || !swTextOk) return false
+      if (!matchesStringMulti(r.sessionType, filters.sessionTypes)) return false
+      if (!inAmountRange(r.sessionDurationMinutes, filters.durationMin, filters.durationMax)) return false
+      if (!matchesStringMulti(r.emotionalStateObserved ?? '', filters.emotionalStates)) return false
+      if (!matchesTriBool(r.progressNoted, filters.progress)) return false
+      if (!matchesTriBool(r.concernsFlagged, filters.concerns)) return false
       return true
     })
     list = sortRows(list, sortKey, sortDir, (row, key) => {
       switch (key) {
         case 'sessionDate':
           return row.sessionDate
-        case 'residentId':
-          return row.residentId
+        case 'residentInternalCode':
+          return row.residentInternalCode
         case 'socialWorker':
           return row.socialWorker
         case 'sessionType':
@@ -149,7 +170,20 @@ export function ProcessRecordingsPage() {
       }
     })
     return list
-  }, [rows, search, colFilters, sortKey, sortDir])
+  }, [rows, search, filters, sortKey, sortDir])
+
+  const activeSummary = useMemo(() => {
+    const p: string[] = []
+    if (filters.dateFrom || filters.dateTo) p.push('Date')
+    if (filters.residentIds.size) p.push(`Residents: ${filters.residentIds.size}`)
+    if (filters.socialWorker.trim() || filters.socialWorkers.size) p.push('Social worker')
+    if (filters.sessionTypes.size) p.push(`Type: ${filters.sessionTypes.size}`)
+    if (filters.durationMin || filters.durationMax) p.push('Duration')
+    if (filters.emotionalStates.size) p.push('Emotion')
+    if (filters.progress !== 'all') p.push(`Progress: ${filters.progress}`)
+    if (filters.concerns !== 'all') p.push(`Concerns: ${filters.concerns}`)
+    return p
+  }, [filters])
 
   function onSort(key: string) {
     const next = nextSortState(key, sortKey, sortDir)
@@ -177,16 +211,24 @@ export function ProcessRecordingsPage() {
     })
   }
 
-  async function bulkDelete() {
+  function openDeleteModal() {
     if (selected.size === 0) return
-    if (!confirm(`Delete ${selected.size} recording(s)? This cannot be undone.`)) return
+    const labels = filteredSorted
+      .filter((r) => selected.has(r.id))
+      .map((r) => `${formatAdminDate(r.sessionDate)} · ${r.residentInternalCode}`)
+    setDeleteModal({ ids: [...selected], labels })
+  }
+
+  async function confirmDelete() {
+    if (!deleteModal) return
     setSaving(true)
     setError(null)
     try {
-      for (const id of selected) {
+      for (const id of deleteModal.ids) {
         await deleteProcessRecording(id)
       }
       setSelected(new Set())
+      setDeleteModal(null)
       await loadAll()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Delete failed')
@@ -233,12 +275,11 @@ export function ProcessRecordingsPage() {
   const colCount = 9
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <div>
         <h2 className={pageTitle}>Process recording</h2>
         <p className={pageDesc}>
-          Filter by any column; sort from headers. Click a row to open the resident profile. Bulk delete requires
-          Supabase.
+          Session log — open a row for the resident case file. Filters support ranges and multi-select.
         </p>
       </div>
 
@@ -247,43 +288,71 @@ export function ProcessRecordingsPage() {
       <AdminListToolbar
         searchValue={search}
         onSearchChange={setSearch}
-        searchPlaceholder="Search narrative, worker, type…"
+        searchPlaceholder="Search narrative, worker, resident…"
         filterOpen={filterOpen}
         onFilterToggle={() => setFilterOpen((o) => !o)}
         onAddClick={openAdd}
         addLabel="Add recording"
       />
 
-      {selected.size > 0 && (
-        <div className="flex flex-wrap items-center gap-3 rounded-lg border border-border bg-muted/40 px-4 py-3 text-sm">
-          <span className="text-muted-foreground">{selected.size} selected</span>
-          <button type="button" className={btnPrimary} disabled={saving} onClick={() => void bulkDelete()}>
-            Delete selected…
-          </button>
-          <button type="button" className="text-sm text-primary hover:underline" onClick={() => setSelected(new Set())}>
-            Clear selection
-          </button>
-        </div>
-      )}
+      <AdminBulkActionsBar
+        count={selected.size}
+        recordLabel="recording"
+        onDeleteClick={openDeleteModal}
+        onClearSelection={() => setSelected(new Set())}
+        disabled={saving}
+      />
 
       {filterOpen && (
-        <div className={`${card} grid max-h-[60vh] gap-3 overflow-y-auto sm:grid-cols-2 lg:grid-cols-3`}>
-          <p className="text-sm font-medium sm:col-span-2 lg:col-span-3">Filter by column (contains)</p>
-          {(Object.keys(colFilters) as (keyof ColFilters)[]).map((k) => (
-            <label key={k} className={label}>
-              {FILTER_LABELS[k]}
-              <input
-                className={input}
-                value={colFilters[k]}
-                onChange={(e) => setColFilters((f) => ({ ...f, [k]: e.target.value }))}
-                placeholder="Contains…"
-              />
-            </label>
-          ))}
-          <button type="button" className="text-sm text-primary hover:underline sm:col-span-2 lg:col-span-3" onClick={() => setColFilters(emptyFilters())}>
-            Clear column filters
-          </button>
-        </div>
+        <FilterPanelCard onClearAll={() => setFilters(emptyFilters())} activeSummary={activeSummary}>
+          <DateRangeFilter
+            labelText="Session date"
+            from={filters.dateFrom}
+            to={filters.dateTo}
+            onFrom={(v) => setFilters((f) => ({ ...f, dateFrom: v }))}
+            onTo={(v) => setFilters((f) => ({ ...f, dateTo: v }))}
+          />
+          <SearchableEntityMultiFilter
+            labelText="Resident"
+            options={residentOptions}
+            selectedIds={filters.residentIds}
+            onChange={(s) => setFilters((f) => ({ ...f, residentIds: s }))}
+            search={resSearch}
+            onSearchChange={setResSearch}
+          />
+          <TextSearchFilter
+            labelText="Social worker (text)"
+            value={filters.socialWorker}
+            onChange={(v) => setFilters((f) => ({ ...f, socialWorker: v }))}
+          />
+          <MultiSelectFilter
+            labelText="Social worker (pick from list)"
+            options={swOpts.length ? swOpts : ['—']}
+            selected={filters.socialWorkers}
+            onChange={(s) => setFilters((f) => ({ ...f, socialWorkers: s }))}
+          />
+          <MultiSelectFilter
+            labelText="Session type"
+            options={typeOpts.length ? typeOpts : [...sessionTypes]}
+            selected={filters.sessionTypes}
+            onChange={(s) => setFilters((f) => ({ ...f, sessionTypes: s }))}
+          />
+          <MinMaxFilter
+            labelText="Duration (minutes)"
+            min={filters.durationMin}
+            max={filters.durationMax}
+            onMin={(v) => setFilters((f) => ({ ...f, durationMin: v }))}
+            onMax={(v) => setFilters((f) => ({ ...f, durationMax: v }))}
+          />
+          <MultiSelectFilter
+            labelText="Emotional state"
+            options={emoOpts.length ? emoOpts : ['—']}
+            selected={filters.emotionalStates}
+            onChange={(s) => setFilters((f) => ({ ...f, emotionalStates: s }))}
+          />
+          <TriBoolFilter labelText="Progress noted" value={filters.progress} onChange={(v) => setFilters((f) => ({ ...f, progress: v }))} />
+          <TriBoolFilter labelText="Concerns flagged" value={filters.concerns} onChange={(v) => setFilters((f) => ({ ...f, concerns: v }))} />
+        </FilterPanelCard>
       )}
 
       {showNew && (
@@ -357,74 +426,92 @@ export function ProcessRecordingsPage() {
         </form>
       )}
 
-      <div>
-        <h3 className="mb-3 text-sm font-semibold text-foreground">Session history</h3>
-        <div className={tableWrap}>
-          <table className="w-full min-w-[640px] text-left text-sm">
-            <thead className={tableHead}>
+      <div className={tableWrap}>
+        <table className="w-full min-w-[720px] text-left text-sm">
+          <thead className={tableHead}>
+            <tr>
+              <th className="w-10 px-2 py-2.5">
+                <input
+                  type="checkbox"
+                  aria-label="Select all on this page"
+                  checked={filteredSorted.length > 0 && filteredSorted.every((r) => selected.has(r.id))}
+                  onChange={toggleSelectAll}
+                  onClick={(e) => e.stopPropagation()}
+                />
+              </th>
+              <SortableTh label="Session date" sortKey="sessionDate" activeKey={sortKey} direction={sortDir} onSort={onSort} />
+              <SortableTh label="Resident" sortKey="residentInternalCode" activeKey={sortKey} direction={sortDir} onSort={onSort} />
+              <SortableTh label="Social worker" sortKey="socialWorker" activeKey={sortKey} direction={sortDir} onSort={onSort} />
+              <SortableTh label="Type" sortKey="sessionType" activeKey={sortKey} direction={sortDir} onSort={onSort} />
+              <SortableTh label="Minutes" sortKey="sessionDurationMinutes" activeKey={sortKey} direction={sortDir} onSort={onSort} />
+              <SortableTh label="Emotion" sortKey="emotionalStateObserved" activeKey={sortKey} direction={sortDir} onSort={onSort} />
+              <SortableTh label="Progress" sortKey="progressNoted" activeKey={sortKey} direction={sortDir} onSort={onSort} />
+              <SortableTh label="Concerns" sortKey="concernsFlagged" activeKey={sortKey} direction={sortDir} onSort={onSort} />
+            </tr>
+          </thead>
+          <tbody className={tableBody}>
+            {loading ? (
               <tr>
-                
-                  <th className="w-10 px-2 py-2">
-                    <input
-                      type="checkbox"
-                      aria-label="Select all"
-                      checked={filteredSorted.length > 0 && filteredSorted.every((r) => selected.has(r.id))}
-                      onChange={() => toggleSelectAll()}
-                    />
-                  </th>
-                
-                <SortableTh label="Session date" sortKey="sessionDate" activeKey={sortKey} direction={sortDir} onSort={onSort} />
-                <SortableTh label="Resident ID" sortKey="residentId" activeKey={sortKey} direction={sortDir} onSort={onSort} />
-                <SortableTh label="Social worker" sortKey="socialWorker" activeKey={sortKey} direction={sortDir} onSort={onSort} />
-                <SortableTh label="Session type" sortKey="sessionType" activeKey={sortKey} direction={sortDir} onSort={onSort} />
-                <SortableTh label="Duration (min)" sortKey="sessionDurationMinutes" activeKey={sortKey} direction={sortDir} onSort={onSort} />
-                <SortableTh label="Emotional state" sortKey="emotionalStateObserved" activeKey={sortKey} direction={sortDir} onSort={onSort} />
-                <SortableTh label="Progress noted" sortKey="progressNoted" activeKey={sortKey} direction={sortDir} onSort={onSort} />
-                <SortableTh label="Concerns flagged" sortKey="concernsFlagged" activeKey={sortKey} direction={sortDir} onSort={onSort} />
+                <td colSpan={colCount} className={emptyCell}>
+                  Loading…
+                </td>
               </tr>
-            </thead>
-            <tbody className={tableBody}>
-              {loading ? (
-                <tr>
-                  <td colSpan={colCount} className={emptyCell}>
-                    Loading…
+            ) : filteredSorted.length === 0 ? (
+              <tr>
+                <td colSpan={colCount} className={emptyCell}>
+                  No recordings for this view.
+                </td>
+              </tr>
+            ) : (
+              filteredSorted.map((r) => (
+                <tr
+                  key={r.id}
+                  className={`${tableRowHover} cursor-pointer`}
+                  onClick={() => navigate(`/admin/residents/${r.residentId}`)}
+                >
+                  <td className="px-2 py-2.5" onClick={(e) => e.stopPropagation()}>
+                    <input type="checkbox" checked={selected.has(r.id)} onChange={() => toggleSelect(r.id)} aria-label={`Select ${r.id}`} />
+                  </td>
+                  <td className="px-3 py-2.5 tabular-nums text-muted-foreground">{formatAdminDate(r.sessionDate)}</td>
+                  <td className="px-3 py-2.5 font-medium text-foreground">{r.residentInternalCode}</td>
+                  <td className="px-3 py-2.5 text-muted-foreground">{r.socialWorker}</td>
+                  <td className="px-3 py-2.5">
+                    <NeutralPill>{r.sessionType}</NeutralPill>
+                  </td>
+                  <td className="px-3 py-2.5 tabular-nums text-muted-foreground">
+                    {r.sessionDurationMinutes != null ? `${r.sessionDurationMinutes} min` : '—'}
+                  </td>
+                  <td className="px-3 py-2.5">
+                    {r.emotionalStateObserved ? <NeutralPill>{r.emotionalStateObserved}</NeutralPill> : <span className="text-muted-foreground">—</span>}
+                  </td>
+                  <td className="px-3 py-2.5">
+                    <BoolPill value={r.progressNoted} />
+                  </td>
+                  <td className="px-3 py-2.5">
+                    <BoolPill value={r.concernsFlagged} />
                   </td>
                 </tr>
-              ) : filteredSorted.length === 0 ? (
-                <tr>
-                  <td colSpan={colCount} className={emptyCell}>
-                    No recordings for this view.
-                  </td>
-                </tr>
-              ) : (
-                filteredSorted.map((r) => (
-                  <tr
-                    key={r.id}
-                    className={`${tableRowHover} cursor-pointer`}
-                    onClick={() => navigate(`/admin/residents/${r.residentId}`)}
-                  >
-                    
-                      <td className="px-2 py-2" onClick={(e) => e.stopPropagation()}>
-                        <input type="checkbox" checked={selected.has(r.id)} onChange={() => toggleSelect(r.id)} aria-label={`Select ${r.id}`} />
-                      </td>
-                    
-                    <td className="px-3 py-2 text-xs">{new Date(r.sessionDate).toLocaleDateString()}</td>
-                    <td className="px-3 py-2 font-mono text-xs text-muted-foreground">{r.residentId}</td>
-                    <td className="px-3 py-2 text-xs">{r.socialWorker}</td>
-                    <td className="px-3 py-2">{r.sessionType}</td>
-                    <td className="px-3 py-2 text-xs">{r.sessionDurationMinutes ?? '—'}</td>
-                    <td className="max-w-[160px] truncate px-3 py-2 text-xs text-muted-foreground" title={r.emotionalStateObserved ?? ''}>
-                      {r.emotionalStateObserved ?? '—'}
-                    </td>
-                    <td className="px-3 py-2 text-xs">{r.progressNoted ? 'Yes' : 'No'}</td>
-                    <td className="px-3 py-2 text-xs">{r.concernsFlagged ? 'Yes' : 'No'}</td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+              ))
+            )}
+          </tbody>
+        </table>
       </div>
+
+      <AdminDeleteModal
+        open={deleteModal != null}
+        title={deleteModal && deleteModal.ids.length === 1 ? 'Delete recording?' : 'Delete recordings?'}
+        body={
+          deleteModal
+            ? deleteModal.ids.length === 1
+              ? 'You are about to delete one process recording.'
+              : `You are about to delete ${deleteModal.ids.length} process recordings.`
+            : ''
+        }
+        previewLines={deleteModal && deleteModal.labels.length > 1 ? deleteModal.labels : deleteModal?.labels.slice(0, 1)}
+        loading={saving}
+        onCancel={() => setDeleteModal(null)}
+        onConfirm={() => void confirmDelete()}
+      />
     </div>
   )
 }

@@ -24,7 +24,22 @@ import {
   type Supporter,
 } from '../../api/admin'
 import { AdminListToolbar } from './AdminListToolbar'
-import { matchesColFilter, nextSortState, sortRows, SortableTh, type SortDirection } from './SortableTh'
+import { nextSortState, sortRows, SortableTh, type SortDirection } from './SortableTh'
+import { AdminBulkActionsBar } from './adminDataTable/AdminBulkActionsBar'
+import { AdminDeleteModal } from './adminDataTable/AdminDeleteModal'
+import { NeutralPill, StatusBadge } from './adminDataTable/AdminBadges'
+import {
+  FilterPanelCard,
+  DateRangeFilter,
+  MultiSelectFilter,
+  TextSearchFilter,
+} from './adminDataTable/AdminFilterPrimitives'
+import {
+  formatAdminDate,
+  inDateRange,
+  matchesStringMulti,
+  uniqSortedStrings,
+} from './adminDataTable/adminFormatters'
 
 const supporterTypes = [
   'MonetaryDonor',
@@ -35,34 +50,17 @@ const supporterTypes = [
   'PartnerOrganization',
 ] as const
 
-type ColFilters = {
-  displayName: string
-  supporterType: string
-  relationshipType: string
-  email: string
-  region: string
-  status: string
-  firstDonationDate: string
-}
-
-const emptyColFilters = (): ColFilters => ({
-  displayName: '',
-  supporterType: '',
-  relationshipType: '',
-  email: '',
-  region: '',
-  status: '',
-  firstDonationDate: '',
-})
-
-const COL_LABELS: Record<keyof ColFilters, string> = {
-  displayName: 'Display name',
-  supporterType: 'Supporter type',
-  relationshipType: 'Relationship type',
-  email: 'Email',
-  region: 'Region',
-  status: 'Status',
-  firstDonationDate: 'First donation date',
+function emptyDonorFilters() {
+  return {
+    displayName: '',
+    email: '',
+    supporterTypes: new Set<string>(),
+    relationshipTypes: new Set<string>(),
+    regions: new Set<string>(),
+    statuses: new Set<string>(),
+    dateFrom: '',
+    dateTo: '',
+  }
 }
 
 export function DonorsAdminPage() {
@@ -74,10 +72,12 @@ export function DonorsAdminPage() {
   const [edit, setEdit] = useState<Supporter | null>(null)
   const [addOpen, setAddOpen] = useState(false)
   const [filterOpen, setFilterOpen] = useState(false)
-  const [colFilters, setColFilters] = useState<ColFilters>(emptyColFilters)
+  const [filters, setFilters] = useState(emptyDonorFilters)
   const [sortKey, setSortKey] = useState<string | null>(null)
   const [sortDir, setSortDir] = useState<SortDirection>(null)
   const [selected, setSelected] = useState<Set<number>>(new Set())
+  const [deleteModal, setDeleteModal] = useState<{ ids: number[]; labels: string[] } | null>(null)
+  const [saving, setSaving] = useState(false)
 
   const [form, setForm] = useState<CreateSupporterBody>({
     supporterType: 'MonetaryDonor',
@@ -86,7 +86,6 @@ export function DonorsAdminPage() {
     country: 'Ghana',
     acquisitionChannel: 'Website',
   })
-  const [saving, setSaving] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -105,17 +104,32 @@ export function DonorsAdminPage() {
     void load()
   }, [load])
 
+  const relOptions = useMemo(() => uniqSortedStrings(rows.map((r) => r.relationshipType)), [rows])
+  const regionOptions = useMemo(() => uniqSortedStrings(rows.map((r) => r.region)), [rows])
+  const statusOptions = useMemo(() => uniqSortedStrings(rows.map((r) => r.status)), [rows])
+  const typeOptions = useMemo(() => {
+    const fromData = uniqSortedStrings(rows.map((r) => r.supporterType))
+    const merged = new Set([...supporterTypes, ...fromData])
+    return [...merged].sort((a, b) => a.localeCompare(b))
+  }, [rows])
+
   const filteredSorted = useMemo(() => {
     let list = rows.filter((s) => {
-      const hay = `${s.displayName} ${s.email ?? ''} ${s.supporterType} ${s.relationshipType ?? ''} ${s.region ?? ''} ${s.phone ?? ''} ${s.country ?? ''} ${s.status} ${s.organizationName ?? ''} ${s.acquisitionChannel ?? ''} ${s.firstName ?? ''} ${s.lastName ?? ''} ${s.firstDonationDate ?? ''}`.toLowerCase()
+      const hay = `${s.displayName} ${s.email ?? ''} ${s.supporterType} ${s.relationshipType ?? ''} ${s.region ?? ''} ${s.status}`.toLowerCase()
       if (q.trim() && !hay.includes(q.trim().toLowerCase())) return false
-      if (!matchesColFilter(s.displayName, colFilters.displayName)) return false
-      if (!matchesColFilter(s.supporterType, colFilters.supporterType)) return false
-      if (!matchesColFilter(s.relationshipType, colFilters.relationshipType)) return false
-      if (!matchesColFilter(s.email, colFilters.email)) return false
-      if (!matchesColFilter(s.region, colFilters.region)) return false
-      if (!matchesColFilter(s.status, colFilters.status)) return false
-      if (!matchesColFilter(s.firstDonationDate, colFilters.firstDonationDate)) return false
+      if (filters.displayName.trim() && !s.displayName.toLowerCase().includes(filters.displayName.trim().toLowerCase())) {
+        return false
+      }
+      if (filters.email.trim() && !(s.email ?? '').toLowerCase().includes(filters.email.trim().toLowerCase())) {
+        return false
+      }
+      if (!matchesStringMulti(s.supporterType, filters.supporterTypes)) return false
+      if (!matchesStringMulti(s.relationshipType ?? '', filters.relationshipTypes)) return false
+      if (!matchesStringMulti(s.region ?? '', filters.regions)) return false
+      if (!matchesStringMulti(s.status, filters.statuses)) return false
+      if (filters.dateFrom || filters.dateTo) {
+        if (!inDateRange(s.firstDonationDate, filters.dateFrom, filters.dateTo)) return false
+      }
       return true
     })
     list = sortRows(list, sortKey, sortDir, (row, key) => {
@@ -139,7 +153,19 @@ export function DonorsAdminPage() {
       }
     })
     return list
-  }, [rows, q, colFilters, sortKey, sortDir])
+  }, [rows, q, filters, sortKey, sortDir])
+
+  const activeFilterSummary = useMemo(() => {
+    const parts: string[] = []
+    if (filters.displayName.trim()) parts.push(`Name: ${filters.displayName.trim()}`)
+    if (filters.email.trim()) parts.push(`Email: ${filters.email.trim()}`)
+    if (filters.supporterTypes.size) parts.push(`Types: ${filters.supporterTypes.size}`)
+    if (filters.relationshipTypes.size) parts.push(`Relationship: ${filters.relationshipTypes.size}`)
+    if (filters.regions.size) parts.push(`Region: ${filters.regions.size}`)
+    if (filters.statuses.size) parts.push(`Status: ${filters.statuses.size}`)
+    if (filters.dateFrom || filters.dateTo) parts.push('Date range')
+    return parts
+  }, [filters])
 
   function onSort(key: string) {
     const next = nextSortState(key, sortKey, sortDir)
@@ -159,37 +185,30 @@ export function DonorsAdminPage() {
   function toggleSelectAll() {
     const ids = filteredSorted.map((s) => s.id)
     const allOn = ids.length > 0 && ids.every((id) => selected.has(id))
-    if (allOn) {
-      setSelected((prev) => {
-        const n = new Set(prev)
-        for (const id of ids) n.delete(id)
-        return n
-      })
-    } else {
-      setSelected((prev) => {
-        const n = new Set(prev)
-        for (const id of ids) n.add(id)
-        return n
-      })
-    }
+    setSelected((prev) => {
+      const n = new Set(prev)
+      if (allOn) for (const id of ids) n.delete(id)
+      else for (const id of ids) n.add(id)
+      return n
+    })
   }
 
-  async function bulkDelete() {
+  function openBulkDeleteModal() {
     if (selected.size === 0) return
-    const names = filteredSorted.filter((s) => selected.has(s.id)).map((s) => s.displayName)
-    if (
-      !confirm(
-        `Delete ${selected.size} supporter(s)?\n\n${names.slice(0, 8).join(', ')}${names.length > 8 ? '…' : ''}\n\nThis cannot be undone.`,
-      )
-    )
-      return
+    const labels = filteredSorted.filter((s) => selected.has(s.id)).map((s) => s.displayName)
+    setDeleteModal({ ids: [...selected], labels })
+  }
+
+  async function confirmDelete() {
+    if (!deleteModal) return
     setSaving(true)
     setError(null)
     try {
-      for (const id of selected) {
+      for (const id of deleteModal.ids) {
         await deleteSupporter(id)
       }
       setSelected(new Set())
+      setDeleteModal(null)
       await load()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Delete failed')
@@ -259,12 +278,12 @@ export function DonorsAdminPage() {
   const colCount = 10
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <div>
         <h2 className={pageTitle}>Donors</h2>
         <p className={pageDesc}>
-          Filter by any column, sort from headers, and open a row to view the donor profile. Bulk delete requires
-          Supabase data mode.
+          Supporters directory — filter, sort, and open a row for the full profile. Select rows to delete in bulk
+          (confirmation required).
         </p>
       </div>
 
@@ -273,45 +292,68 @@ export function DonorsAdminPage() {
       <AdminListToolbar
         searchValue={q}
         onSearchChange={setQ}
-        searchPlaceholder="Search all fields…"
+        searchPlaceholder="Quick search across visible columns…"
         filterOpen={filterOpen}
         onFilterToggle={() => setFilterOpen((o) => !o)}
         onAddClick={openAddDonor}
         addLabel="Add donor"
       />
 
-      {selected.size > 0 && (
-        <div className="flex flex-wrap items-center gap-3 rounded-lg border border-border bg-muted/40 px-4 py-3 text-sm">
-          <span className="text-muted-foreground">{selected.size} selected</span>
-          <button type="button" className={btnPrimary} disabled={saving} onClick={() => void bulkDelete()}>
-            Delete selected…
-          </button>
-          <button type="button" className="text-sm text-primary hover:underline" onClick={() => setSelected(new Set())}>
-            Clear selection
-          </button>
-        </div>
-      )}
+      <AdminBulkActionsBar
+        count={selected.size}
+        recordLabel="supporter"
+        onDeleteClick={openBulkDeleteModal}
+        onClearSelection={() => setSelected(new Set())}
+        disabled={saving}
+      />
 
       {filterOpen && (
-        <div className={`${card} grid gap-3 sm:grid-cols-2 lg:grid-cols-3`}>
-          <p className="text-sm font-medium text-foreground sm:col-span-2 lg:col-span-3">Filter by column (contains)</p>
-          {(Object.keys(colFilters) as (keyof ColFilters)[]).map((k) => (
-            <label key={k} className={label}>
-              {COL_LABELS[k]}
-              <input
-                className={input}
-                value={colFilters[k]}
-                onChange={(e) => setColFilters((f) => ({ ...f, [k]: e.target.value }))}
-                placeholder="Contains…"
-              />
-            </label>
-          ))}
-          <div className="flex items-end sm:col-span-2 lg:col-span-3">
-            <button type="button" className="text-sm text-primary hover:underline" onClick={() => setColFilters(emptyColFilters())}>
-              Clear column filters
-            </button>
-          </div>
-        </div>
+        <FilterPanelCard
+          onClearAll={() => setFilters(emptyDonorFilters())}
+          activeSummary={activeFilterSummary}
+        >
+          <TextSearchFilter
+            labelText="Display name"
+            value={filters.displayName}
+            onChange={(v) => setFilters((f) => ({ ...f, displayName: v }))}
+          />
+          <TextSearchFilter
+            labelText="Email"
+            value={filters.email}
+            onChange={(v) => setFilters((f) => ({ ...f, email: v }))}
+          />
+          <MultiSelectFilter
+            labelText="Supporter type"
+            options={typeOptions}
+            selected={filters.supporterTypes}
+            onChange={(s) => setFilters((f) => ({ ...f, supporterTypes: s }))}
+          />
+          <MultiSelectFilter
+            labelText="Relationship type"
+            options={relOptions.length ? relOptions : ['Local']}
+            selected={filters.relationshipTypes}
+            onChange={(s) => setFilters((f) => ({ ...f, relationshipTypes: s }))}
+          />
+          <MultiSelectFilter
+            labelText="Region"
+            options={regionOptions.length ? regionOptions : ['—']}
+            selected={filters.regions}
+            onChange={(s) => setFilters((f) => ({ ...f, regions: s }))}
+          />
+          <MultiSelectFilter
+            labelText="Status"
+            options={statusOptions.length ? statusOptions : ['Active', 'Inactive']}
+            selected={filters.statuses}
+            onChange={(s) => setFilters((f) => ({ ...f, statuses: s }))}
+          />
+          <DateRangeFilter
+            labelText="First donation date"
+            from={filters.dateFrom}
+            to={filters.dateTo}
+            onFrom={(v) => setFilters((f) => ({ ...f, dateFrom: v }))}
+            onTo={(v) => setFilters((f) => ({ ...f, dateTo: v }))}
+          />
+        </FilterPanelCard>
       )}
 
       {addOpen && (
@@ -390,24 +432,23 @@ export function DonorsAdminPage() {
         <table className="w-full text-left text-sm">
           <thead className={tableHead}>
             <tr>
-              
-                <th className="w-10 px-2 py-2">
-                  <input
-                    type="checkbox"
-                    aria-label="Select all"
-                    checked={filteredSorted.length > 0 && filteredSorted.every((s) => selected.has(s.id))}
-                    onChange={() => toggleSelectAll()}
-                  />
-                </th>
-              
+              <th className="w-10 px-2 py-2.5">
+                <input
+                  type="checkbox"
+                  aria-label="Select all on this page"
+                  checked={filteredSorted.length > 0 && filteredSorted.every((s) => selected.has(s.id))}
+                  onChange={toggleSelectAll}
+                  onClick={(e) => e.stopPropagation()}
+                />
+              </th>
               <SortableTh label="Display name" sortKey="displayName" activeKey={sortKey} direction={sortDir} onSort={onSort} />
-              <SortableTh label="Supporter type" sortKey="supporterType" activeKey={sortKey} direction={sortDir} onSort={onSort} />
+              <SortableTh label="Type" sortKey="supporterType" activeKey={sortKey} direction={sortDir} onSort={onSort} />
               <SortableTh label="Relationship" sortKey="relationshipType" activeKey={sortKey} direction={sortDir} onSort={onSort} />
               <SortableTh label="Email" sortKey="email" activeKey={sortKey} direction={sortDir} onSort={onSort} />
               <SortableTh label="Region" sortKey="region" activeKey={sortKey} direction={sortDir} onSort={onSort} />
               <SortableTh label="Status" sortKey="status" activeKey={sortKey} direction={sortDir} onSort={onSort} />
               <SortableTh label="First donation" sortKey="firstDonationDate" activeKey={sortKey} direction={sortDir} onSort={onSort} />
-              <th className="w-24 px-3 py-2">Edit</th>
+              <th className="px-3 py-2.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">Actions</th>
             </tr>
           </thead>
           <tbody className={tableBody}>
@@ -430,42 +471,54 @@ export function DonorsAdminPage() {
                   className={`${tableRowHover} cursor-pointer`}
                   onClick={() => navigate(`/admin/donors/${s.id}`)}
                 >
-                  
-                    <td className="px-2 py-2" onClick={(e) => e.stopPropagation()}>
-                      <input
-                        type="checkbox"
-                        aria-label={`Select ${s.displayName}`}
-                        checked={selected.has(s.id)}
-                        onChange={() => toggleSelect(s.id)}
-                      />
-                    </td>
-                  
-                  <td className="px-3 py-2 font-medium">{s.displayName}</td>
-                  <td className="px-3 py-2 text-muted-foreground">{s.supporterType}</td>
-                  <td className="px-3 py-2 text-xs text-muted-foreground">{s.relationshipType ?? '—'}</td>
-                  <td className="px-3 py-2 text-xs">{s.email ?? '—'}</td>
-                  <td className="px-3 py-2 text-xs text-muted-foreground">{s.region ?? '—'}</td>
-                  <td className="px-3 py-2 text-xs">{s.status}</td>
-                  <td className="px-3 py-2 text-xs text-muted-foreground">
-                    {s.firstDonationDate
-                      ? /^\d{4}-\d{2}-\d{2}/.test(s.firstDonationDate)
-                        ? new Date(s.firstDonationDate).toLocaleDateString()
-                        : s.firstDonationDate
-                      : '—'}
+                  <td className="px-2 py-2.5" onClick={(e) => e.stopPropagation()}>
+                    <input
+                      type="checkbox"
+                      aria-label={`Select ${s.displayName}`}
+                      checked={selected.has(s.id)}
+                      onChange={() => toggleSelect(s.id)}
+                    />
                   </td>
-                  
-                    <td className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
-                      <button type="button" className="text-primary hover:underline" onClick={() => setEdit({ ...s })}>
-                        Edit
-                      </button>
-                    </td>
-                  
+                  <td className="px-3 py-2.5 font-medium text-foreground">{s.displayName}</td>
+                  <td className="px-3 py-2.5">
+                    <NeutralPill>{s.supporterType}</NeutralPill>
+                  </td>
+                  <td className="px-3 py-2.5">
+                    {s.relationshipType ? <NeutralPill>{s.relationshipType}</NeutralPill> : <span className="text-muted-foreground">—</span>}
+                  </td>
+                  <td className="px-3 py-2.5 text-muted-foreground">{s.email ?? '—'}</td>
+                  <td className="px-3 py-2.5 text-muted-foreground">{s.region ?? '—'}</td>
+                  <td className="px-3 py-2.5">
+                    <StatusBadge status={s.status} />
+                  </td>
+                  <td className="px-3 py-2.5 tabular-nums text-muted-foreground">{formatAdminDate(s.firstDonationDate)}</td>
+                  <td className="px-3 py-2.5" onClick={(e) => e.stopPropagation()}>
+                    <button type="button" className="text-sm font-medium text-primary hover:underline" onClick={() => setEdit({ ...s })}>
+                      Edit
+                    </button>
+                  </td>
                 </tr>
               ))
             )}
           </tbody>
         </table>
       </div>
+
+      <AdminDeleteModal
+        open={deleteModal != null}
+        title={deleteModal && deleteModal.ids.length === 1 ? 'Delete supporter?' : 'Delete supporters?'}
+        body={
+          deleteModal
+            ? deleteModal.ids.length === 1
+              ? `You are about to delete supporter “${deleteModal.labels[0] ?? deleteModal.ids[0]}”.`
+              : `You are about to delete ${deleteModal.ids.length} supporters.`
+            : ''
+        }
+        previewLines={deleteModal && deleteModal.ids.length > 1 ? deleteModal.labels : undefined}
+        loading={saving}
+        onCancel={() => setDeleteModal(null)}
+        onConfirm={() => void confirmDelete()}
+      />
 
       {edit && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/40 p-4">

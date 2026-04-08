@@ -23,44 +23,54 @@ import {
   type Donation,
 } from '../../api/admin'
 import { AdminListToolbar } from './AdminListToolbar'
-import { matchesColFilter, nextSortState, sortRows, SortableTh, type SortDirection } from './SortableTh'
+import { nextSortState, sortRows, SortableTh, type SortDirection } from './SortableTh'
+import { AdminBulkActionsBar } from './adminDataTable/AdminBulkActionsBar'
+import { AdminDeleteModal } from './adminDataTable/AdminDeleteModal'
+import { BoolPill, MutedTinyPill, NeutralPill } from './adminDataTable/AdminBadges'
+import {
+  FilterPanelCard,
+  DateRangeFilter,
+  MinMaxFilter,
+  MultiSelectFilter,
+  SearchableEntityMultiFilter,
+  TextSearchFilter,
+  TriBoolFilter,
+} from './adminDataTable/AdminFilterPrimitives'
+import {
+  formatAdminDate,
+  inAmountRange,
+  inDateRange,
+  matchesIdMulti,
+  matchesStringMulti,
+  matchesTriBool,
+  type TriBool,
+  uniqSortedStrings,
+} from './adminDataTable/adminFormatters'
 
-const moneyPhp = new Intl.NumberFormat(undefined, { style: 'currency', currency: 'PHP' })
-
-type ColFilters = {
-  donationDate: string
-  supporterId: string
-  donationType: string
-  amount: string
-  currencyCode: string
-  isRecurring: string
-  campaignName: string
-  channelSource: string
-  impactUnit: string
+function formatMoney(amount: number | null, code: string | null) {
+  if (amount == null) return '—'
+  const c = (code ?? 'PHP').trim() || 'PHP'
+  try {
+    return new Intl.NumberFormat(undefined, { style: 'currency', currency: c }).format(amount)
+  } catch {
+    return `${amount} ${c}`
+  }
 }
 
-const emptyFilters = (): ColFilters => ({
-  donationDate: '',
-  supporterId: '',
-  donationType: '',
-  amount: '',
-  currencyCode: '',
-  isRecurring: '',
-  campaignName: '',
-  channelSource: '',
-  impactUnit: '',
-})
-
-const FILTER_LABELS: Record<keyof ColFilters, string> = {
-  donationDate: 'Donation date',
-  supporterId: 'Supporter ID',
-  donationType: 'Donation type',
-  amount: 'Amount',
-  currencyCode: 'Currency code',
-  isRecurring: 'Recurring (yes/no)',
-  campaignName: 'Campaign name',
-  channelSource: 'Channel source',
-  impactUnit: 'Impact unit',
+function emptyFilters() {
+  return {
+    dateFrom: '',
+    dateTo: '',
+    supporterIds: new Set<number>(),
+    donationTypes: new Set<string>(),
+    amountMin: '',
+    amountMax: '',
+    currencies: new Set<string>(),
+    recurring: 'all' as TriBool,
+    campaign: '',
+    channels: new Set<string>(),
+    impactUnits: new Set<string>(),
+  }
 }
 
 export function ContributionsAdminPage() {
@@ -73,16 +83,18 @@ export function ContributionsAdminPage() {
   const [edit, setEdit] = useState<Donation | null>(null)
   const [addOpen, setAddOpen] = useState(false)
   const [filterOpen, setFilterOpen] = useState(false)
-  const [colFilters, setColFilters] = useState<ColFilters>(emptyFilters)
+  const [filters, setFilters] = useState(emptyFilters)
+  const [supporterFilterSearch, setSupporterFilterSearch] = useState('')
   const [sortKey, setSortKey] = useState<string | null>(null)
   const [sortDir, setSortDir] = useState<SortDirection>(null)
   const [selected, setSelected] = useState<Set<number>>(new Set())
+  const [deleteModal, setDeleteModal] = useState<{ ids: number[]; labels: string[] } | null>(null)
+  const [saving, setSaving] = useState(false)
 
   const [newSup, setNewSup] = useState(0)
   const [newType, setNewType] = useState('Monetary')
   const [newAmt, setNewAmt] = useState('')
   const [newDate, setNewDate] = useState(() => new Date().toISOString().slice(0, 10))
-  const [saving, setSaving] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -103,27 +115,41 @@ export function ContributionsAdminPage() {
     void load()
   }, [load])
 
+  const supporterOptions = useMemo(
+    () => supporters.map((s) => ({ id: s.id, label: s.displayName || `Supporter #${s.id}` })),
+    [supporters],
+  )
+
+  const typeOpts = useMemo(() => uniqSortedStrings(rows.map((r) => r.donationType)), [rows])
+  const curOpts = useMemo(() => uniqSortedStrings(rows.map((r) => r.currencyCode)), [rows])
+  const chOpts = useMemo(() => uniqSortedStrings(rows.map((r) => r.channelSource)), [rows])
+  const impOpts = useMemo(() => uniqSortedStrings(rows.map((r) => r.impactUnit)), [rows])
+
   const filteredSorted = useMemo(() => {
     let list = rows.filter((r) => {
-      const hay = `${r.supporterDisplayName} ${r.donationType} ${r.notes ?? ''} ${r.campaignName ?? ''} ${r.id} ${r.supporterId} ${r.channelSource ?? ''} ${r.currencyCode ?? ''} ${r.impactUnit ?? ''}`.toLowerCase()
+      const hay = `${r.supporterDisplayName} ${r.donationType} ${r.campaignName ?? ''} ${r.id}`.toLowerCase()
       if (q.trim() && !hay.includes(q.trim().toLowerCase())) return false
-      if (!matchesColFilter(r.donationDate, colFilters.donationDate)) return false
-      if (!matchesColFilter(r.supporterId, colFilters.supporterId)) return false
-      if (!matchesColFilter(r.donationType, colFilters.donationType)) return false
-      if (!matchesColFilter(r.amount, colFilters.amount)) return false
-      if (!matchesColFilter(r.currencyCode, colFilters.currencyCode)) return false
-      if (!matchesColFilter(r.isRecurring, colFilters.isRecurring)) return false
-      if (!matchesColFilter(r.campaignName, colFilters.campaignName)) return false
-      if (!matchesColFilter(r.channelSource, colFilters.channelSource)) return false
-      if (!matchesColFilter(r.impactUnit, colFilters.impactUnit)) return false
+      if (filters.dateFrom || filters.dateTo) {
+        if (!inDateRange(r.donationDate, filters.dateFrom, filters.dateTo)) return false
+      }
+      if (!matchesIdMulti(r.supporterId, filters.supporterIds)) return false
+      if (!matchesStringMulti(r.donationType, filters.donationTypes)) return false
+      if (!inAmountRange(r.amount, filters.amountMin, filters.amountMax)) return false
+      if (!matchesStringMulti(r.currencyCode ?? '', filters.currencies)) return false
+      if (!matchesTriBool(r.isRecurring, filters.recurring)) return false
+      if (filters.campaign.trim() && !(r.campaignName ?? '').toLowerCase().includes(filters.campaign.trim().toLowerCase())) {
+        return false
+      }
+      if (!matchesStringMulti(r.channelSource ?? '', filters.channels)) return false
+      if (!matchesStringMulti(r.impactUnit ?? '', filters.impactUnits)) return false
       return true
     })
     list = sortRows(list, sortKey, sortDir, (row, key) => {
       switch (key) {
         case 'donationDate':
           return row.donationDate
-        case 'supporterId':
-          return row.supporterId
+        case 'supporterDisplayName':
+          return row.supporterDisplayName
         case 'donationType':
           return row.donationType
         case 'amount':
@@ -143,7 +169,21 @@ export function ContributionsAdminPage() {
       }
     })
     return list
-  }, [rows, q, colFilters, sortKey, sortDir])
+  }, [rows, q, filters, sortKey, sortDir])
+
+  const activeSummary = useMemo(() => {
+    const p: string[] = []
+    if (filters.dateFrom || filters.dateTo) p.push('Date range')
+    if (filters.supporterIds.size) p.push(`Supporters: ${filters.supporterIds.size}`)
+    if (filters.donationTypes.size) p.push(`Types: ${filters.donationTypes.size}`)
+    if (filters.amountMin || filters.amountMax) p.push('Amount range')
+    if (filters.currencies.size) p.push(`Currency: ${filters.currencies.size}`)
+    if (filters.recurring !== 'all') p.push(`Recurring: ${filters.recurring}`)
+    if (filters.campaign.trim()) p.push('Campaign')
+    if (filters.channels.size) p.push(`Channel: ${filters.channels.size}`)
+    if (filters.impactUnits.size) p.push(`Impact: ${filters.impactUnits.size}`)
+    return p
+  }, [filters])
 
   function onSort(key: string) {
     const next = nextSortState(key, sortKey, sortDir)
@@ -171,16 +211,24 @@ export function ContributionsAdminPage() {
     })
   }
 
-  async function bulkDelete() {
+  function openDeleteModal() {
     if (selected.size === 0) return
-    if (!confirm(`Delete ${selected.size} contribution(s)? This cannot be undone.`)) return
+    const labels = filteredSorted
+      .filter((r) => selected.has(r.id))
+      .map((r) => `${formatAdminDate(r.donationDate)} · ${r.supporterDisplayName} · ${formatMoney(r.amount, r.currencyCode)}`)
+    setDeleteModal({ ids: [...selected], labels })
+  }
+
+  async function confirmDelete() {
+    if (!deleteModal) return
     setSaving(true)
     setError(null)
     try {
-      for (const id of selected) {
+      for (const id of deleteModal.ids) {
         await deleteDonation(id)
       }
       setSelected(new Set())
+      setDeleteModal(null)
       await load()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed')
@@ -234,17 +282,18 @@ export function ContributionsAdminPage() {
 
   function openAdd() {
     setAddOpen(true)
-    requestAnimationFrame(() => document.getElementById('admin-add-contribution')?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
+    requestAnimationFrame(() => document.getElementById('admin-add-donation')?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
   }
 
   const colCount = 11
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <div>
-        <h2 className={pageTitle}>Contributions</h2>
+        <h2 className={pageTitle}>Donations</h2>
         <p className={pageDesc}>
-          Filter by any field, sort from headers. Click a row to open the donor profile. Bulk delete requires Supabase.
+          Donations ledger — open a row to view the supporter profile. Filters use types and ranges; delete requires
+          confirmation.
         </p>
       </div>
       {error && <div className={alertError}>{error}</div>}
@@ -252,49 +301,86 @@ export function ContributionsAdminPage() {
       <AdminListToolbar
         searchValue={q}
         onSearchChange={setQ}
-        searchPlaceholder="Search all fields…"
+        searchPlaceholder="Quick search…"
         filterOpen={filterOpen}
         onFilterToggle={() => setFilterOpen((o) => !o)}
         onAddClick={openAdd}
-        addLabel="Add contribution"
+        addLabel="Add donation"
       />
 
-      {selected.size > 0 && (
-        <div className="flex flex-wrap items-center gap-3 rounded-lg border border-border bg-muted/40 px-4 py-3 text-sm">
-          <span className="text-muted-foreground">{selected.size} selected</span>
-          <button type="button" className={btnPrimary} disabled={saving} onClick={() => void bulkDelete()}>
-            Delete selected…
-          </button>
-          <button type="button" className="text-sm text-primary hover:underline" onClick={() => setSelected(new Set())}>
-            Clear selection
-          </button>
-        </div>
-      )}
+      <AdminBulkActionsBar
+        count={selected.size}
+        recordLabel="donation"
+        onDeleteClick={openDeleteModal}
+        onClearSelection={() => setSelected(new Set())}
+        disabled={saving}
+      />
 
       {filterOpen && (
-        <div className={`${card} grid gap-3 sm:grid-cols-2 lg:grid-cols-3`}>
-          <p className="text-sm font-medium sm:col-span-2 lg:col-span-3">Filter by column (contains)</p>
-          {(Object.keys(colFilters) as (keyof ColFilters)[]).map((k) => (
-            <label key={k} className={label}>
-              {FILTER_LABELS[k]}
-              <input
-                className={input}
-                value={colFilters[k]}
-                onChange={(e) => setColFilters((f) => ({ ...f, [k]: e.target.value }))}
-                placeholder="Contains…"
-              />
-            </label>
-          ))}
-          <button type="button" className="text-sm text-primary hover:underline sm:col-span-2 lg:col-span-3" onClick={() => setColFilters(emptyFilters())}>
-            Clear column filters
-          </button>
-        </div>
+        <FilterPanelCard onClearAll={() => setFilters(emptyFilters())} activeSummary={activeSummary}>
+          <DateRangeFilter
+            labelText="Donation date"
+            from={filters.dateFrom}
+            to={filters.dateTo}
+            onFrom={(v) => setFilters((f) => ({ ...f, dateFrom: v }))}
+            onTo={(v) => setFilters((f) => ({ ...f, dateTo: v }))}
+          />
+          <SearchableEntityMultiFilter
+            labelText="Supporter"
+            options={supporterOptions}
+            selectedIds={filters.supporterIds}
+            onChange={(s) => setFilters((f) => ({ ...f, supporterIds: s }))}
+            search={supporterFilterSearch}
+            onSearchChange={setSupporterFilterSearch}
+          />
+          <MultiSelectFilter
+            labelText="Donation type"
+            options={typeOpts.length ? typeOpts : ['Monetary', 'InKind', 'Time']}
+            selected={filters.donationTypes}
+            onChange={(s) => setFilters((f) => ({ ...f, donationTypes: s }))}
+          />
+          <MinMaxFilter
+            labelText="Amount"
+            min={filters.amountMin}
+            max={filters.amountMax}
+            onMin={(v) => setFilters((f) => ({ ...f, amountMin: v }))}
+            onMax={(v) => setFilters((f) => ({ ...f, amountMax: v }))}
+          />
+          <MultiSelectFilter
+            labelText="Currency"
+            options={curOpts.length ? curOpts : ['PHP', 'USD']}
+            selected={filters.currencies}
+            onChange={(s) => setFilters((f) => ({ ...f, currencies: s }))}
+          />
+          <TriBoolFilter
+            labelText="Recurring"
+            value={filters.recurring}
+            onChange={(v) => setFilters((f) => ({ ...f, recurring: v }))}
+          />
+          <TextSearchFilter
+            labelText="Campaign name"
+            value={filters.campaign}
+            onChange={(v) => setFilters((f) => ({ ...f, campaign: v }))}
+          />
+          <MultiSelectFilter
+            labelText="Channel"
+            options={chOpts.length ? chOpts : ['Direct', 'Website']}
+            selected={filters.channels}
+            onChange={(s) => setFilters((f) => ({ ...f, channels: s }))}
+          />
+          <MultiSelectFilter
+            labelText="Impact unit"
+            options={impOpts.length ? impOpts : ['pesos', 'hours', 'items']}
+            selected={filters.impactUnits}
+            onChange={(s) => setFilters((f) => ({ ...f, impactUnits: s }))}
+          />
+        </FilterPanelCard>
       )}
 
       {addOpen && (
-        <form id="admin-add-contribution" onSubmit={onCreate} className={`${card} scroll-mt-28 flex flex-wrap items-end gap-3`}>
+        <form id="admin-add-donation" onSubmit={onCreate} className={`${card} scroll-mt-28 flex flex-wrap items-end gap-3`}>
           <div className="flex w-full items-center justify-between">
-            <span className="text-sm font-medium">New contribution</span>
+            <span className="text-sm font-medium">New donation</span>
             <button type="button" className="text-sm text-muted-foreground hover:text-foreground" onClick={() => setAddOpen(false)}>
               Close
             </button>
@@ -328,7 +414,7 @@ export function ContributionsAdminPage() {
             <input type="date" className={input} value={newDate} onChange={(e) => setNewDate(e.target.value)} />
           </label>
           <button type="submit" disabled={saving} className={btnPrimary}>
-            Add contribution
+            Add donation
           </button>
         </form>
       )}
@@ -337,26 +423,25 @@ export function ContributionsAdminPage() {
         <table className="w-full text-left text-sm">
           <thead className={tableHead}>
             <tr>
-              
-                <th className="w-10 px-2 py-2">
-                  <input
-                    type="checkbox"
-                    aria-label="Select all"
-                    checked={filteredSorted.length > 0 && filteredSorted.every((r) => selected.has(r.id))}
-                    onChange={() => toggleSelectAll()}
-                  />
-                </th>
-              
-              <SortableTh label="Donation date" sortKey="donationDate" activeKey={sortKey} direction={sortDir} onSort={onSort} />
-              <SortableTh label="Supporter ID" sortKey="supporterId" activeKey={sortKey} direction={sortDir} onSort={onSort} />
+              <th className="w-10 px-2 py-2.5">
+                <input
+                  type="checkbox"
+                  aria-label="Select all on this page"
+                  checked={filteredSorted.length > 0 && filteredSorted.every((r) => selected.has(r.id))}
+                  onChange={toggleSelectAll}
+                  onClick={(e) => e.stopPropagation()}
+                />
+              </th>
+              <SortableTh label="Date" sortKey="donationDate" activeKey={sortKey} direction={sortDir} onSort={onSort} />
+              <SortableTh label="Supporter" sortKey="supporterDisplayName" activeKey={sortKey} direction={sortDir} onSort={onSort} />
               <SortableTh label="Type" sortKey="donationType" activeKey={sortKey} direction={sortDir} onSort={onSort} />
               <SortableTh label="Amount" sortKey="amount" activeKey={sortKey} direction={sortDir} onSort={onSort} />
               <SortableTh label="Currency" sortKey="currencyCode" activeKey={sortKey} direction={sortDir} onSort={onSort} />
               <SortableTh label="Recurring" sortKey="isRecurring" activeKey={sortKey} direction={sortDir} onSort={onSort} />
               <SortableTh label="Campaign" sortKey="campaignName" activeKey={sortKey} direction={sortDir} onSort={onSort} />
               <SortableTh label="Channel" sortKey="channelSource" activeKey={sortKey} direction={sortDir} onSort={onSort} />
-              <SortableTh label="Impact unit" sortKey="impactUnit" activeKey={sortKey} direction={sortDir} onSort={onSort} />
-              <th className="w-24 px-3 py-2">Edit</th>
+              <SortableTh label="Impact" sortKey="impactUnit" activeKey={sortKey} direction={sortDir} onSort={onSort} />
+              <th className="px-3 py-2.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">Actions</th>
             </tr>
           </thead>
           <tbody className={tableBody}>
@@ -379,37 +464,57 @@ export function ContributionsAdminPage() {
                   className={`${tableRowHover} cursor-pointer`}
                   onClick={() => navigate(`/admin/donors/${r.supporterId}`)}
                 >
-                  
-                    <td className="px-2 py-2" onClick={(e) => e.stopPropagation()}>
-                      <input type="checkbox" checked={selected.has(r.id)} onChange={() => toggleSelect(r.id)} aria-label={`Select ${r.id}`} />
-                    </td>
-                  
-                  <td className="px-3 py-2 text-xs">{new Date(r.donationDate).toLocaleDateString()}</td>
-                  <td className="px-3 py-2 font-mono text-xs text-muted-foreground">{r.supporterId}</td>
-                  <td className="px-3 py-2">{r.donationType}</td>
-                  <td className="px-3 py-2">{moneyPhp.format(r.amount ?? 0)}</td>
-                  <td className="px-3 py-2 text-xs">{r.currencyCode ?? '—'}</td>
-                  <td className="px-3 py-2 text-xs">{r.isRecurring ? 'Yes' : 'No'}</td>
-                  <td className="max-w-[140px] truncate px-3 py-2 text-xs" title={r.campaignName ?? ''}>
+                  <td className="px-2 py-2.5" onClick={(e) => e.stopPropagation()}>
+                    <input type="checkbox" checked={selected.has(r.id)} onChange={() => toggleSelect(r.id)} aria-label={`Select donation ${r.id}`} />
+                  </td>
+                  <td className="px-3 py-2.5 tabular-nums text-muted-foreground">{formatAdminDate(r.donationDate)}</td>
+                  <td className="px-3 py-2.5 font-medium text-foreground">{r.supporterDisplayName}</td>
+                  <td className="px-3 py-2.5">
+                    <NeutralPill>{r.donationType}</NeutralPill>
+                  </td>
+                  <td className="px-3 py-2.5 tabular-nums font-medium">{formatMoney(r.amount, r.currencyCode)}</td>
+                  <td className="px-3 py-2.5">
+                    <MutedTinyPill>{r.currencyCode ?? '—'}</MutedTinyPill>
+                  </td>
+                  <td className="px-3 py-2.5">
+                    <BoolPill value={r.isRecurring} />
+                  </td>
+                  <td className="max-w-[160px] truncate px-3 py-2.5 text-muted-foreground" title={r.campaignName ?? ''}>
                     {r.campaignName ?? '—'}
                   </td>
-                  <td className="max-w-[120px] truncate px-3 py-2 text-xs text-muted-foreground" title={r.channelSource ?? ''}>
-                    {r.channelSource ?? '—'}
+                  <td className="px-3 py-2.5">
+                    {r.channelSource ? <NeutralPill>{r.channelSource}</NeutralPill> : <span className="text-muted-foreground">—</span>}
                   </td>
-                  <td className="px-3 py-2 text-xs text-muted-foreground">{r.impactUnit ?? '—'}</td>
-                  
-                    <td className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
-                      <button type="button" className="text-primary hover:underline" onClick={() => setEdit({ ...r })}>
-                        Edit
-                      </button>
-                    </td>
-                  
+                  <td className="px-3 py-2.5">
+                    {r.impactUnit ? <MutedTinyPill>{r.impactUnit}</MutedTinyPill> : <span className="text-muted-foreground">—</span>}
+                  </td>
+                  <td className="px-3 py-2.5" onClick={(e) => e.stopPropagation()}>
+                    <button type="button" className="text-sm font-medium text-primary hover:underline" onClick={() => setEdit({ ...r })}>
+                      Edit
+                    </button>
+                  </td>
                 </tr>
               ))
             )}
           </tbody>
         </table>
       </div>
+
+      <AdminDeleteModal
+        open={deleteModal != null}
+        title={deleteModal && deleteModal.ids.length === 1 ? 'Delete donation?' : 'Delete donations?'}
+        body={
+          deleteModal
+            ? deleteModal.ids.length === 1
+              ? 'You are about to delete one donation record.'
+              : `You are about to delete ${deleteModal.ids.length} donation records.`
+            : ''
+        }
+        previewLines={deleteModal && deleteModal.labels.length > 1 ? deleteModal.labels : deleteModal?.labels.slice(0, 1)}
+        loading={saving}
+        onCancel={() => setDeleteModal(null)}
+        onConfirm={() => void confirmDelete()}
+      />
 
       {edit && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/40 p-4">

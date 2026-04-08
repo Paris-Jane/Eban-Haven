@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
-import { Link } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import {
   alertError,
   btnPrimary,
@@ -19,64 +19,83 @@ import {
   deleteAllocation,
   getAllocations,
   getDonations,
+  getSafehouses,
   patchAllocationFields,
   type DonationAllocation,
 } from '../../api/admin'
 import { AdminListToolbar } from './AdminListToolbar'
-import { matchesColFilter, nextSortState, sortRows, SortableTh, type SortDirection } from './SortableTh'
+import { nextSortState, sortRows, SortableTh, type SortDirection } from './SortableTh'
+import { AdminBulkActionsBar } from './adminDataTable/AdminBulkActionsBar'
+import { AdminDeleteModal } from './adminDataTable/AdminDeleteModal'
+import { NeutralPill } from './adminDataTable/AdminBadges'
+import {
+  FilterPanelCard,
+  DateRangeFilter,
+  MinMaxFilter,
+  MultiSelectFilter,
+  SearchableEntityMultiFilter,
+} from './adminDataTable/AdminFilterPrimitives'
+import {
+  formatAdminDate,
+  inAmountRange,
+  inDateRange,
+  matchesIdMulti,
+  matchesStringMulti,
+  uniqSortedStrings,
+} from './adminDataTable/adminFormatters'
 
-const moneyPhp = new Intl.NumberFormat(undefined, { style: 'currency', currency: 'PHP' })
-
-type ColFilters = {
-  allocationDate: string
-  donationId: string
-  safehouseId: string
-  programArea: string
-  amountAllocated: string
+function formatMoneyPhp(amount: number) {
+  try {
+    return new Intl.NumberFormat(undefined, { style: 'currency', currency: 'PHP' }).format(amount)
+  } catch {
+    return String(amount)
+  }
 }
 
-const emptyFilters = (): ColFilters => ({
-  allocationDate: '',
-  donationId: '',
-  safehouseId: '',
-  programArea: '',
-  amountAllocated: '',
-})
-
-const FILTER_LABELS: Record<keyof ColFilters, string> = {
-  allocationDate: 'Allocation date',
-  donationId: 'Donation ID',
-  safehouseId: 'Safehouse ID',
-  programArea: 'Program area',
-  amountAllocated: 'Amount allocated',
+function emptyFilters() {
+  return {
+    dateFrom: '',
+    dateTo: '',
+    donationIds: new Set<number>(),
+    safehouseIds: new Set<number>(),
+    programAreas: new Set<string>(),
+    amountMin: '',
+    amountMax: '',
+  }
 }
 
 export function AllocationsAdminPage() {
+  const navigate = useNavigate()
   const [rows, setRows] = useState<DonationAllocation[]>([])
   const [donations, setDonations] = useState<Awaited<ReturnType<typeof getDonations>>>([])
+  const [safehouses, setSafehouses] = useState<Awaited<ReturnType<typeof getSafehouses>>>([])
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [q, setQ] = useState('')
   const [edit, setEdit] = useState<DonationAllocation | null>(null)
   const [addOpen, setAddOpen] = useState(false)
   const [filterOpen, setFilterOpen] = useState(false)
-  const [colFilters, setColFilters] = useState<ColFilters>(emptyFilters)
+  const [filters, setFilters] = useState(emptyFilters)
+  const [donSearch, setDonSearch] = useState('')
+  const [shSearch, setShSearch] = useState('')
   const [sortKey, setSortKey] = useState<string | null>(null)
   const [sortDir, setSortDir] = useState<SortDirection>(null)
   const [selected, setSelected] = useState<Set<number>>(new Set())
+  const [deleteModal, setDeleteModal] = useState<{ ids: number[]; labels: string[] } | null>(null)
+  const [saving, setSaving] = useState(false)
 
   const [donId, setDonId] = useState(0)
   const [shId, setShId] = useState(1)
   const [prog, setProg] = useState('Education')
   const [amt, setAmt] = useState('')
-  const [saving, setSaving] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const [a, d] = await Promise.all([getAllocations(), getDonations()])
+      const [a, d, sh] = await Promise.all([getAllocations(), getDonations(), getSafehouses()])
       setRows(a)
       setDonations(d)
+      setSafehouses(sh)
       setDonId((prev) => prev || d[0]?.id || 0)
       setError(null)
     } catch (e) {
@@ -96,15 +115,48 @@ export function AllocationsAdminPage() {
     return m
   }, [donations])
 
+  const donationOptions = useMemo(
+    () =>
+      donations.map((d) => ({
+        id: d.id,
+        label: `#${d.id} · ${d.supporterDisplayName} · ${formatAdminDate(d.donationDate)}`,
+      })),
+    [donations],
+  )
+
+  const safehouseOptions = useMemo(
+    () => safehouses.map((s) => ({ id: s.id, label: `${s.name} (${s.code})` })),
+    [safehouses],
+  )
+
+  const safehouseNameById = useMemo(() => {
+    const m = new Map<number, string>()
+    for (const s of safehouses) m.set(s.id, s.name)
+    return m
+  }, [safehouses])
+
+  const programOpts = useMemo(() => uniqSortedStrings(rows.map((r) => r.programArea)), [rows])
+
+  const donationLabel = useCallback(
+    (id: number) => {
+      const d = donations.find((x) => x.id === id)
+      return d ? `#${id} · ${d.supporterDisplayName}` : `#${id}`
+    },
+    [donations],
+  )
+
   const filteredSorted = useMemo(() => {
     let list = rows.filter((r) => {
-      const hay = `${r.safehouseName ?? ''} ${r.programArea} ${r.notes ?? ''} ${r.donationId} ${r.safehouseId} ${r.id} ${r.allocationDate}`.toLowerCase()
+      const shName = r.safehouseName ?? safehouseNameById.get(r.safehouseId) ?? ''
+      const hay = `${shName} ${r.programArea} ${r.donationId} ${r.id} ${donationLabel(r.donationId)}`.toLowerCase()
       if (q.trim() && !hay.includes(q.trim().toLowerCase())) return false
-      if (!matchesColFilter(r.allocationDate, colFilters.allocationDate)) return false
-      if (!matchesColFilter(r.donationId, colFilters.donationId)) return false
-      if (!matchesColFilter(r.safehouseId, colFilters.safehouseId)) return false
-      if (!matchesColFilter(r.programArea, colFilters.programArea)) return false
-      if (!matchesColFilter(r.amountAllocated, colFilters.amountAllocated)) return false
+      if (filters.dateFrom || filters.dateTo) {
+        if (!inDateRange(r.allocationDate, filters.dateFrom, filters.dateTo)) return false
+      }
+      if (!matchesIdMulti(r.donationId, filters.donationIds)) return false
+      if (!matchesIdMulti(r.safehouseId, filters.safehouseIds)) return false
+      if (!matchesStringMulti(r.programArea, filters.programAreas)) return false
+      if (!inAmountRange(r.amountAllocated, filters.amountMin, filters.amountMax)) return false
       return true
     })
     list = sortRows(list, sortKey, sortDir, (row, key) => {
@@ -124,7 +176,17 @@ export function AllocationsAdminPage() {
       }
     })
     return list
-  }, [rows, q, colFilters, sortKey, sortDir])
+  }, [rows, q, filters, sortKey, sortDir, donationLabel, safehouseNameById])
+
+  const activeSummary = useMemo(() => {
+    const p: string[] = []
+    if (filters.dateFrom || filters.dateTo) p.push('Date range')
+    if (filters.donationIds.size) p.push(`Donations: ${filters.donationIds.size}`)
+    if (filters.safehouseIds.size) p.push(`Safehouses: ${filters.safehouseIds.size}`)
+    if (filters.programAreas.size) p.push(`Program: ${filters.programAreas.size}`)
+    if (filters.amountMin || filters.amountMax) p.push('Amount range')
+    return p
+  }, [filters])
 
   function onSort(key: string) {
     const next = nextSortState(key, sortKey, sortDir)
@@ -152,16 +214,24 @@ export function AllocationsAdminPage() {
     })
   }
 
-  async function bulkDelete() {
+  function openDeleteModal() {
     if (selected.size === 0) return
-    if (!confirm(`Delete ${selected.size} allocation(s)? This cannot be undone.`)) return
+    const labels = filteredSorted
+      .filter((r) => selected.has(r.id))
+      .map((r) => `${formatAdminDate(r.allocationDate)} · ${donationLabel(r.donationId)} · ${formatMoneyPhp(r.amountAllocated)}`)
+    setDeleteModal({ ids: [...selected], labels })
+  }
+
+  async function confirmDelete() {
+    if (!deleteModal) return
     setSaving(true)
     setError(null)
     try {
-      for (const id of selected) {
+      for (const id of deleteModal.ids) {
         await deleteAllocation(id)
       }
       setSelected(new Set())
+      setDeleteModal(null)
       await load()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed')
@@ -215,14 +285,20 @@ export function AllocationsAdminPage() {
     requestAnimationFrame(() => document.getElementById('admin-add-allocation')?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
   }
 
-  const colCount = 7
+  function rowNavigate(r: DonationAllocation) {
+    const sid = donationSupporter.get(r.donationId)
+    if (sid != null) navigate(`/admin/donors/${sid}`)
+    else navigate('/admin/contributions')
+  }
+
+  const colCount = 8
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <div>
         <h2 className={pageTitle}>Allocations</h2>
         <p className={pageDesc}>
-          Filter by any column; click a row to edit. Donation ID links to the contributions list.
+          Donation allocations — open a row to jump to the linked supporter. Use Edit for quick field updates.
         </p>
       </div>
       {error && <div className={alertError}>{error}</div>}
@@ -230,43 +306,60 @@ export function AllocationsAdminPage() {
       <AdminListToolbar
         searchValue={q}
         onSearchChange={setQ}
-        searchPlaceholder="Search…"
+        searchPlaceholder="Quick search…"
         filterOpen={filterOpen}
         onFilterToggle={() => setFilterOpen((o) => !o)}
         onAddClick={openAdd}
         addLabel="Add allocation"
       />
 
-      {selected.size > 0 && (
-        <div className="flex flex-wrap items-center gap-3 rounded-lg border border-border bg-muted/40 px-4 py-3 text-sm">
-          <span className="text-muted-foreground">{selected.size} selected</span>
-          <button type="button" className={btnPrimary} disabled={saving} onClick={() => void bulkDelete()}>
-            Delete selected…
-          </button>
-          <button type="button" className="text-sm text-primary hover:underline" onClick={() => setSelected(new Set())}>
-            Clear selection
-          </button>
-        </div>
-      )}
+      <AdminBulkActionsBar
+        count={selected.size}
+        recordLabel="allocation"
+        onDeleteClick={openDeleteModal}
+        onClearSelection={() => setSelected(new Set())}
+        disabled={saving}
+      />
 
       {filterOpen && (
-        <div className={`${card} grid gap-3 sm:grid-cols-2 lg:grid-cols-3`}>
-          <p className="text-sm font-medium sm:col-span-2 lg:col-span-3">Filter by column (contains)</p>
-          {(Object.keys(colFilters) as (keyof ColFilters)[]).map((k) => (
-            <label key={k} className={label}>
-              {FILTER_LABELS[k]}
-              <input
-                className={input}
-                value={colFilters[k]}
-                onChange={(e) => setColFilters((f) => ({ ...f, [k]: e.target.value }))}
-                placeholder="Contains…"
-              />
-            </label>
-          ))}
-          <button type="button" className="text-sm text-primary hover:underline sm:col-span-2 lg:col-span-3" onClick={() => setColFilters(emptyFilters())}>
-            Clear column filters
-          </button>
-        </div>
+        <FilterPanelCard onClearAll={() => setFilters(emptyFilters())} activeSummary={activeSummary}>
+          <DateRangeFilter
+            labelText="Allocation date"
+            from={filters.dateFrom}
+            to={filters.dateTo}
+            onFrom={(v) => setFilters((f) => ({ ...f, dateFrom: v }))}
+            onTo={(v) => setFilters((f) => ({ ...f, dateTo: v }))}
+          />
+          <SearchableEntityMultiFilter
+            labelText="Donation"
+            options={donationOptions}
+            selectedIds={filters.donationIds}
+            onChange={(s) => setFilters((f) => ({ ...f, donationIds: s }))}
+            search={donSearch}
+            onSearchChange={setDonSearch}
+          />
+          <SearchableEntityMultiFilter
+            labelText="Safehouse"
+            options={safehouseOptions}
+            selectedIds={filters.safehouseIds}
+            onChange={(s) => setFilters((f) => ({ ...f, safehouseIds: s }))}
+            search={shSearch}
+            onSearchChange={setShSearch}
+          />
+          <MultiSelectFilter
+            labelText="Program area"
+            options={programOpts.length ? programOpts : ['Education', 'Health', 'Counseling']}
+            selected={filters.programAreas}
+            onChange={(s) => setFilters((f) => ({ ...f, programAreas: s }))}
+          />
+          <MinMaxFilter
+            labelText="Amount allocated (PHP)"
+            min={filters.amountMin}
+            max={filters.amountMax}
+            onMin={(v) => setFilters((f) => ({ ...f, amountMin: v }))}
+            onMax={(v) => setFilters((f) => ({ ...f, amountMax: v }))}
+          />
+        </FilterPanelCard>
       )}
 
       {addOpen && (
@@ -279,7 +372,7 @@ export function AllocationsAdminPage() {
           </div>
           <form onSubmit={onCreate} className="flex flex-wrap items-end gap-3">
             <label className={label}>
-              Donation id
+              Donation
               <select className={input} value={donId} onChange={(e) => setDonId(Number(e.target.value))}>
                 {donations.map((d) => (
                   <option key={d.id} value={d.id}>
@@ -289,8 +382,14 @@ export function AllocationsAdminPage() {
               </select>
             </label>
             <label className={label}>
-              Safehouse id
-              <input type="number" className={input} value={shId} onChange={(e) => setShId(Number(e.target.value))} />
+              Safehouse
+              <select className={input} value={shId} onChange={(e) => setShId(Number(e.target.value))}>
+                {safehouses.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name} ({s.code})
+                  </option>
+                ))}
+              </select>
             </label>
             <label className={label}>
               Program area
@@ -311,20 +410,21 @@ export function AllocationsAdminPage() {
         <table className="w-full text-left text-sm">
           <thead className={tableHead}>
             <tr>
-              <th className="w-10 px-2 py-2">
+              <th className="w-10 px-2 py-2.5">
                 <input
                   type="checkbox"
-                  aria-label="Select all"
+                  aria-label="Select all on this page"
                   checked={filteredSorted.length > 0 && filteredSorted.every((r) => selected.has(r.id))}
-                  onChange={() => toggleSelectAll()}
+                  onChange={toggleSelectAll}
+                  onClick={(e) => e.stopPropagation()}
                 />
               </th>
-              <SortableTh label="Allocation date" sortKey="allocationDate" activeKey={sortKey} direction={sortDir} onSort={onSort} />
-              <SortableTh label="Donation ID" sortKey="donationId" activeKey={sortKey} direction={sortDir} onSort={onSort} />
-              <SortableTh label="Safehouse ID" sortKey="safehouseId" activeKey={sortKey} direction={sortDir} onSort={onSort} />
-              <SortableTh label="Program area" sortKey="programArea" activeKey={sortKey} direction={sortDir} onSort={onSort} />
-              <SortableTh label="Amount allocated" sortKey="amountAllocated" activeKey={sortKey} direction={sortDir} onSort={onSort} />
-              <th className="w-24 px-3 py-2">Edit</th>
+              <SortableTh label="Date" sortKey="allocationDate" activeKey={sortKey} direction={sortDir} onSort={onSort} />
+              <SortableTh label="Donation" sortKey="donationId" activeKey={sortKey} direction={sortDir} onSort={onSort} />
+              <SortableTh label="Safehouse" sortKey="safehouseId" activeKey={sortKey} direction={sortDir} onSort={onSort} />
+              <SortableTh label="Program" sortKey="programArea" activeKey={sortKey} direction={sortDir} onSort={onSort} />
+              <SortableTh label="Amount" sortKey="amountAllocated" activeKey={sortKey} direction={sortDir} onSort={onSort} />
+              <th className="px-3 py-2.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">Actions</th>
             </tr>
           </thead>
           <tbody className={tableBody}>
@@ -345,31 +445,20 @@ export function AllocationsAdminPage() {
                 <tr
                   key={r.id}
                   className={`${tableRowHover} cursor-pointer`}
-                  onClick={() => setEdit({ ...r })}
+                  onClick={() => rowNavigate(r)}
                 >
-                  <td className="px-2 py-2" onClick={(e) => e.stopPropagation()}>
+                  <td className="px-2 py-2.5" onClick={(e) => e.stopPropagation()}>
                     <input type="checkbox" checked={selected.has(r.id)} onChange={() => toggleSelect(r.id)} aria-label={`Select ${r.id}`} />
                   </td>
-                  <td className="px-3 py-2 text-xs">{new Date(r.allocationDate).toLocaleDateString()}</td>
-                  <td className="px-3 py-2 font-mono text-xs" onClick={(e) => e.stopPropagation()}>
-                    <Link className="text-primary hover:underline" to="/admin/contributions">
-                      {r.donationId}
-                    </Link>
-                    {donationSupporter.get(r.donationId) != null && (
-                      <span className="ml-2 text-muted-foreground">
-                        (
-                        <Link className="hover:underline" to={`/admin/donors/${donationSupporter.get(r.donationId)!}`}>
-                          profile
-                        </Link>
-                        )
-                      </span>
-                    )}
+                  <td className="px-3 py-2.5 tabular-nums text-muted-foreground">{formatAdminDate(r.allocationDate)}</td>
+                  <td className="px-3 py-2.5 text-foreground">{donationLabel(r.donationId)}</td>
+                  <td className="px-3 py-2.5 text-muted-foreground">{r.safehouseName ?? safehouseNameById.get(r.safehouseId) ?? `— (${r.safehouseId})`}</td>
+                  <td className="px-3 py-2.5">
+                    <NeutralPill>{r.programArea}</NeutralPill>
                   </td>
-                  <td className="px-3 py-2 font-mono text-xs text-muted-foreground">{r.safehouseId}</td>
-                  <td className="px-3 py-2">{r.programArea}</td>
-                  <td className="px-3 py-2">{moneyPhp.format(r.amountAllocated)}</td>
-                  <td className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
-                    <button type="button" className="text-primary hover:underline" onClick={() => setEdit({ ...r })}>
+                  <td className="px-3 py-2.5 tabular-nums font-medium">{formatMoneyPhp(r.amountAllocated)}</td>
+                  <td className="px-3 py-2.5" onClick={(e) => e.stopPropagation()}>
+                    <button type="button" className="text-sm font-medium text-primary hover:underline" onClick={() => setEdit({ ...r })}>
                       Edit
                     </button>
                   </td>
@@ -379,6 +468,22 @@ export function AllocationsAdminPage() {
           </tbody>
         </table>
       </div>
+
+      <AdminDeleteModal
+        open={deleteModal != null}
+        title={deleteModal && deleteModal.ids.length === 1 ? 'Delete allocation?' : 'Delete allocations?'}
+        body={
+          deleteModal
+            ? deleteModal.ids.length === 1
+              ? 'You are about to delete one allocation record.'
+              : `You are about to delete ${deleteModal.ids.length} allocation records.`
+            : ''
+        }
+        previewLines={deleteModal && deleteModal.labels.length > 1 ? deleteModal.labels : deleteModal?.labels.slice(0, 1)}
+        loading={saving}
+        onCancel={() => setDeleteModal(null)}
+        onConfirm={() => void confirmDelete()}
+      />
 
       {edit && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/40 p-4">

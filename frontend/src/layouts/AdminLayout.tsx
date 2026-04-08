@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom'
 import {
   BarChart3,
@@ -13,6 +13,8 @@ import {
   LayoutDashboard,
   LogOut,
   Menu,
+  PanelLeftClose,
+  PanelLeft,
   PieChart,
   UserCheck,
   Video,
@@ -24,12 +26,13 @@ import type { LucideIcon } from 'lucide-react'
 import { SiteLogoMark } from '../components/SiteLogoMark'
 import { SITE_DISPLAY_NAME } from '../site'
 
+const SIDEBAR_COLLAPSED_KEY = 'admin_sidebar_collapsed'
+
 type NavItem = {
   to: string
   label: string
   icon: LucideIcon
   end?: boolean
-  /** Use when leaving the `/admin` tree (e.g. donor portal). */
   plainLink?: boolean
 }
 
@@ -52,7 +55,7 @@ const navGroups: NavGroup[] = [
     title: 'Databases',
     items: [
       { to: '/admin/donors', label: 'Donors', icon: Heart },
-      { to: '/admin/contributions', label: 'Contributions', icon: Gift },
+      { to: '/admin/contributions', label: 'Donations', icon: Gift },
       { to: '/admin/allocations', label: 'Allocations', icon: PieChart },
       { to: '/admin/residents', label: 'Residents', icon: ClipboardList },
       { to: '/admin/process-recordings', label: 'Process recording', icon: FileText },
@@ -70,8 +73,10 @@ const navGroups: NavGroup[] = [
   },
 ]
 
-function navItemClassName(active: boolean) {
-  return `flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
+function navItemClassName(active: boolean, collapsed: boolean) {
+  return `flex items-center gap-3 rounded-lg text-sm font-medium transition-colors ${
+    collapsed ? 'justify-center px-2 py-2.5 lg:px-2' : 'px-3 py-2.5'
+  } ${
     active
       ? 'bg-sidebar-primary/25 text-sidebar-primary-foreground'
       : 'text-sidebar-foreground/75 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
@@ -81,14 +86,32 @@ function navItemClassName(active: boolean) {
 export function AdminLayout() {
   const navigate = useNavigate()
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    try {
+      return localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === '1'
+    } catch {
+      return false
+    }
+  })
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(SIDEBAR_COLLAPSED_KEY, sidebarCollapsed ? '1' : '0')
+    } catch {
+      /* ignore */
+    }
+  }, [sidebarCollapsed])
 
   async function signOut() {
     await logout()
     navigate('/login', { replace: true })
   }
 
+  const asideWidthMobile = 'w-[min(16rem,85vw)]'
+  const asideWidthLg = sidebarCollapsed ? 'lg:w-16' : 'lg:w-64'
+
   return (
-    <div className="flex min-h-svh bg-background text-foreground">
+    <div className="min-h-dvh bg-background text-foreground">
       {sidebarOpen && (
         <button
           type="button"
@@ -99,34 +122,63 @@ export function AdminLayout() {
       )}
 
       <aside
-        className={`fixed inset-y-0 left-0 z-50 flex h-svh max-h-svh w-64 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground transition-transform lg:static lg:h-svh lg:max-h-svh lg:shrink-0 lg:translate-x-0 ${
-          sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+        className={`fixed left-0 top-0 z-50 flex h-dvh flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground transition-[transform,width] duration-200 ease-out ${asideWidthMobile} ${asideWidthLg} ${
+          sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
         }`}
       >
-        <div className="flex h-16 shrink-0 items-center justify-between border-b border-sidebar-border px-4">
+        <div
+          className={`flex h-16 shrink-0 items-center border-b border-sidebar-border px-3 ${
+            sidebarCollapsed ? 'lg:justify-center lg:px-2' : 'justify-between'
+          }`}
+        >
           <Link
             to="/"
-            className="flex min-w-0 items-center gap-2 font-heading text-lg font-semibold text-sidebar-primary-foreground"
+            className={`flex min-w-0 items-center gap-2 font-heading font-semibold text-sidebar-primary-foreground ${
+              sidebarCollapsed ? 'lg:justify-center' : 'text-lg'
+            }`}
             onClick={() => setSidebarOpen(false)}
+            title={SITE_DISPLAY_NAME}
           >
             <span className="flex shrink-0 rounded-lg bg-white p-1 shadow-sm ring-1 ring-sidebar-border/40">
-              <SiteLogoMark className="h-7 max-h-7 max-w-[8.5rem] sm:h-8 sm:max-h-8 sm:max-w-[9.5rem]" />
+              <SiteLogoMark
+                className={
+                  sidebarCollapsed
+                    ? 'h-7 w-7 max-h-7 max-w-[2rem] sm:h-8'
+                    : 'h-7 max-h-7 max-w-[8.5rem] sm:h-8 sm:max-h-8 sm:max-w-[9.5rem]'
+                }
+              />
             </span>
-            <span className="truncate">{SITE_DISPLAY_NAME}</span>
+            {!sidebarCollapsed && <span className="truncate">{SITE_DISPLAY_NAME}</span>}
           </Link>
-          <button
-            type="button"
-            className="rounded-lg p-2 text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground lg:hidden"
-            onClick={() => setSidebarOpen(false)}
-            aria-label="Close sidebar"
-          >
-            <X className="h-5 w-5" />
-          </button>
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              className="hidden rounded-lg p-2 text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground lg:inline-flex"
+              aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+              title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+              onClick={() => setSidebarCollapsed((c) => !c)}
+            >
+              {sidebarCollapsed ? <PanelLeft className="h-5 w-5" /> : <PanelLeftClose className="h-5 w-5" />}
+            </button>
+            <button
+              type="button"
+              className="rounded-lg p-2 text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground lg:hidden"
+              onClick={() => setSidebarOpen(false)}
+              aria-label="Close sidebar"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
         </div>
+
         <nav className="min-h-0 flex-1 space-y-6 overflow-y-auto overscroll-contain p-3">
           {navGroups.map((group) => (
             <div key={group.title}>
-              <p className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-wider text-sidebar-foreground/45">
+              <p
+                className={`mb-2 px-3 text-[10px] font-semibold uppercase tracking-wider text-sidebar-foreground/45 ${
+                  sidebarCollapsed ? 'lg:hidden' : ''
+                }`}
+              >
                 {group.title}
               </p>
               <div className="space-y-0.5">
@@ -136,10 +188,11 @@ export function AdminLayout() {
                       key={item.to}
                       to={item.to}
                       onClick={() => setSidebarOpen(false)}
-                      className={navItemClassName(false)}
+                      className={navItemClassName(false, sidebarCollapsed)}
+                      title={sidebarCollapsed ? item.label : undefined}
                     >
                       <item.icon className="h-4 w-4 shrink-0 opacity-90" />
-                      {item.label}
+                      {!sidebarCollapsed && item.label}
                     </Link>
                   ) : (
                     <NavLink
@@ -147,10 +200,11 @@ export function AdminLayout() {
                       to={item.to}
                       end={item.end === true}
                       onClick={() => setSidebarOpen(false)}
-                      className={({ isActive }) => navItemClassName(isActive)}
+                      title={sidebarCollapsed ? item.label : undefined}
+                      className={({ isActive }) => navItemClassName(isActive, sidebarCollapsed)}
                     >
                       <item.icon className="h-4 w-4 shrink-0 opacity-90" />
-                      {item.label}
+                      {!sidebarCollapsed && item.label}
                     </NavLink>
                   ),
                 )}
@@ -158,26 +212,37 @@ export function AdminLayout() {
             </div>
           ))}
         </nav>
+
         <div className="shrink-0 space-y-1 border-t border-sidebar-border bg-sidebar p-3">
           <button
             type="button"
             onClick={() => void signOut()}
-            className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-sidebar-foreground/75 transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+            className={`flex w-full items-center gap-2 rounded-lg text-left text-sm text-sidebar-foreground/75 transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground ${
+              sidebarCollapsed ? 'justify-center px-2 py-2 lg:px-2' : 'px-3 py-2'
+            }`}
+            title={sidebarCollapsed ? 'Sign out' : undefined}
           >
-            <LogOut className="h-4 w-4" />
-            Sign out
+            <LogOut className="h-4 w-4 shrink-0" />
+            {!sidebarCollapsed && 'Sign out'}
           </button>
           <Link
             to="/"
-            className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-sidebar-foreground/75 transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+            className={`flex items-center gap-2 rounded-lg text-sm text-sidebar-foreground/75 transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground ${
+              sidebarCollapsed ? 'justify-center px-2 py-2 lg:px-2' : 'px-3 py-2'
+            }`}
+            title={sidebarCollapsed ? 'Back to public site' : undefined}
           >
-            <Home className="h-4 w-4" />
-            Back to public site
+            <Home className="h-4 w-4 shrink-0" />
+            {!sidebarCollapsed && 'Back to public site'}
           </Link>
         </div>
       </aside>
 
-      <div className="flex min-w-0 flex-1 flex-col">
+      <div
+        className={`flex min-h-dvh min-w-0 flex-col transition-[padding] duration-200 ease-out ${
+          sidebarCollapsed ? 'lg:pl-16' : 'lg:pl-64'
+        }`}
+      >
         <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b border-border bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/80 lg:px-6">
           <button
             type="button"
@@ -187,11 +252,9 @@ export function AdminLayout() {
           >
             <Menu className="h-5 w-5" />
           </button>
-          <h1 className="font-heading text-lg font-semibold text-foreground">
-            {SITE_DISPLAY_NAME} — Management
-          </h1>
+          <h1 className="font-heading text-lg font-semibold text-foreground">{SITE_DISPLAY_NAME} — Management</h1>
         </header>
-        <main className="flex-1 overflow-auto bg-background p-4 lg:p-8">
+        <main className="flex-1 bg-background p-4 lg:p-8">
           <Outlet />
         </main>
       </div>
