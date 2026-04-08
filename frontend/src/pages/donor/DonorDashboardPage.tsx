@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Heart } from 'lucide-react'
 import { createMyDonation, getDonorDashboard } from '../../api/donor'
@@ -259,12 +258,6 @@ export function DonorDashboardPage() {
               )}
             </>
           )}
-
-          <p className="mt-10 text-center text-sm text-muted-foreground">
-            <Link to="/" className="text-primary hover:underline">
-              ← Back to public site
-            </Link>
-          </p>
         </motion.div>
       </div>
     </div>
