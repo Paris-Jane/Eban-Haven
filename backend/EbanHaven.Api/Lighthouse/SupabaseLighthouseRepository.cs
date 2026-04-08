@@ -324,16 +324,26 @@ public sealed class SupabaseLighthouseRepository(HavenDbContext db) : ILighthous
 
     public ResidentSummaryDto CreateResident(string internalCode, string caseStatus, string? caseCategory)
     {
+        // The UI "quick add" form only supplies internal code + status (+ optional category).
+        // Do not hardcode SafehouseId=1; pick a real safehouse row or fail with a clear message.
+        var safehouseId = db.Safehouses
+            .OrderBy(s => s.SafehouseId)
+            .Select(s => s.SafehouseId)
+            .FirstOrDefault();
+        if (safehouseId <= 0)
+            throw new InvalidOperationException("No safehouses exist. Create a safehouse first before adding residents.");
+
         var row = new Resident
         {
             InternalCode = internalCode,
             CaseStatus = caseStatus,
             CaseCategory = string.IsNullOrWhiteSpace(caseCategory) ? "Surrendered" : caseCategory!,
             Sex = "F",
-            SafehouseId = 1,
+            SafehouseId = safehouseId,
             CaseControlNo = "",
             AssignedSocialWorker = "SW-01",
-            DateOfAdmission = DateOnly.FromDateTime(DateTime.UtcNow).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
+            // Let the DB default handle this if the column isn't a string.
+            DateOfAdmission = null,
         };
         db.Residents.Add(row);
         db.SaveChanges();
