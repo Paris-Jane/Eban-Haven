@@ -14,7 +14,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.Configure<SiteOptions>(builder.Configuration.GetSection(SiteOptions.SectionName));
 builder.Services.Configure<CorsOptions>(builder.Configuration.GetSection(CorsOptions.SectionName));
 builder.Services.Configure<OpenAIOptions>(builder.Configuration.GetSection(OpenAIOptions.SectionName));
-builder.Services.Configure<ResendOptions>(builder.Configuration.GetSection(ResendOptions.SectionName));
+builder.Services.Configure<GmailOptions>(builder.Configuration.GetSection(GmailOptions.SectionName));
 builder.Services.Configure<MetaOptions>(builder.Configuration.GetSection(MetaOptions.SectionName));
 builder.Services.AddControllers();
 
@@ -64,10 +64,14 @@ builder.Services.AddHttpClient("MetaGraph", client =>
 {
     client.Timeout = TimeSpan.FromSeconds(30);
 });
-builder.Services.AddHttpClient("Resend", (sp, client) =>
+builder.Services.AddHttpClient("GoogleOAuth", client =>
 {
-    var options = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<ResendOptions>>().Value;
-    client.BaseAddress = new Uri(options.BaseUrl);
+    client.BaseAddress = new Uri("https://oauth2.googleapis.com");
+    client.Timeout = TimeSpan.FromSeconds(30);
+});
+builder.Services.AddHttpClient("GmailApi", client =>
+{
+    client.BaseAddress = new Uri("https://gmail.googleapis.com");
     client.Timeout = TimeSpan.FromSeconds(30);
 });
 
