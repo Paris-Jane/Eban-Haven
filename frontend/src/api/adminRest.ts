@@ -549,3 +549,7 @@ export async function patchIncidentReport(
     await apiFetch(`${base}/incident-reports/${id}`, { method: 'PATCH', body: JSON.stringify(fields) }),
   )
 }
+
+export async function getMarketingAnalyticsSummary(): Promise<T.MarketingAnalyticsSummary> {
+  return parseJson<T.MarketingAnalyticsSummary>(await apiFetch('/api/marketing/summary'))
+}

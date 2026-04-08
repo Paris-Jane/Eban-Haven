@@ -308,3 +308,64 @@ export type AtRiskDonorInfo = {
   threshold_used: number
   top_risk_signals: string[]
 }
+
+// ── Marketing Analytics ───────────────────────────────────────────────────────
+
+export type CampaignPerformance = {
+  campaignName: string
+  donationCount: number
+  uniqueDonors: number
+  totalPhp: number
+  avgAmount: number
+  maxAmount: number
+  recurringPct: number
+  firstDonation: string
+  lastDonation: string
+}
+
+export type ChannelAttribution = {
+  channelSource: string
+  uniqueDonors: number
+  totalDonations: number
+  totalPhp: number
+  avgDonorLtv: number
+  avgDonationAmount: number
+  avgDonationsPerDonor: number
+  pctRecurringDonors: number
+}
+
+export type SocialMediaSpotlight = {
+  donationCount: number
+  totalPhp: number
+  avgAmount: number
+  recurringPct: number
+  uniqueDonors: number
+  acquiredDonors: number
+  avgLtvAcquiredPhp: number | null
+  avgLtvAllDonorsPhp: number
+}
+
+export type CausalEstimate = {
+  coefficient: number
+  ci_lower: number
+  ci_upper: number
+  p_value: number
+  pct_effect: number
+  significant: boolean
+}
+
+export type MarketingAnalyticsSummary = {
+  campaigns: CampaignPerformance[]
+  channels: ChannelAttribution[]
+  socialMediaSpotlight: SocialMediaSpotlight
+  causalEstimates: {
+    pipeline_version: string
+    last_run: string
+    n_observations: number
+    r_squared: number
+    campaign_lift: CausalEstimate | null
+    channel_effects: Array<{ channel: string } & CausalEstimate>
+    social_media_spotlight: Record<string, number | null>
+  } | null
+  lastAnalysisRun: string | null
+}
