@@ -129,6 +129,36 @@ export type DonationAllocation = {
   notes: string | null
 }
 
+export type DonorEmailProfile = {
+  supporter: Supporter
+  donationCount: number
+  lifetimeMonetaryTotal: number
+  preferredCurrencyCode: string
+  largestGiftAmount: number | null
+  mostRecentDonationDate: string | null
+  hasRecurringGift: boolean
+  recentCampaigns: string[]
+  programAreas: string[]
+  recentDonations: Donation[]
+  recentAllocations: DonationAllocation[]
+  relationshipSummary: string
+}
+
+export type GeneratedDonorEmail = {
+  subject: string
+  preview: string
+  body: string
+  htmlBody: string
+  usedAi: boolean
+  strategy: string
+}
+
+export type SentDonorEmail = {
+  providerMessageId: string
+  toEmail: string
+  sentAtUtc: string
+}
+
 export type SafehouseOption = { id: number; code: string; name: string; region: string }
 
 export type EducationRecord = {

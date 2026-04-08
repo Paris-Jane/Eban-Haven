@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { apiFetch } from "../../api/client";
+import { apiFetch, getStaffToken, parseJson } from "../../api/client";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -90,13 +90,22 @@ export function AtRiskDonors({ limit = 25, threshold = 0.55, onScheduleOutreach 
   const [lastFetch, setLastFetch] = useState<Date | null>(null);
 
   const fetchDonors = useCallback(() => {
+    if (!getStaffToken()) {
+      setDonors([]);
+      setError("Sign in to view donor churn predictions.");
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     setError(null);
 
     apiFetch(`/api/donors/at-risk?threshold=${threshold}&limit=${limit}`)
       .then((res) => {
-        if (!res.ok) throw new Error(`API ${res.status}: ${res.statusText}`);
-        return res.json() as Promise<AtRiskDonor[]>;
+        if (res.status === 401 || res.status === 403) {
+          throw new Error("Your session expired. Sign in again to load donor churn predictions.");
+        }
+        return parseJson<AtRiskDonor[]>(res);
       })
       .then((data) => {
         setDonors(data);

@@ -14,6 +14,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.Configure<SiteOptions>(builder.Configuration.GetSection(SiteOptions.SectionName));
 builder.Services.Configure<CorsOptions>(builder.Configuration.GetSection(CorsOptions.SectionName));
 builder.Services.Configure<OpenAIOptions>(builder.Configuration.GetSection(OpenAIOptions.SectionName));
+builder.Services.Configure<ResendOptions>(builder.Configuration.GetSection(ResendOptions.SectionName));
 builder.Services.Configure<MetaOptions>(builder.Configuration.GetSection(MetaOptions.SectionName));
 builder.Services.AddControllers();
 
@@ -50,6 +51,8 @@ builder.Services.AddAuthorization(options =>
 builder.Services.AddScoped<ISocialChatContextService, SocialChatContextService>();
 builder.Services.AddScoped<ISocialChatService, OpenAISocialChatService>();
 builder.Services.AddScoped<IMetaSchedulingService, MetaSchedulingService>();
+builder.Services.AddScoped<IDonorEmailComposer, DonorEmailComposer>();
+builder.Services.AddScoped<IDonorEmailDeliveryService, DonorEmailDeliveryService>();
 
 builder.Services.AddHttpClient("MlService", client =>
 {
@@ -59,6 +62,12 @@ builder.Services.AddHttpClient("MlService", client =>
 });
 builder.Services.AddHttpClient("MetaGraph", client =>
 {
+    client.Timeout = TimeSpan.FromSeconds(30);
+});
+builder.Services.AddHttpClient("Resend", (sp, client) =>
+{
+    var options = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<ResendOptions>>().Value;
+    client.BaseAddress = new Uri(options.BaseUrl);
     client.Timeout = TimeSpan.FromSeconds(30);
 });
 

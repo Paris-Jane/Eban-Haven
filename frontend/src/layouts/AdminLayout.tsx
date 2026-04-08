@@ -12,6 +12,7 @@ import {
   Home,
   LayoutDashboard,
   LogOut,
+  Mail,
   Menu,
   PanelLeftClose,
   PanelLeft,
@@ -67,6 +68,7 @@ const navGroups: NavGroup[] = [
     title: 'Tools',
     items: [
       { to: '/admin/donor-pipeline', label: 'Donor tools', icon: GitBranch },
+      { to: '/admin/email-hub', label: 'Email hub', icon: Mail },
       { to: '/admin/resident-pipeline', label: 'Resident tools', icon: Waypoints },
       { to: '/admin/social-planner', label: 'Marketing tools', icon: Bot },
     ],

@@ -170,7 +170,20 @@ export function filterTimeline(
   })
 }
 
-export type AlertItem = { level: 'risk' | 'warn' | 'info'; text: string }
+/** Navigation / quick actions wired from the overview UI */
+export type WorkspaceQuickAction =
+  | { kind: 'tab'; tab: MainWorkspaceTab }
+  | { kind: 'timeline'; followUpOnly?: boolean; concernsOnly?: boolean }
+  | { kind: 'open_visit'; visitId: number }
+  | { kind: 'open_plan'; planId: number }
+  | { kind: 'add_activity'; activity: 'counseling' | 'visit' | 'education' | 'health' | 'plan' }
+
+export type AlertItem = {
+  id: string
+  level: 'risk' | 'warn' | 'info'
+  text: string
+  action?: WorkspaceQuickAction
+}
 
 export function buildWorkspaceAlerts(params: {
   riskLevel: string
@@ -185,18 +198,49 @@ export function buildWorkspaceAlerts(params: {
   const list: AlertItem[] = []
   const risk = params.riskLevel.toLowerCase()
   if (risk.includes('high') || risk.includes('critical')) {
-    list.push({ level: 'risk', text: `Elevated risk level: ${params.riskLevel}` })
+    list.push({
+      id: 'risk-level',
+      level: 'risk',
+      text: `Elevated risk level: ${params.riskLevel}`,
+      action: { kind: 'tab', tab: 'info' },
+    })
   }
   const overdue = params.plans.filter(planIsOverdue)
   if (overdue.length) {
-    list.push({ level: 'warn', text: `${overdue.length} intervention plan(s) past target date` })
+    list.push({
+      id: 'plans-overdue',
+      level: 'warn',
+      text: `${overdue.length} intervention plan(s) past target date`,
+      action: { kind: 'tab', tab: 'plans' },
+    })
   }
-  params.vis.filter((v) => v.followUpNeeded).forEach((v) => {
-    list.push({ level: 'warn', text: `Home visit follow-up · ${formatAdminDate(v.visitDate)}` })
-  })
+
+  const followUps = params.vis
+    .filter((v) => v.followUpNeeded)
+    .sort((a, b) => new Date(b.visitDate).getTime() - new Date(a.visitDate).getTime())
+  if (followUps.length > 0) {
+    const newest = followUps[0].visitDate
+    const oldest = followUps[followUps.length - 1].visitDate
+    const text =
+      followUps.length === 1
+        ? `Home visit follow-up · ${formatAdminDate(newest)}`
+        : `${followUps.length} home visits need follow-up · newest ${formatAdminDate(newest)} · oldest ${formatAdminDate(oldest)}`
+    list.push({
+      id: 'visit-followups',
+      level: 'warn',
+      text,
+      action: { kind: 'timeline', followUpOnly: true },
+    })
+  }
+
   const concernSessions = params.proc.filter((r) => r.concernsFlagged).length
   if (concernSessions >= 3) {
-    list.push({ level: 'warn', text: `${concernSessions} counseling sessions have concerns flagged — review patterns` })
+    list.push({
+      id: 'sessions-concerns',
+      level: 'warn',
+      text: `${concernSessions} counseling sessions have concerns flagged — review patterns`,
+      action: { kind: 'timeline', concernsOnly: true },
+    })
   }
   const eduSorted = [...params.edu].sort((a, b) => new Date(b.recordDate).getTime() - new Date(a.recordDate).getTime())
   if (eduSorted.length >= 2) {
@@ -204,7 +248,12 @@ export function buildWorkspaceAlerts(params: {
     const pa = a.progressPercent
     const pb = b.progressPercent
     if (pa != null && pb != null && pa < pb - 15) {
-      list.push({ level: 'warn', text: 'Education progress may be declining vs prior record' })
+      list.push({
+        id: 'edu-decline',
+        level: 'warn',
+        text: 'Education progress may be declining vs prior record',
+        action: { kind: 'add_activity', activity: 'education' },
+      })
     }
   }
   const hlSorted = [...params.hl].sort((a, b) => new Date(b.recordDate).getTime() - new Date(a.recordDate).getTime())
@@ -213,34 +262,136 @@ export function buildWorkspaceAlerts(params: {
     const sa = a.healthScore
     const sb = b.healthScore
     if (sa != null && sb != null && sa < sb - 0.75) {
-      list.push({ level: 'warn', text: 'General wellbeing score trending down' })
+      list.push({
+        id: 'health-decline',
+        level: 'warn',
+        text: 'General wellbeing score trending down',
+        action: { kind: 'add_activity', activity: 'health' },
+      })
     }
   }
   if (!params.assignedWorker.trim()) {
-    list.push({ level: 'warn', text: 'No assigned social worker on file' })
+    list.push({
+      id: 'no-worker',
+      level: 'warn',
+      text: 'No assigned social worker on file',
+      action: { kind: 'tab', tab: 'info' },
+    })
   }
   if (!params.admission.trim()) {
-    list.push({ level: 'warn', text: 'Admission date missing' })
+    list.push({
+      id: 'no-admission',
+      level: 'warn',
+      text: 'Admission date missing',
+      action: { kind: 'tab', tab: 'info' },
+    })
   }
   return list
 }
 
-export function buildNextActions(params: {
+export type NextStepItem = {
+  id: string
+  text: string
+  action: WorkspaceQuickAction
+}
+
+const NEXT_STEPS_CAP = 8
+const OVERDUE_PLAN_PREVIEW = 5
+
+/** Profile-derived actions only (no generic reminders). Each item is clickable in the UI. */
+export function buildProfileNextSteps(params: {
   plans: InterventionPlan[]
   vis: HomeVisitation[]
   proc: ProcessRecording[]
   edu: EducationRecord[]
-}): string[] {
-  const lines: string[] = []
-  params.vis.filter((v) => v.followUpNeeded).forEach(() => lines.push('Schedule or document follow-up for a flagged home visit'))
-  params.plans.filter(planIsOverdue).forEach((p) => lines.push(`Update or close overdue plan: ${p.planCategory}`))
-  const openPlans = params.plans.filter((p) => !p.status.toLowerCase().includes('closed'))
-  if (openPlans.length) lines.push('Review active intervention plans against recent activity')
-  if (params.proc.length === 0) lines.push('Add a process recording after the next counseling session')
-  const latestEdu = [...params.edu].sort((a, b) => new Date(b.recordDate).getTime() - new Date(a.recordDate).getTime())[0]
-  if (latestEdu?.progressPercent != null && latestEdu.progressPercent < 50) {
-    lines.push('Check education progress and supports with the resident')
+  hl: HealthRecord[]
+}): NextStepItem[] {
+  const out: NextStepItem[] = []
+
+  const followUps = params.vis
+    .filter((v) => v.followUpNeeded)
+    .sort((a, b) => new Date(b.visitDate).getTime() - new Date(a.visitDate).getTime())
+  if (followUps.length > 0) {
+    const latest = followUps[0]
+    out.push({
+      id: 'resolve-visit-followups',
+      text:
+        followUps.length === 1
+          ? `Document follow-up for home visit (${formatAdminDate(latest.visitDate)})`
+          : `Document follow-up for ${followUps.length} home visits (latest ${formatAdminDate(latest.visitDate)})`,
+      action: { kind: 'open_visit', visitId: latest.id },
+    })
   }
-  lines.push('Log the next home visit or field contact')
-  return [...new Set(lines)].slice(0, 8)
+
+  const overduePlans = params.plans.filter(planIsOverdue)
+  overduePlans.slice(0, OVERDUE_PLAN_PREVIEW).forEach((p) => {
+    out.push({
+      id: `overdue-plan-${p.id}`,
+      text: `Update or close overdue plan: ${p.planCategory}`,
+      action: { kind: 'open_plan', planId: p.id },
+    })
+  })
+  if (overduePlans.length > OVERDUE_PLAN_PREVIEW) {
+    out.push({
+      id: 'more-overdue-plans',
+      text: `View ${overduePlans.length - OVERDUE_PLAN_PREVIEW} more overdue plan(s) on Plans & goals`,
+      action: { kind: 'tab', tab: 'plans' },
+    })
+  }
+
+  const concernCount = params.proc.filter((r) => r.concernsFlagged).length
+  if (concernCount >= 3) {
+    out.push({
+      id: 'review-flagged-sessions',
+      text: `Review ${concernCount} counseling session(s) with concerns flagged`,
+      action: { kind: 'timeline', concernsOnly: true },
+    })
+  }
+
+  if (params.proc.length === 0) {
+    out.push({
+      id: 'add-first-counseling',
+      text: 'Add a counseling session record for this resident',
+      action: { kind: 'add_activity', activity: 'counseling' },
+    })
+  }
+
+  const eduSorted = [...params.edu].sort((a, b) => new Date(b.recordDate).getTime() - new Date(a.recordDate).getTime())
+  if (eduSorted.length >= 2) {
+    const [latest, prior] = eduSorted
+    const pa = latest.progressPercent
+    const pb = prior.progressPercent
+    if (pa != null && pb != null && pa < pb - 15) {
+      out.push({
+        id: 'edu-checkin',
+        text: `Education progress dropped (${pb}% → ${pa}%) — add an updated education record`,
+        action: { kind: 'add_activity', activity: 'education' },
+      })
+    }
+  } else {
+    const latestEdu = eduSorted[0]
+    if (latestEdu?.progressPercent != null && latestEdu.progressPercent < 50) {
+      out.push({
+        id: 'edu-low',
+        text: `Latest education progress is ${latestEdu.progressPercent}% — review supports and record an update`,
+        action: { kind: 'add_activity', activity: 'education' },
+      })
+    }
+  }
+
+  const hlSorted = [...params.hl].sort((a, b) => new Date(b.recordDate).getTime() - new Date(a.recordDate).getTime())
+  if (hlSorted.length >= 2) {
+    const [latest, prior] = hlSorted
+    const sa = latest.healthScore
+    const sb = prior.healthScore
+    if (sa != null && sb != null && sa < sb - 0.75) {
+      out.push({
+        id: 'health-checkin',
+        text: `Wellbeing score declined (${sb} → ${sa}) — add a health & wellbeing record`,
+        action: { kind: 'add_activity', activity: 'health' },
+      })
+    }
+  }
+
+  return out.slice(0, NEXT_STEPS_CAP)
 }

@@ -83,7 +83,15 @@ public sealed class DonorChurnController(HavenDbContext db, IHttpClientFactory h
             COALESCE(s.acquisition_channel, 'Unknown')                                        AS acquisition_channel,
             COALESCE(s.supporter_type,      'Unknown')                                        AS supporter_type,
             COALESCE(s.relationship_type,   'Unknown')                                        AS relationship_type,
-            COALESCE(EXTRACT(EPOCH FROM (NOW() - s.created_at::timestamp))::int / 86400, 0)  AS days_since_joined,
+            COALESCE(
+                a.days_since_first_donation,
+                CASE
+                    WHEN COALESCE(s.first_donation_date, '') ~ '^\d{4}-\d{2}-\d{2}$'
+                        THEN EXTRACT(EPOCH FROM (NOW() - s.first_donation_date::date::timestamp))::int / 86400
+                    ELSE 0
+                END,
+                0
+            )                                                                                AS days_since_joined,
             COALESCE(a.total_donations,          0)                                           AS total_donations,
             COALESCE(a.total_amount,             0.0)                                         AS total_amount,
             COALESCE(a.avg_amount,               0.0)                                         AS avg_amount,
@@ -122,7 +130,15 @@ public sealed class DonorChurnController(HavenDbContext db, IHttpClientFactory h
             COALESCE(s.acquisition_channel, 'Unknown')                                        AS acquisition_channel,
             COALESCE(s.supporter_type,      'Unknown')                                        AS supporter_type,
             COALESCE(s.relationship_type,   'Unknown')                                        AS relationship_type,
-            COALESCE(EXTRACT(EPOCH FROM (NOW() - s.created_at::timestamp))::int / 86400, 0)  AS days_since_joined,
+            COALESCE(
+                EXTRACT(EPOCH FROM (NOW() - MIN(r.donation_ts)))::int / 86400,
+                CASE
+                    WHEN COALESCE(s.first_donation_date, '') ~ '^\d{4}-\d{2}-\d{2}$'
+                        THEN EXTRACT(EPOCH FROM (NOW() - s.first_donation_date::date::timestamp))::int / 86400
+                    ELSE 0
+                END,
+                0
+            )                                                                                AS days_since_joined,
             COUNT(r.donation_id)                                                               AS total_donations,
             COALESCE(SUM(r.amount), 0.0)                                                      AS total_amount,
             COALESCE(AVG(r.amount), 0.0)                                                      AS avg_amount,
@@ -136,7 +152,7 @@ public sealed class DonorChurnController(HavenDbContext db, IHttpClientFactory h
         FROM supporters s
         LEFT JOIN ranked r ON r.supporter_id = s.supporter_id
         WHERE s.supporter_id = @SupporterId
-        GROUP BY s.supporter_id, s.acquisition_channel, s.supporter_type, s.relationship_type, s.created_at
+        GROUP BY s.supporter_id, s.acquisition_channel, s.supporter_type, s.relationship_type, s.first_donation_date
         """;
 
     // ── GET /api/donors/at-risk ───────────────────────────────────────────────
