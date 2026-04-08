@@ -279,61 +279,95 @@ function CausalAnalysisPanel({
   )
 }
 
-// ── Campaign Performance Table ────────────────────────────────────────────────
+// ── Campaign Revenue Bar Chart ────────────────────────────────────────────────
 
-function CampaignTable({ campaigns }: { campaigns: CampaignPerformance[] }) {
-  const maxTotal = Math.max(...campaigns.map(c => c.totalPhp))
+function CampaignRevenueChart({ campaigns }: { campaigns: CampaignPerformance[] }) {
+  const [hovered, setHovered] = useState<string | null>(null)
+
+  const named    = campaigns.filter(c => c.campaignName !== 'No Campaign')
+                            .sort((a, b) => b.totalPhp - a.totalPhp)
+  const organic  = campaigns.find(c => c.campaignName === 'No Campaign')
+  const maxTotal = named[0]?.totalPhp ?? 1
+
+  const BAR_H    = 44
+  const LABEL_W  = 148
+  const BAR_AREA = 340
+  const VALUE_W  = 100
+  const WIDTH    = LABEL_W + BAR_AREA + VALUE_W
+  const HEIGHT   = named.length * BAR_H + 8
 
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="border-b text-left text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            <th className="pb-2 pr-4">Campaign</th>
-            <th className="pb-2 pr-4 text-right">Donations</th>
-            <th className="pb-2 pr-4 text-right">Donors</th>
-            <th className="pb-2 pr-4 text-right">Total</th>
-            <th className="pb-2 pr-4 text-right">Avg</th>
-            <th className="pb-2 pr-4 text-right">Recurring</th>
-            <th className="pb-2">Revenue Share</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y">
-          {campaigns.map(c => (
-            <tr key={c.campaignName} className="group">
-              <td className="py-2.5 pr-4 font-medium text-foreground">
-                {c.campaignName === 'No Campaign' ? (
-                  <span className="text-muted-foreground italic">No Campaign</span>
-                ) : (
-                  c.campaignName
+    <div>
+      <div className="overflow-x-auto">
+        <svg width={WIDTH} height={HEIGHT} className="block">
+          {named.map((c, i) => {
+            const barW   = Math.max(4, (c.totalPhp / maxTotal) * BAR_AREA)
+            const cy     = i * BAR_H + BAR_H / 2
+            const isHov  = hovered === c.campaignName
+
+            return (
+              <g key={c.campaignName}
+                onMouseEnter={() => setHovered(c.campaignName)}
+                onMouseLeave={() => setHovered(null)}
+                style={{ cursor: 'default' }}>
+
+                {/* Row hover background */}
+                <rect x={0} y={i * BAR_H} width={WIDTH} height={BAR_H}
+                  fill={isHov ? 'hsl(var(--muted) / 0.4)' : 'transparent'} rx={4} />
+
+                {/* Campaign label */}
+                <text x={LABEL_W - 10} y={cy + 5} textAnchor="end"
+                  fontSize={13} fontWeight={isHov ? 600 : 400}
+                  fill={isHov ? 'hsl(var(--foreground))' : 'hsl(var(--foreground) / 0.8)'}>
+                  {c.campaignName}
+                </text>
+
+                {/* Bar track */}
+                <rect x={LABEL_W} y={cy - 10} width={BAR_AREA} height={20}
+                  rx={4} fill="hsl(var(--primary) / 0.08)" />
+
+                {/* Animated bar */}
+                <motion.rect
+                  x={LABEL_W} y={cy - 10} height={20} rx={4}
+                  fill={isHov ? 'hsl(var(--primary))' : 'hsl(var(--primary) / 0.75)'}
+                  initial={{ width: 0 }}
+                  animate={{ width: barW }}
+                  transition={{ duration: 0.55, delay: i * 0.07, ease: 'easeOut' }}
+                />
+
+                {/* Revenue label */}
+                <motion.text
+                  y={cy + 5} textAnchor="start" fontSize={13} fontWeight={600}
+                  fill="hsl(var(--foreground))"
+                  initial={{ opacity: 0, x: LABEL_W + 8 }}
+                  animate={{ opacity: 1, x: LABEL_W + barW + 10 }}
+                  transition={{ duration: 0.55, delay: i * 0.07 + 0.1, ease: 'easeOut' }}>
+                  {php(c.totalPhp)}
+                </motion.text>
+
+                {/* Donation count — shown on hover or always if bar is wide enough */}
+                {(isHov || barW > 80) && (
+                  <text x={LABEL_W + 8} y={cy + 5} fontSize={11}
+                    fill="hsl(var(--background))" opacity={0.85}>
+                    {c.donationCount} gifts
+                  </text>
                 )}
-              </td>
-              <td className="py-2.5 pr-4 text-right tabular-nums">{c.donationCount}</td>
-              <td className="py-2.5 pr-4 text-right tabular-nums">{c.uniqueDonors}</td>
-              <td className="py-2.5 pr-4 text-right tabular-nums font-medium">{php(c.totalPhp)}</td>
-              <td className="py-2.5 pr-4 text-right tabular-nums text-muted-foreground">{php(c.avgAmount)}</td>
-              <td className="py-2.5 pr-4 text-right tabular-nums">
-                <span className={`font-medium ${c.recurringPct >= 30 ? 'text-green-700' : 'text-foreground'}`}>
-                  {pct(c.recurringPct)}
-                </span>
-              </td>
-              <td className="py-2.5">
-                <div className="flex items-center gap-2">
-                  <div className="h-2 rounded-full bg-primary/20" style={{ width: 120 }}>
-                    <div
-                      className="h-2 rounded-full bg-primary"
-                      style={{ width: `${(c.totalPhp / maxTotal) * 100}%` }}
-                    />
-                  </div>
-                  <span className="text-xs text-muted-foreground">
-                    {pct((c.totalPhp / campaigns.reduce((a, x) => a + x.totalPhp, 0)) * 100)}
-                  </span>
-                </div>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+              </g>
+            )
+          })}
+        </svg>
+      </div>
+
+      {/* Organic revenue note */}
+      {organic && (
+        <div className="mt-4 flex items-center gap-3 rounded-lg border border-dashed px-3 py-2.5">
+          <div className="h-3 w-3 shrink-0 rounded-sm bg-muted-foreground/25" />
+          <p className="text-xs text-muted-foreground">
+            <span className="font-medium text-foreground">{php(organic.totalPhp)}</span> raised organically
+            across {organic.donationCount} unattributed donations — not tied to any named campaign.
+          </p>
+        </div>
+      )}
     </div>
   )
 }
@@ -516,11 +550,12 @@ export function MarketingAnalyticsPage() {
 
           {/* Campaign Performance */}
           <div className={card}>
-            <div className="mb-4 flex items-center gap-2">
+            <div className="mb-5 flex items-center gap-2">
               <Megaphone className="h-4 w-4 text-primary" />
-              <h3 className="text-sm font-semibold text-foreground">Campaign Performance</h3>
+              <h3 className="text-sm font-semibold text-foreground">Campaign Revenue</h3>
+              <span className="ml-auto text-xs text-muted-foreground">total raised per campaign</span>
             </div>
-            <CampaignTable campaigns={data.campaigns} />
+            <CampaignRevenueChart campaigns={data.campaigns} />
           </div>
 
           {/* Channel Attribution */}
