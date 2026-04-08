@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import { pageDesc, pageTitle } from '../shared/adminStyles'
 import { DonorsAdminPage } from './DonorsAdminPage'
 import { ContributionsAdminPage } from './ContributionsAdminPage'
 import { AllocationsAdminPage } from './AllocationsAdminPage'
@@ -17,22 +16,17 @@ export function DonorAllPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className={pageTitle}>Donor All</h2>
-        <p className={pageDesc}>Donors, donations, and allocations in one place.</p>
-      </div>
-
-      {/* Tab strip */}
-      <div className="flex gap-1 rounded-lg border border-border bg-muted/40 p-1 w-fit">
+      {/* Full-width tab bar */}
+      <div className="flex border-b border-border">
         {tabs.map((t) => (
           <button
             key={t.id}
             type="button"
             onClick={() => setActive(t.id)}
-            className={`rounded-md px-4 py-1.5 text-sm font-medium transition-colors ${
+            className={`px-6 py-3 text-sm font-medium transition-colors border-b-2 -mb-px ${
               active === t.id
-                ? 'bg-background text-foreground shadow-sm'
-                : 'text-muted-foreground hover:text-foreground'
+                ? 'border-primary text-foreground'
+                : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'
             }`}
           >
             {t.label}
@@ -40,7 +34,6 @@ export function DonorAllPage() {
         ))}
       </div>
 
-      {/* Tab content — each component manages its own state */}
       {active === 'donors' && <DonorsAdminPage />}
       {active === 'donations' && <ContributionsAdminPage />}
       {active === 'allocations' && <AllocationsAdminPage />}

@@ -14,6 +14,7 @@ import { DonorsAdminPage } from './pages/admin/databases/DonorsAdminPage'
 import { DonorDetailPage } from './pages/admin/databases/DonorDetailPage'
 import { DonorDashboardAdminPage } from './pages/admin/dashboards/DonorDashboardAdminPage'
 import { DonorAllPage } from './pages/admin/databases/DonorAllPage'
+import { ResidentInformationPage } from './pages/admin/databases/ResidentInformationPage'
 import { MarketingAnalyticsPage } from './pages/admin/dashboards/MarketingAnalyticsPage'
 import { ContributionsAdminPage } from './pages/admin/databases/ContributionsAdminPage'
 import { AllocationsAdminPage } from './pages/admin/databases/AllocationsAdminPage'
@@ -60,6 +61,7 @@ export default function App() {
         <Route path="donors/:id" element={<DonorDetailPage />} />
         <Route path="donor-dashboard" element={<DonorDashboardAdminPage />} />
         <Route path="donor-all" element={<DonorAllPage />} />
+        <Route path="resident-information" element={<ResidentInformationPage />} />
         <Route path="marketing-analytics" element={<MarketingAnalyticsPage />} />
         <Route path="email-hub" element={<EmailHubPage />} />
         <Route path="contributions" element={<ContributionsAdminPage />} />

@@ -54,6 +54,7 @@ const navGroups: NavGroup[] = [
     title: 'Residents',
     items: [
       { to: '/admin/social-worker-dashboard', label: 'Social Worker Dashboard', icon: UserCheck },
+      { to: '/admin/resident-information', label: 'Resident Information', icon: Layers },
       { to: '/admin/residents', label: 'Residents', icon: ClipboardList },
       { to: '/admin/process-recordings', label: 'Process Recordings', icon: FileText },
       { to: '/admin/home-visitations', label: 'Home Visitations', icon: Video },
@@ -64,7 +65,7 @@ const navGroups: NavGroup[] = [
     title: 'Funding',
     items: [
       { to: '/admin/donor-dashboard', label: 'Donor Dashboard', icon: TrendingUp },
-      { to: '/admin/donor-all', label: 'Donor All', icon: Layers },
+      { to: '/admin/donor-all', label: 'Donor Information', icon: Layers },
       { to: '/admin/email-hub', label: 'Donor Retention', icon: RefreshCcw },
       { to: '/admin/donors', label: 'Donors', icon: Heart },
       { to: '/admin/contributions', label: 'Donations', icon: Gift },
