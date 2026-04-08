@@ -96,6 +96,7 @@ export function EmailHubPage() {
   const [copyState, setCopyState] = useState<'subject' | 'body' | 'html' | null>(null)
   const [showHistory, setShowHistory] = useState(false)
   const [showComposerSettings, setShowComposerSettings] = useState(false)
+  const [previewMode, setPreviewMode] = useState<'rich' | 'plain'>('rich')
   const [signature, setSignature] = useState<SignatureFields>(() => loadStoredSignature())
   const [recipientEmail, setRecipientEmail] = useState('')
   const [atRiskMap, setAtRiskMap] = useState<Map<number, AtRiskDonorInfo>>(new Map())
@@ -202,7 +203,7 @@ export function EmailHubPage() {
     }
   }
 
-  async function handleCopy(kind: 'subject' | 'body', value: string) {
+  async function handleCopy(kind: 'subject' | 'body' | 'html', value: string) {
     try {
       await copyText(value)
       setCopyState(kind)
@@ -615,18 +616,57 @@ export function EmailHubPage() {
 
                     <div>
                       <div className="flex flex-wrap items-center justify-between gap-3">
-                        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Body</p>
-                        <button
-                          type="button"
-                          className="rounded-lg border border-border bg-card px-3 py-2 text-xs font-medium text-foreground hover:bg-muted/50"
-                          onClick={() => void handleCopy('body', generated.body)}
-                        >
-                          {copyState === 'body' ? 'Copied' : 'Copy body'}
-                        </button>
+                        <div className="flex items-center gap-2 rounded-full border border-border bg-card p-1">
+                          <button
+                            type="button"
+                            className={`rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
+                              previewMode === 'rich' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'
+                            }`}
+                            onClick={() => setPreviewMode('rich')}
+                          >
+                            Rich preview
+                          </button>
+                          <button
+                            type="button"
+                            className={`rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
+                              previewMode === 'plain' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'
+                            }`}
+                            onClick={() => setPreviewMode('plain')}
+                          >
+                            Plain text
+                          </button>
+                        </div>
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            className="rounded-lg border border-border bg-card px-3 py-2 text-xs font-medium text-foreground hover:bg-muted/50"
+                            onClick={() => void handleCopy('body', generated.body)}
+                          >
+                            {copyState === 'body' ? 'Copied' : 'Copy text'}
+                          </button>
+                          {generated.htmlBody && (
+                            <button
+                              type="button"
+                              className="rounded-lg border border-border bg-card px-3 py-2 text-xs font-medium text-foreground hover:bg-muted/50"
+                              onClick={() => void handleCopy('html', generated.htmlBody)}
+                            >
+                              {copyState === 'html' ? 'Copied' : 'Copy HTML'}
+                            </button>
+                          )}
+                        </div>
                       </div>
-                      <pre className="mt-2 whitespace-pre-wrap rounded-xl border border-border bg-card p-4 font-sans text-sm leading-relaxed text-foreground">
-                        {generated.body}
-                      </pre>
+                      {previewMode === 'plain' ? (
+                        <pre className="mt-2 whitespace-pre-wrap rounded-xl border border-border bg-card p-4 font-sans text-sm leading-relaxed text-foreground">
+                          {generated.body}
+                        </pre>
+                      ) : (
+                        <div className="mt-2 overflow-hidden rounded-xl border border-border bg-[#f4efe8]">
+                          {generated.htmlBody
+                            ? <div className="max-h-[56rem] overflow-auto" dangerouslySetInnerHTML={{ __html: generated.htmlBody }} />
+                            : <p className="p-4 text-sm text-muted-foreground">No HTML preview available — plain text only.</p>
+                          }
+                        </div>
+                      )}
                     </div>
 
                     <div className="flex flex-wrap items-center gap-3">
