@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { LoaderCircle, Mail, RefreshCw, Sparkles } from 'lucide-react'
+import { ChevronDown, LoaderCircle, Mail, RefreshCw, Sparkles } from 'lucide-react'
 import {
   generateDonorEmail,
   getDonorEmailProfile,
@@ -8,9 +8,11 @@ import {
   type GeneratedDonorEmail,
   type Supporter,
 } from '../../../api/admin'
+import { PUBLIC_CONTACT, SITE_DISPLAY_NAME } from '../../../site'
 import { alertError, btnPrimary, card, input, label, pageDesc, pageTitle, sectionFormTitle } from '../shared/adminStyles'
 
 const toneOptions = ['Warm', 'Direct', 'Celebratory', 'Re-engagement'] as const
+const signatureStorageKey = 'email_hub_signature_v1'
 
 const goalPresets = [
   'Thank the donor and encourage their next step.',
@@ -18,6 +20,38 @@ const goalPresets = [
   'Invite the donor to become a monthly giver.',
   'Share a tailored impact update and open a conversation.',
 ] as const
+
+type SignatureFields = {
+  senderName: string
+  senderTitle: string
+  senderOrganization: string
+  senderContact: string
+}
+
+function defaultSignature(): SignatureFields {
+  return {
+    senderName: '',
+    senderTitle: 'Development Team',
+    senderOrganization: SITE_DISPLAY_NAME,
+    senderContact: PUBLIC_CONTACT.infoEmail,
+  }
+}
+
+function loadStoredSignature(): SignatureFields {
+  try {
+    const raw = localStorage.getItem(signatureStorageKey)
+    if (!raw) return defaultSignature()
+    const parsed = JSON.parse(raw) as Partial<SignatureFields>
+    return {
+      senderName: parsed.senderName ?? '',
+      senderTitle: parsed.senderTitle ?? 'Development Team',
+      senderOrganization: parsed.senderOrganization ?? SITE_DISPLAY_NAME,
+      senderContact: parsed.senderContact ?? PUBLIC_CONTACT.infoEmail,
+    }
+  } catch {
+    return defaultSignature()
+  }
+}
 
 function formatMoney(amount: number, currencyCode: string) {
   try {
@@ -30,6 +64,10 @@ function formatMoney(amount: number, currencyCode: string) {
 function formatDate(value: string | null) {
   if (!value) return '—'
   return new Date(value).toLocaleDateString()
+}
+
+function encodeMailtoValue(value: string) {
+  return encodeURIComponent(value).replace(/%20/g, '%20')
 }
 
 async function copyText(value: string) {
@@ -50,6 +88,16 @@ export function EmailHubPage() {
   const [generating, setGenerating] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [copyState, setCopyState] = useState<'subject' | 'body' | null>(null)
+  const [showHistory, setShowHistory] = useState(false)
+  const [signature, setSignature] = useState<SignatureFields>(() => loadStoredSignature())
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(signatureStorageKey, JSON.stringify(signature))
+    } catch {
+      /* ignore */
+    }
+  }, [signature])
 
   const loadSupporters = useCallback(async () => {
     setLoadingList(true)
@@ -101,7 +149,15 @@ export function EmailHubPage() {
     if (selectedId == null) return
     setGenerating(true)
     try {
-      const result = await generateDonorEmail(selectedId, { goal, tone, preferAi })
+      const result = await generateDonorEmail(selectedId, {
+        goal,
+        tone,
+        preferAi,
+        senderName: signature.senderName,
+        senderTitle: signature.senderTitle,
+        senderOrganization: signature.senderOrganization,
+        senderContact: signature.senderContact,
+      })
       setGenerated(result)
       setError(null)
     } catch (err) {
@@ -123,12 +179,12 @@ export function EmailHubPage() {
 
   const mailtoHref = useMemo(() => {
     if (!profile?.supporter.email || !generated) return null
-    const params = new URLSearchParams({
-      subject: generated.subject,
-      body: generated.body,
-    })
-    return `mailto:${profile.supporter.email}?${params.toString()}`
+    return `mailto:${profile.supporter.email}?subject=${encodeMailtoValue(generated.subject)}&body=${encodeMailtoValue(generated.body)}`
   }, [generated, profile])
+
+  function updateSignature<K extends keyof SignatureFields>(key: K, value: SignatureFields[K]) {
+    setSignature((current) => ({ ...current, [key]: value }))
+  }
 
   return (
     <div className="space-y-8">
@@ -143,7 +199,7 @@ export function EmailHubPage() {
           </p>
         </div>
         <div className="rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 text-xs text-muted-foreground lg:max-w-sm">
-          Uses supporter, donation, and allocation history already in the system. If AI is unavailable, the page falls back to a grounded template.
+          Drafts now use cleaner plain-text formatting and your own sender signature details.
         </div>
       </div>
 
@@ -218,220 +274,263 @@ export function EmailHubPage() {
             <div className={`${card} text-sm text-muted-foreground`}>Select a donor to open their email workspace.</div>
           ) : (
             <>
-              <div className={`${card} space-y-5`}>
-                <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-                  <div>
-                    <h3 className="text-xl font-semibold text-foreground">{profile.supporter.displayName}</h3>
+              <div className={`${card} p-0 overflow-hidden`}>
+                <button
+                  type="button"
+                  onClick={() => setShowHistory((current) => !current)}
+                  className="flex w-full items-center justify-between gap-4 bg-card px-5 py-4 text-left hover:bg-muted/30"
+                >
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h3 className="text-xl font-semibold text-foreground">{profile.supporter.displayName}</h3>
+                      <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary">
+                        {profile.supporter.supporterType}
+                      </span>
+                    </div>
                     <p className="mt-1 text-sm text-muted-foreground">
                       {profile.supporter.email ?? 'No email on file'}
                       {profile.supporter.organizationName ? ` · ${profile.supporter.organizationName}` : ''}
                     </p>
                     <p className="mt-3 text-sm text-muted-foreground">{profile.relationshipSummary}</p>
                   </div>
-                  <div className="rounded-xl border border-border bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
-                    <p className="font-medium text-foreground">Most recent gift</p>
-                    <p className="mt-1">{formatDate(profile.mostRecentDonationDate)}</p>
+                  <div className="flex shrink-0 items-center gap-5">
+                    <div className="hidden text-right md:block">
+                      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Lifetime total</p>
+                      <p className="mt-1 text-base font-semibold text-foreground">
+                        {formatMoney(profile.lifetimeMonetaryTotal, profile.preferredCurrencyCode)}
+                      </p>
+                    </div>
+                    <div className="hidden text-right md:block">
+                      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Most recent gift</p>
+                      <p className="mt-1 text-base font-semibold text-foreground">{formatDate(profile.mostRecentDonationDate)}</p>
+                    </div>
+                    <ChevronDown className={`h-5 w-5 text-muted-foreground transition-transform ${showHistory ? 'rotate-180' : ''}`} />
                   </div>
-                </div>
+                </button>
 
-                <div className="grid gap-4 md:grid-cols-4">
-                  <div className="rounded-xl border border-border bg-background p-4">
-                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Lifetime total</p>
-                    <p className="mt-2 text-lg font-semibold text-foreground">
-                      {formatMoney(profile.lifetimeMonetaryTotal, profile.preferredCurrencyCode)}
-                    </p>
-                  </div>
-                  <div className="rounded-xl border border-border bg-background p-4">
-                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Recorded gifts</p>
-                    <p className="mt-2 text-lg font-semibold text-foreground">{profile.donationCount}</p>
-                  </div>
-                  <div className="rounded-xl border border-border bg-background p-4">
-                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Largest gift</p>
-                    <p className="mt-2 text-lg font-semibold text-foreground">
-                      {profile.largestGiftAmount != null
-                        ? formatMoney(profile.largestGiftAmount, profile.preferredCurrencyCode)
-                        : '—'}
-                    </p>
-                  </div>
-                  <div className="rounded-xl border border-border bg-background p-4">
-                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Recurring</p>
-                    <p className="mt-2 text-lg font-semibold text-foreground">{profile.hasRecurringGift ? 'Yes' : 'No'}</p>
-                  </div>
-                </div>
+                {showHistory && (
+                  <div className="border-t border-border bg-muted/20 px-5 py-5">
+                    <div className="grid gap-4 md:grid-cols-4">
+                      <div className="rounded-xl border border-border bg-background p-4">
+                        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Recorded gifts</p>
+                        <p className="mt-2 text-lg font-semibold text-foreground">{profile.donationCount}</p>
+                      </div>
+                      <div className="rounded-xl border border-border bg-background p-4">
+                        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Largest gift</p>
+                        <p className="mt-2 text-lg font-semibold text-foreground">
+                          {profile.largestGiftAmount != null
+                            ? formatMoney(profile.largestGiftAmount, profile.preferredCurrencyCode)
+                            : '—'}
+                        </p>
+                      </div>
+                      <div className="rounded-xl border border-border bg-background p-4">
+                        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Recurring</p>
+                        <p className="mt-2 text-lg font-semibold text-foreground">{profile.hasRecurringGift ? 'Yes' : 'No'}</p>
+                      </div>
+                      <div className="rounded-xl border border-border bg-background p-4">
+                        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Program areas</p>
+                        <p className="mt-2 text-sm font-medium text-foreground">
+                          {profile.programAreas.length > 0 ? profile.programAreas.slice(0, 2).join(', ') : 'No allocations yet'}
+                        </p>
+                      </div>
+                    </div>
 
-                <div className="grid gap-4 lg:grid-cols-2">
-                  <div>
-                    <p className="text-sm font-medium text-foreground">Recent campaigns</p>
-                    <p className="mt-2 text-sm text-muted-foreground">
-                      {profile.recentCampaigns.length > 0 ? profile.recentCampaigns.join(', ') : 'No campaign names recorded yet.'}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-foreground">Program areas</p>
-                    <p className="mt-2 text-sm text-muted-foreground">
-                      {profile.programAreas.length > 0 ? profile.programAreas.join(', ') : 'No allocation program areas recorded yet.'}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(22rem,26rem)]">
-                <div className={`${card} space-y-4`}>
-                  <div className="flex items-center gap-2">
-                    <Sparkles className="h-4 w-4 text-primary" />
-                    <p className={sectionFormTitle}>Email composer</p>
-                  </div>
-
-                  <label className={label}>
-                    Email goal
-                    <textarea
-                      className={`${input} min-h-24`}
-                      value={goal}
-                      onChange={(event) => setGoal(event.target.value)}
-                      placeholder="What should this email try to accomplish?"
-                    />
-                  </label>
-
-                  <div className="flex flex-wrap gap-2">
-                    {goalPresets.map((preset) => (
-                      <button
-                        key={preset}
-                        type="button"
-                        className="rounded-full border border-border bg-background px-3 py-1.5 text-xs text-muted-foreground hover:bg-muted/50"
-                        onClick={() => setGoal(preset)}
-                      >
-                        {preset}
-                      </button>
-                    ))}
-                  </div>
-
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <label className={label}>
-                      Tone
-                      <select
-                        className={input}
-                        value={tone}
-                        onChange={(event) => setTone(event.target.value as (typeof toneOptions)[number])}
-                      >
-                        {toneOptions.map((option) => (
-                          <option key={option} value={option}>
-                            {option}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-
-                    <label className={`${label} flex items-center gap-3 pt-6 text-sm text-foreground`}>
-                      <input
-                        type="checkbox"
-                        checked={preferAi}
-                        onChange={(event) => setPreferAi(event.target.checked)}
-                        className="h-4 w-4 rounded border-border"
-                      />
-                      Try AI first, then fall back to template
-                    </label>
-                  </div>
-
-                  <button type="button" className={btnPrimary} onClick={() => void onGenerateEmail()} disabled={generating}>
-                    {generating ? 'Generating email…' : 'Generate email'}
-                  </button>
-
-                  {generated ? (
-                    <div className="space-y-4 rounded-xl border border-border bg-background p-4">
-                      <div className="flex flex-wrap items-center justify-between gap-3">
-                        <div>
-                          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Subject</p>
-                          <p className="mt-1 text-base font-semibold text-foreground">{generated.subject}</p>
-                          {generated.preview ? <p className="mt-1 text-sm text-muted-foreground">{generated.preview}</p> : null}
+                    <div className="mt-5 grid gap-5 xl:grid-cols-2">
+                      <div>
+                        <p className="text-sm font-medium text-foreground">Recent donor activity</p>
+                        <div className="mt-3 space-y-3">
+                          {profile.recentDonations.length === 0 ? (
+                            <p className="text-sm text-muted-foreground">No donations recorded yet.</p>
+                          ) : (
+                            profile.recentDonations.map((donation) => (
+                              <div key={donation.id} className="rounded-xl border border-border bg-background p-3">
+                                <p className="text-sm font-medium text-foreground">
+                                  {donation.amount != null
+                                    ? formatMoney(donation.amount, donation.currencyCode ?? profile.preferredCurrencyCode)
+                                    : donation.donationType}
+                                </p>
+                                <p className="mt-1 text-xs text-muted-foreground">
+                                  {formatDate(donation.donationDate)} · {donation.donationType}
+                                  {donation.campaignName ? ` · ${donation.campaignName}` : ''}
+                                </p>
+                                {donation.notes ? <p className="mt-2 text-xs text-muted-foreground">{donation.notes}</p> : null}
+                              </div>
+                            ))
+                          )}
                         </div>
-                        <button
-                          type="button"
-                          className="rounded-lg border border-border bg-card px-3 py-2 text-xs font-medium text-foreground hover:bg-muted/50"
-                          onClick={() => void handleCopy('subject', generated.subject)}
-                        >
-                          {copyState === 'subject' ? 'Copied' : 'Copy subject'}
-                        </button>
                       </div>
 
                       <div>
-                        <div className="flex flex-wrap items-center justify-between gap-3">
-                          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Body</p>
-                          <button
-                            type="button"
-                            className="rounded-lg border border-border bg-card px-3 py-2 text-xs font-medium text-foreground hover:bg-muted/50"
-                            onClick={() => void handleCopy('body', generated.body)}
-                          >
-                            {copyState === 'body' ? 'Copied' : 'Copy body'}
-                          </button>
+                        <p className="text-sm font-medium text-foreground">Recent allocations</p>
+                        <div className="mt-3 space-y-3">
+                          {profile.recentAllocations.length === 0 ? (
+                            <p className="text-sm text-muted-foreground">No linked allocations recorded yet.</p>
+                          ) : (
+                            profile.recentAllocations.map((allocation) => (
+                              <div key={allocation.id} className="rounded-xl border border-border bg-background p-3">
+                                <p className="text-sm font-medium text-foreground">{allocation.programArea}</p>
+                                <p className="mt-1 text-xs text-muted-foreground">
+                                  {allocation.safehouseName ?? 'Unassigned safehouse'} ·{' '}
+                                  {formatMoney(allocation.amountAllocated, profile.preferredCurrencyCode)}
+                                </p>
+                              </div>
+                            ))
+                          )}
                         </div>
-                        <pre className="mt-2 whitespace-pre-wrap rounded-xl border border-border bg-card p-4 font-sans text-sm leading-relaxed text-foreground">
-                          {generated.body}
-                        </pre>
-                      </div>
-
-                      <div className="flex flex-wrap items-center gap-3">
-                        {mailtoHref ? (
-                          <a href={mailtoHref} className={btnPrimary}>
-                            Open email draft
-                          </a>
-                        ) : (
-                          <span className="text-sm text-muted-foreground">Add an email address to this donor to open a draft.</span>
-                        )}
-                        <p className="text-xs text-muted-foreground">{generated.strategy}</p>
                       </div>
                     </div>
-                  ) : null}
+                  </div>
+                )}
+              </div>
+
+              <div className={`${card} space-y-5`}>
+                <div className="flex items-center gap-2">
+                  <Sparkles className="h-4 w-4 text-primary" />
+                  <p className={sectionFormTitle}>Email composer</p>
                 </div>
 
-                <aside className={`${card} space-y-5`}>
-                  <div>
-                    <p className={sectionFormTitle}>Recent donor activity</p>
-                    <p className="mt-1 text-sm text-muted-foreground">This is the history the composer can use.</p>
-                  </div>
+                <label className={label}>
+                  Email goal
+                  <textarea
+                    className={`${input} min-h-24`}
+                    value={goal}
+                    onChange={(event) => setGoal(event.target.value)}
+                    placeholder="What should this email try to accomplish?"
+                  />
+                </label>
 
-                  <div>
-                    <p className="text-sm font-medium text-foreground">Recent donations</p>
-                    <div className="mt-3 space-y-3">
-                      {profile.recentDonations.length === 0 ? (
-                        <p className="text-sm text-muted-foreground">No donations recorded yet.</p>
+                <div className="flex flex-wrap gap-2">
+                  {goalPresets.map((preset) => (
+                    <button
+                      key={preset}
+                      type="button"
+                      className="rounded-full border border-border bg-background px-3 py-1.5 text-xs text-muted-foreground hover:bg-muted/50"
+                      onClick={() => setGoal(preset)}
+                    >
+                      {preset}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="grid gap-4 lg:grid-cols-2">
+                  <label className={label}>
+                    Tone
+                    <select
+                      className={input}
+                      value={tone}
+                      onChange={(event) => setTone(event.target.value as (typeof toneOptions)[number])}
+                    >
+                      {toneOptions.map((option) => (
+                        <option key={option} value={option}>
+                          {option}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+
+                  <label className={`${label} flex items-center gap-3 pt-6 text-sm text-foreground`}>
+                    <input
+                      type="checkbox"
+                      checked={preferAi}
+                      onChange={(event) => setPreferAi(event.target.checked)}
+                      className="h-4 w-4 rounded border-border"
+                    />
+                    Try AI first, then fall back to template
+                  </label>
+                </div>
+
+                <div className="grid gap-4 md:grid-cols-2">
+                  <label className={label}>
+                    Sender name
+                    <input
+                      className={input}
+                      value={signature.senderName}
+                      onChange={(event) => updateSignature('senderName', event.target.value)}
+                      placeholder="Your name"
+                    />
+                  </label>
+                  <label className={label}>
+                    Sender title
+                    <input
+                      className={input}
+                      value={signature.senderTitle}
+                      onChange={(event) => updateSignature('senderTitle', event.target.value)}
+                      placeholder="Development Director"
+                    />
+                  </label>
+                  <label className={label}>
+                    Organization
+                    <input
+                      className={input}
+                      value={signature.senderOrganization}
+                      onChange={(event) => updateSignature('senderOrganization', event.target.value)}
+                    />
+                  </label>
+                  <label className={label}>
+                    Contact line
+                    <input
+                      className={input}
+                      value={signature.senderContact}
+                      onChange={(event) => updateSignature('senderContact', event.target.value)}
+                      placeholder="Email or phone"
+                    />
+                  </label>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-3">
+                  <button type="button" className={btnPrimary} onClick={() => void onGenerateEmail()} disabled={generating}>
+                    {generating ? 'Generating email…' : 'Generate email'}
+                  </button>
+                  <p className="text-xs text-muted-foreground">
+                    The generated draft will use plain text formatting so it pastes cleanly into email clients.
+                  </p>
+                </div>
+
+                {generated ? (
+                  <div className="space-y-4 rounded-xl border border-border bg-background p-4">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div>
+                        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Subject</p>
+                        <p className="mt-1 text-base font-semibold text-foreground">{generated.subject}</p>
+                        {generated.preview ? <p className="mt-1 text-sm text-muted-foreground">{generated.preview}</p> : null}
+                      </div>
+                      <button
+                        type="button"
+                        className="rounded-lg border border-border bg-card px-3 py-2 text-xs font-medium text-foreground hover:bg-muted/50"
+                        onClick={() => void handleCopy('subject', generated.subject)}
+                      >
+                        {copyState === 'subject' ? 'Copied' : 'Copy subject'}
+                      </button>
+                    </div>
+
+                    <div>
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Body</p>
+                        <button
+                          type="button"
+                          className="rounded-lg border border-border bg-card px-3 py-2 text-xs font-medium text-foreground hover:bg-muted/50"
+                          onClick={() => void handleCopy('body', generated.body)}
+                        >
+                          {copyState === 'body' ? 'Copied' : 'Copy body'}
+                        </button>
+                      </div>
+                      <pre className="mt-2 whitespace-pre-wrap rounded-xl border border-border bg-card p-4 font-sans text-sm leading-relaxed text-foreground">
+                        {generated.body}
+                      </pre>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-3">
+                      {mailtoHref ? (
+                        <a href={mailtoHref} className={btnPrimary}>
+                          Open email draft
+                        </a>
                       ) : (
-                        profile.recentDonations.map((donation) => (
-                          <div key={donation.id} className="rounded-xl border border-border bg-background p-3">
-                            <p className="text-sm font-medium text-foreground">
-                              {donation.amount != null
-                                ? formatMoney(donation.amount, donation.currencyCode ?? profile.preferredCurrencyCode)
-                                : donation.donationType}
-                            </p>
-                            <p className="mt-1 text-xs text-muted-foreground">
-                              {formatDate(donation.donationDate)} · {donation.donationType}
-                              {donation.campaignName ? ` · ${donation.campaignName}` : ''}
-                            </p>
-                            {donation.notes ? <p className="mt-2 text-xs text-muted-foreground">{donation.notes}</p> : null}
-                          </div>
-                        ))
+                        <span className="text-sm text-muted-foreground">Add an email address to this donor to open a draft.</span>
                       )}
+                      <p className="text-xs text-muted-foreground">{generated.strategy}</p>
                     </div>
                   </div>
-
-                  <div>
-                    <p className="text-sm font-medium text-foreground">Recent allocations</p>
-                    <div className="mt-3 space-y-3">
-                      {profile.recentAllocations.length === 0 ? (
-                        <p className="text-sm text-muted-foreground">No linked allocations recorded yet.</p>
-                      ) : (
-                        profile.recentAllocations.map((allocation) => (
-                          <div key={allocation.id} className="rounded-xl border border-border bg-background p-3">
-                            <p className="text-sm font-medium text-foreground">{allocation.programArea}</p>
-                            <p className="mt-1 text-xs text-muted-foreground">
-                              {allocation.safehouseName ?? 'Unassigned safehouse'} ·{' '}
-                              {formatMoney(allocation.amountAllocated, profile.preferredCurrencyCode)}
-                            </p>
-                          </div>
-                        ))
-                      )}
-                    </div>
-                  </div>
-                </aside>
+                ) : null}
               </div>
             </>
           )}

@@ -1,4 +1,5 @@
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Text.Json;
 using EbanHaven.Api.Configuration;
 using EbanHaven.Api.Lighthouse;
@@ -74,9 +75,9 @@ public sealed class DonorEmailComposer(
             return null;
 
         return new GeneratedDonorEmailDto(
-            parsed.Subject.Trim(),
-            parsed.Preview?.Trim() ?? string.Empty,
-            parsed.Body.Trim(),
+            NormalizeSingleLine(parsed.Subject),
+            NormalizeSingleLine(parsed.Preview),
+            NormalizeBody(parsed.Body),
             UsedAi: true,
             Strategy: "AI-generated from donor history");
     }
@@ -87,9 +88,12 @@ public sealed class DonorEmailComposer(
             You write stewardship emails for a nonprofit administrator.
             Use only the donor facts provided. Do not invent gifts, campaigns, impact claims, family details, or promises.
             Keep the message personal, warm, concise, and ready to send.
+            Write polished plain text email copy only.
+            Do not use markdown, bullets, asterisks, plus signs instead of spaces, placeholder tags, or bracketed tokens.
             Mention concrete giving history only when supported by the provided data.
             If a value is missing, work around it naturally instead of guessing.
             Avoid manipulative guilt language.
+            Include a complete, professional sign-off using the provided sender details.
 
             Return valid JSON only:
             {
@@ -106,6 +110,13 @@ public sealed class DonorEmailComposer(
         {
             goal = string.IsNullOrWhiteSpace(request.Goal) ? "Thank the donor and encourage their next step." : request.Goal.Trim(),
             tone = string.IsNullOrWhiteSpace(request.Tone) ? "Warm" : request.Tone.Trim(),
+            sender = new
+            {
+                name = request.SenderName?.Trim(),
+                title = request.SenderTitle?.Trim(),
+                organization = request.SenderOrganization?.Trim(),
+                contact = request.SenderContact?.Trim()
+            },
             donor = profile
         };
 
@@ -152,14 +163,12 @@ public sealed class DonorEmailComposer(
         body.AppendLine();
         body.AppendLine(BuildNextStepParagraph(profile, goal));
         body.AppendLine();
-        body.AppendLine("With gratitude,");
-        body.AppendLine("[Your Name]");
-        body.AppendLine("[Organization Name]");
+        AppendSignature(body, request);
 
         return new GeneratedDonorEmailDto(
-            subject,
-            preview,
-            body.ToString().Trim(),
+            NormalizeSingleLine(subject),
+            NormalizeSingleLine(preview),
+            NormalizeBody(body.ToString()),
             UsedAi: false,
             Strategy: "Template generated from donor history");
     }
@@ -266,6 +275,78 @@ public sealed class DonorEmailComposer(
             2 => $"{parts[0]} and {parts[1]}",
             _ => $"{string.Join(", ", parts[..^1])}, and {parts[^1]}"
         };
+    }
+
+    private static void AppendSignature(StringBuilder body, GenerateDonorEmailRequest request)
+    {
+        body.AppendLine("With gratitude,");
+
+        var signatureLines = new[]
+        {
+            request.SenderName?.Trim(),
+            request.SenderTitle?.Trim(),
+            request.SenderOrganization?.Trim(),
+            request.SenderContact?.Trim()
+        }
+        .Where(static line => !string.IsNullOrWhiteSpace(line))
+        .ToArray();
+
+        if (signatureLines.Length == 0)
+        {
+            body.AppendLine("The Eban Haven Team");
+            return;
+        }
+
+        foreach (var line in signatureLines)
+            body.AppendLine(line);
+    }
+
+    private static string NormalizeSingleLine(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return string.Empty;
+
+        var normalized = value
+            .Replace('+', ' ')
+            .Replace("**", string.Empty)
+            .Replace("__", string.Empty)
+            .Replace("\r", " ")
+            .Replace("\n", " ");
+
+        normalized = Regex.Replace(normalized, "\\s+", " ").Trim();
+        return normalized;
+    }
+
+    private static string NormalizeBody(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return string.Empty;
+
+        var normalized = value
+            .Replace("\r\n", "\n")
+            .Replace('\r', '\n')
+            .Replace('+', ' ')
+            .Replace("**", string.Empty)
+            .Replace("__", string.Empty);
+
+        normalized = Regex.Replace(normalized, @"[ \t]+\n", "\n");
+        normalized = Regex.Replace(normalized, @"\n{3,}", "\n\n");
+        normalized = Regex.Replace(normalized, @"[ \t]{2,}", " ");
+
+        var bannedPlaceholders = new[]
+        {
+            "[Your Name]",
+            "[Your Title]",
+            "[Organization Name]",
+            "[Contact Information]",
+            "[Your+Name]",
+            "[Your+Title]",
+            "[Organization+Name]",
+            "[Contact+Information]"
+        };
+
+        foreach (var placeholder in bannedPlaceholders)
+            normalized = normalized.Replace(placeholder, string.Empty, StringComparison.OrdinalIgnoreCase);
+
+        return normalized.Trim();
     }
 
     private sealed class DonorEmailModelReply

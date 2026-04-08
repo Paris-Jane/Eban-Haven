@@ -76,7 +76,15 @@ export async function getDonorEmailProfile(supporterId: number): Promise<T.Donor
 
 export async function generateDonorEmail(
   supporterId: number,
-  body: { goal?: string; tone?: string; preferAi?: boolean },
+  body: {
+    goal?: string
+    tone?: string
+    senderName?: string
+    senderTitle?: string
+    senderOrganization?: string
+    senderContact?: string
+    preferAi?: boolean
+  },
 ): Promise<T.GeneratedDonorEmail> {
   return parseJson<T.GeneratedDonorEmail>(
     await apiFetch(`${base}/email-hub/supporters/${supporterId}/compose`, {
