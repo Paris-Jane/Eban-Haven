@@ -109,7 +109,7 @@ export function LoginPage() {
         acquisitionChannel: rChannel,
       })
       // Registration returns a JWT — go straight to donor dashboard
-      navigate('/donor', { replace: true })
+      navigate('/donor-dashboard', { replace: true })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Registration failed.')
     } finally {

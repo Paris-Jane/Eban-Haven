@@ -88,22 +88,41 @@ app.UseForwardedHeaders();
 app.UseHttpsRedirection();
 app.UseRouting();
 app.UseCors();
-// 500 responses from exceptions often omit CORS headers; browsers then report a CORS error instead of the real failure.
+// Ensure error responses include CORS headers and a JSON body (otherwise browsers report "CORS blocked" and hide the real error).
 app.Use(async (context, next) =>
 {
-    context.Response.OnStarting(() =>
+    void EnsureCorsHeaders()
     {
         var res = context.Response;
-        if (res.StatusCode < 400) return Task.CompletedTask;
-        if (res.Headers.ContainsKey(HeaderNames.AccessControlAllowOrigin)) return Task.CompletedTask;
-        if (!context.Request.Headers.TryGetValue(HeaderNames.Origin, out var origin)) return Task.CompletedTask;
+        if (res.Headers.ContainsKey(HeaderNames.AccessControlAllowOrigin)) return;
+        if (!context.Request.Headers.TryGetValue(HeaderNames.Origin, out var origin)) return;
         var o = origin.ToString();
-        if (!CorsOriginRules.IsAllowed(o, app.Configuration)) return Task.CompletedTask;
+        if (!CorsOriginRules.IsAllowed(o, app.Configuration)) return;
         res.Headers[HeaderNames.AccessControlAllowOrigin] = o;
         res.Headers[HeaderNames.Vary] = HeaderNames.Origin;
+    }
+
+    context.Response.OnStarting(() =>
+    {
+        if (context.Response.StatusCode >= 400) EnsureCorsHeaders();
         return Task.CompletedTask;
     });
-    await next();
+
+    try
+    {
+        await next();
+    }
+    catch (Exception)
+    {
+        // If the response has started, we can't rewrite it.
+        if (context.Response.HasStarted) throw;
+
+        context.Response.Clear();
+        context.Response.StatusCode = StatusCodes.Status500InternalServerError;
+        EnsureCorsHeaders();
+        context.Response.ContentType = "application/json; charset=utf-8";
+        await context.Response.WriteAsJsonAsync(new { error = "Server error while processing the request." });
+    }
 });
 app.UseAuthentication();
 app.UseAuthorization();

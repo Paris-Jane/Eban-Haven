@@ -28,7 +28,7 @@ export async function registerDonorAccount(input: DonorRegistrationInput): Promi
       displayName: input.displayName.trim(),
       supporterType: input.supporterType.trim() || 'MonetaryDonor',
       region: input.region.trim() || undefined,
-      country: input.country.trim() || 'Philippines',
+      country: input.country.trim() || undefined,
     }),
   })
   const data = await parseJson<{ token: string }>(res)

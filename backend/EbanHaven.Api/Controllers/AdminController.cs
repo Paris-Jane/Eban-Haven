@@ -3,6 +3,7 @@ using EbanHaven.Api.Admin;
 using EbanHaven.Api.Lighthouse;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace EbanHaven.Api.Controllers;
 
@@ -105,8 +106,20 @@ public sealed class AdminController(ILighthouseRepository repo) : ControllerBase
         if (string.IsNullOrWhiteSpace(body.CaseStatus))
             return BadRequest(new { error = "CaseStatus is required." });
 
-        var created = repo.CreateResident(body.InternalCode.Trim(), body.CaseStatus.Trim(), body.CaseCategory?.Trim());
-        return Created($"/api/admin/residents/{created.Id}", created);
+        try
+        {
+            var created = repo.CreateResident(body.InternalCode.Trim(), body.CaseStatus.Trim(), body.CaseCategory?.Trim());
+            return Created($"/api/admin/residents/{created.Id}", created);
+        }
+        catch (DbUpdateException)
+        {
+            // Most commonly: unique constraint violations, FK issues, or invalid column constraints.
+            return Conflict(new { error = "Unable to create resident due to a database constraint. Check InternalCode and required fields." });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
     }
 
     [HttpPatch("residents/{id:int}/status")]
