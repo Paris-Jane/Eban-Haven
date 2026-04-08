@@ -99,11 +99,11 @@ export function AdminLayout() {
       )}
 
       <aside
-        className={`fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground transition-transform lg:static lg:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-50 flex h-svh max-h-svh w-64 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground transition-transform lg:static lg:h-svh lg:max-h-svh lg:shrink-0 lg:translate-x-0 ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
-        <div className="flex h-16 items-center justify-between border-b border-sidebar-border px-4">
+        <div className="flex h-16 shrink-0 items-center justify-between border-b border-sidebar-border px-4">
           <Link
             to="/"
             className="flex min-w-0 items-center gap-2 font-heading text-lg font-semibold text-sidebar-primary-foreground"
@@ -123,7 +123,7 @@ export function AdminLayout() {
             <X className="h-5 w-5" />
           </button>
         </div>
-        <nav className="flex-1 space-y-6 overflow-y-auto p-3">
+        <nav className="min-h-0 flex-1 space-y-6 overflow-y-auto overscroll-contain p-3">
           {navGroups.map((group) => (
             <div key={group.title}>
               <p className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-wider text-sidebar-foreground/45">
@@ -158,7 +158,7 @@ export function AdminLayout() {
             </div>
           ))}
         </nav>
-        <div className="space-y-1 border-t border-sidebar-border p-3">
+        <div className="shrink-0 space-y-1 border-t border-sidebar-border bg-sidebar p-3">
           <button
             type="button"
             onClick={() => void signOut()}
