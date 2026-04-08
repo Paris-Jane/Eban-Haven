@@ -3,6 +3,7 @@ using System.Security.Claims;
 using System.Text;
 using EbanHaven.Api.Auth;
 using EbanHaven.Api.DataAccess;
+using EbanHaven.Api.DataAccess.Entities;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -15,6 +16,8 @@ namespace EbanHaven.Api.Controllers;
 [Route("api/auth")]
 public sealed class AuthController(HavenDbContext db, IConfiguration config) : ControllerBase
 {
+    private static readonly string[] AllowedRoles = ["admin", "social_worker", "staff", "donor", "resident"];
+
     [HttpPost("login")]
     [AllowAnonymous]
     public async Task<IActionResult> Login([FromBody] LoginRequest body)
@@ -28,7 +31,7 @@ public sealed class AuthController(HavenDbContext db, IConfiguration config) : C
                 p.Email != null &&
                 p.Email.ToLower() == email &&
                 p.IsActive &&
-                (p.Role == "admin" || p.Role == "social_worker" || p.Role == "staff"));
+                AllowedRoles.Contains(p.Role));
         if (user is null)
             return StatusCode(StatusCodes.Status401Unauthorized, new { error = "Invalid username or password." });
         if (string.IsNullOrWhiteSpace(user.PasswordHash))
@@ -39,8 +42,54 @@ public sealed class AuthController(HavenDbContext db, IConfiguration config) : C
         if (!ok)
             return StatusCode(StatusCodes.Status401Unauthorized, new { error = "Invalid username or password." });
 
-        var token = IssueToken(user.Email ?? email, user.FullName);
-        return Ok(new { token });
+        var token = IssueToken(user.Email ?? email, user.FullName, user.Role);
+        return Ok(new { token, role = user.Role });
+    }
+
+    [HttpPost("register")]
+    [AllowAnonymous]
+    public async Task<IActionResult> Register([FromBody] RegisterRequest body)
+    {
+        if (string.IsNullOrWhiteSpace(body.Email) || string.IsNullOrWhiteSpace(body.Password))
+            return BadRequest(new { error = "Email and password are required." });
+
+        var email = body.Email.Trim().ToLowerInvariant();
+        var exists = await db.Profiles.AnyAsync(p => p.Email != null && p.Email.ToLower() == email);
+        if (exists)
+            return Conflict(new { error = "An account with this email already exists." });
+
+        var hasher = new PasswordHasher<object>();
+        var hash = hasher.HashPassword(new object(), body.Password);
+
+        var profile = new Profile
+        {
+            Email = email,
+            FullName = body.DisplayName?.Trim() ?? email,
+            Role = "donor",
+            PasswordHash = hash,
+            IsActive = true,
+        };
+        db.Profiles.Add(profile);
+
+        // Also create a supporter record if one doesn't exist
+        var supporterExists = await db.Supporters.AnyAsync(s => s.Email != null && s.Email.ToLower() == email);
+        if (!supporterExists)
+        {
+            db.Supporters.Add(new DataAccess.Entities.Supporter
+            {
+                SupporterType = body.SupporterType?.Trim() ?? "MonetaryDonor",
+                DisplayName = body.DisplayName?.Trim() ?? email,
+                Email = email,
+                Region = body.Region?.Trim(),
+                Country = body.Country?.Trim() ?? "Philippines",
+                Status = "Active",
+            });
+        }
+
+        await db.SaveChangesAsync();
+
+        var token = IssueToken(email, profile.FullName, "donor");
+        return Ok(new { token, role = "donor" });
     }
 
     [HttpPost("logout")]
@@ -59,10 +108,11 @@ public sealed class AuthController(HavenDbContext db, IConfiguration config) : C
         var display = User.Claims.FirstOrDefault(c => c.Type == "email")?.Value
             ?? User.FindFirst(ClaimTypes.Email)?.Value
             ?? User.Identity.Name;
-        return Ok(new { user = display });
+        var role = User.FindFirst(ClaimTypes.Role)?.Value ?? "staff";
+        return Ok(new { user = display, role });
     }
 
-    private string IssueToken(string username, string? displayName)
+    private string IssueToken(string username, string? displayName, string role)
     {
         var secret = config["Auth:JwtSecret"];
         var issuer = config["Auth:Issuer"] ?? "EbanHaven.Api";
@@ -75,7 +125,8 @@ public sealed class AuthController(HavenDbContext db, IConfiguration config) : C
         {
             new(JwtRegisteredClaimNames.Sub, username),
             new(ClaimTypes.Name, displayName?.Trim() ?? username),
-            new(ClaimTypes.Role, "Staff"),
+            new(ClaimTypes.Role, role == "admin" || role == "social_worker" || role == "staff" ? "Staff" : role),
+            new("role", role),
         };
         var jwt = new JwtSecurityToken(
             issuer: issuer,
@@ -87,4 +138,3 @@ public sealed class AuthController(HavenDbContext db, IConfiguration config) : C
         return new JwtSecurityTokenHandler().WriteToken(jwt);
     }
 }
-

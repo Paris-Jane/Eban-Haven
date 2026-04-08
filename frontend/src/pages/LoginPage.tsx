@@ -108,15 +108,8 @@ export function LoginPage() {
         phone: rPhone,
         acquisitionChannel: rChannel,
       })
-      try {
-        setError('Supporter created. Staff login is separate; please sign in with your staff username/password.')
-        setTab('login')
-        setUsername(rEmail.trim())
-      } catch {
-        setError('Account created. If email confirmation is required, verify your inbox and then sign in.')
-        setTab('login')
-        setUsername(rEmail.trim())
-      }
+      // Registration returns a JWT — go straight to donor dashboard
+      navigate('/donor', { replace: true })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Registration failed.')
     } finally {

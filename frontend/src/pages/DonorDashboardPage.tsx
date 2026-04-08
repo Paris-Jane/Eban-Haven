@@ -4,7 +4,6 @@ import { motion } from 'framer-motion'
 import { Heart } from 'lucide-react'
 import { createDonation, getDonations, getSupporters, type Donation, type Supporter } from '../api/admin'
 import { getMe } from '../api/auth'
-import { getSupabase, isSupabaseConfigured } from '../lib/supabase'
 import { SITE_DISPLAY_NAME } from '../site'
 
 const moneyPhp = new Intl.NumberFormat(undefined, { style: 'currency', currency: 'PHP' })
@@ -27,17 +26,8 @@ export function DonorDashboardPage() {
     setLoading(true)
     setError(null)
     try {
-      let em: string | null = null
-      if (isSupabaseConfigured()) {
-        const {
-          data: { session },
-        } = await getSupabase().auth.getSession()
-        em = session?.user?.email?.toLowerCase() ?? null
-      }
-      if (!em) {
-        const me = await getMe()
-        em = me?.user?.toLowerCase() ?? null
-      }
+      const me = await getMe()
+      const em = me?.user?.toLowerCase() ?? null
       setEmail(em)
       if (!em) {
         setSupporter(null)

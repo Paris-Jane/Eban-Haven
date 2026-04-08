@@ -1,4 +1,4 @@
-import { apiFetch, parseJson } from './client'
+import { apiFetch, parseJson, setStaffToken } from './client'
 
 export type DonorRegistrationInput = {
   email: string
@@ -16,18 +16,22 @@ export type DonorRegistrationInput = {
 }
 
 /**
- * Creates Supabase Auth user, profile row (role donor), and supporter record when data mode is Supabase.
- * Requires RLS policy profiles_insert_self and lighthouse insert permissions.
+ * Registers a new donor account against the Azure .NET API.
+ * Creates a profile (role=donor) + supporter record, then stores the JWT.
  */
 export async function registerDonorAccount(input: DonorRegistrationInput): Promise<void> {
-  const res = await apiFetch('/api/public/supporters', {
+  const res = await apiFetch('/api/auth/register', {
     method: 'POST',
     body: JSON.stringify({
-      supporterType: input.supporterType.trim() || 'MonetaryDonor',
-      displayName: input.displayName.trim(),
       email: input.email.trim().toLowerCase(),
+      password: input.password,
+      displayName: input.displayName.trim(),
+      supporterType: input.supporterType.trim() || 'MonetaryDonor',
       region: input.region.trim() || undefined,
+      country: input.country.trim() || 'Philippines',
     }),
   })
-  await parseJson(res)
+  const data = await parseJson<{ token: string }>(res)
+  // Store JWT so the donor is immediately signed in after registration
+  setStaffToken(data.token)
 }
