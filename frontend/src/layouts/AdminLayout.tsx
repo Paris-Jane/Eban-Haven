@@ -7,16 +7,18 @@ import {
   ClipboardList,
   FileText,
   Gift,
-  GitBranch,
   Heart,
   Home,
   LayoutDashboard,
+  LineChart,
   LogOut,
   Mail,
   Menu,
   PanelLeftClose,
   PanelLeft,
   PieChart,
+  RefreshCcw,
+  TrendingUp,
   UserCheck,
   Video,
   Waypoints,
@@ -44,32 +46,43 @@ type NavGroup = {
 
 const navGroups: NavGroup[] = [
   {
-    title: 'Dashboards',
+    title: 'All',
     items: [
       { to: '/admin', label: 'Admin Dashboard', icon: LayoutDashboard, end: true },
-      { to: '/admin/social-worker-dashboard', label: 'Social Worker Dashboard', icon: UserCheck },
-      { to: '/admin/reports', label: 'Reports & analytics', icon: BarChart3 },
+      { to: '/admin/reports', label: 'Reports & Analytics', icon: BarChart3 },
     ],
   },
   {
-    title: 'Databases',
+    title: 'Residents',
     items: [
+      { to: '/admin/social-worker-dashboard', label: 'Social Worker Dashboard', icon: UserCheck },
+      { to: '/admin/residents', label: 'Residents', icon: ClipboardList },
+      { to: '/admin/process-recordings', label: 'Process Recordings', icon: FileText },
+      { to: '/admin/home-visitations', label: 'Home Visitations', icon: Video },
+      { to: '/admin/case-conferences', label: 'Case Conferences', icon: CalendarDays },
+    ],
+  },
+  {
+    title: 'Funding',
+    items: [
+      { to: '/admin/donor-dashboard', label: 'Donor Dashboard', icon: TrendingUp },
+      { to: '/admin/email-hub', label: 'Donor Retention', icon: RefreshCcw },
       { to: '/admin/donors', label: 'Donors', icon: Heart },
       { to: '/admin/contributions', label: 'Donations', icon: Gift },
       { to: '/admin/allocations', label: 'Allocations', icon: PieChart },
-      { to: '/admin/residents', label: 'Residents', icon: ClipboardList },
-      { to: '/admin/process-recordings', label: 'Process recordings', icon: FileText },
-      { to: '/admin/home-visitations', label: 'Home visitations', icon: Video },
-      { to: '/admin/case-conferences', label: 'Case conferences', icon: CalendarDays },
+    ],
+  },
+  {
+    title: 'Social Media',
+    items: [
+      { to: '/admin/marketing-analytics', label: 'Marketing Analytics', icon: LineChart },
+      { to: '/admin/social-planner', label: 'Marketing Support', icon: Bot },
     ],
   },
   {
     title: 'Tools',
     items: [
-      { to: '/admin/donor-pipeline', label: 'Donor tools', icon: GitBranch },
-      { to: '/admin/email-hub', label: 'Email hub', icon: Mail },
-      { to: '/admin/resident-pipeline', label: 'Resident tools', icon: Waypoints },
-      { to: '/admin/social-planner', label: 'Marketing tools', icon: Bot },
+      { to: '/admin/resident-pipeline', label: 'Resident Tools', icon: Waypoints },
     ],
   },
 ]
