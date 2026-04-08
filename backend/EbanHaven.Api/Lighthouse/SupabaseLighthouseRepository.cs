@@ -58,7 +58,7 @@ public sealed class SupabaseLighthouseRepository(HavenDbContext db) : ILighthous
             .OrderBy(p => p.CaseConferenceDate)
             .Take(12)
             .Select(p => new { p.PlanId, p.ResidentId, p.PlanCategory, p.Status, p.PlanDescription, p.CaseConferenceDate })
-            .AsEnumerable()
+            .ToList()
             .Select(p => new UpcomingConferenceDto(
                 p.PlanId,
                 p.ResidentId,
@@ -350,7 +350,7 @@ public sealed class SupabaseLighthouseRepository(HavenDbContext db) : ILighthous
 
         var list = q
             .OrderBy(p => p.SessionDate)
-            .AsEnumerable()
+            .ToList()
             .Select(p => new ProcessRecordingDto(
                 p.RecordingId,
                 p.ResidentId,
@@ -408,7 +408,7 @@ public sealed class SupabaseLighthouseRepository(HavenDbContext db) : ILighthous
 
         return q
             .OrderByDescending(v => v.VisitDate)
-            .AsEnumerable()
+            .ToList()
             .Select(v => new HomeVisitationDto(
                 v.VisitationId,
                 v.ResidentId,
@@ -462,7 +462,7 @@ public sealed class SupabaseLighthouseRepository(HavenDbContext db) : ILighthous
 
         return q
             .OrderByDescending(p => p.CaseConferenceDate ?? DateOnly.MinValue)
-            .AsEnumerable()
+            .ToList()
             .Select(p => new InterventionPlanDto(
                 p.PlanId,
                 p.ResidentId,
@@ -504,14 +504,20 @@ public sealed class SupabaseLighthouseRepository(HavenDbContext db) : ILighthous
             .Select(g => g.OrderByDescending(x => x.MonthStart).First())
             .ToList();
 
+        var activeResidentsBySafehouse = db.Residents
+            .Where(r => r.CaseStatus.ToLower() == "active" && r.SafehouseId != null)
+            .GroupBy(r => r.SafehouseId!.Value)
+            .Select(g => new { SafehouseId = g.Key, Count = g.Count() })
+            .ToDictionary(x => x.SafehouseId, x => x.Count);
+
         var perf = db.Safehouses
             .Where(s => s.Status.ToLower() == "active")
-            .AsEnumerable()
+            .ToList()
             .Select(s =>
             {
                 var cap = Math.Max(s.CapacityGirls, 1);
                 var lm = latestMonth.FirstOrDefault(x => x.SafehouseId == s.SafehouseId);
-                var activeResidents = db.Residents.Count(r => r.SafehouseId == s.SafehouseId && r.CaseStatus.ToLower() == "active");
+                var activeResidents = activeResidentsBySafehouse.GetValueOrDefault(s.SafehouseId, 0);
                 return new SafehousePerformanceDto(
                     s.SafehouseId,
                     s.Name,
