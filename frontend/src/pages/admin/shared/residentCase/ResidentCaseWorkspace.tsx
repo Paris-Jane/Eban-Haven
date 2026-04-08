@@ -305,13 +305,6 @@ export function ResidentCaseWorkspace({ residentId }: { residentId: number }) {
           attention={attention}
           stats={stats}
           onEditProfile={() => setProfileOpen(true)}
-          onQuick={(a) => {
-            if (a === 'incident') setIncidentInfoOpen(true)
-            if (a === 'counseling') bumpCreate('care', 'counseling', 'counseling')
-            if (a === 'visit') bumpCreate('care', 'visits', 'visit')
-            if (a === 'plan') bumpCreate('plans', null, 'plan')
-            if (a === 'education') bumpCreate('care', 'education', 'education')
-          }}
           onActivityNavigate={(tab, care) => {
             setMainTab(tab)
             if (care) setCareSub(care)
@@ -406,7 +399,6 @@ function OverviewPanel({
   attention,
   stats,
   onEditProfile,
-  onQuick,
   onActivityNavigate,
 }: {
   fields: Record<string, string>
@@ -424,7 +416,6 @@ function OverviewPanel({
     latestProgress: number | null
   }
   onEditProfile: () => void
-  onQuick: (a: 'incident' | 'counseling' | 'visit' | 'plan' | 'education') => void
   onActivityNavigate: (tab: MainTab, care?: CareSub) => void
 }) {
   return (
