@@ -58,7 +58,7 @@ const navGroups: NavGroup[] = [
       { to: '/admin/contributions', label: 'Donations', icon: Gift },
       { to: '/admin/allocations', label: 'Allocations', icon: PieChart },
       { to: '/admin/residents', label: 'Residents', icon: ClipboardList },
-      { to: '/admin/process-recordings', label: 'Process recording', icon: FileText },
+      { to: '/admin/process-recordings', label: 'Counseling sessions', icon: FileText },
       { to: '/admin/home-visitations', label: 'Home visitations', icon: Video },
       { to: '/admin/case-conferences', label: 'Case conferences', icon: CalendarDays },
     ],

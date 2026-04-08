@@ -11,7 +11,7 @@ const shortcuts = [
   },
   {
     to: '/admin/process-recordings',
-    label: 'Process recording',
+    label: 'Counseling sessions',
     hint: 'Session notes and counseling documentation',
     icon: FileText,
   },

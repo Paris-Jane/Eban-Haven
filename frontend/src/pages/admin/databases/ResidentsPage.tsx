@@ -20,11 +20,10 @@ import { AdminListToolbar } from '../shared/AdminListToolbar'
 import { nextSortState, sortRows, SortableTh, type SortDirection } from '../shared/SortableTh'
 import { AdminBulkActionsBar } from '../shared/adminDataTable/AdminBulkActionsBar'
 import { AdminDeleteModal } from '../shared/adminDataTable/AdminDeleteModal'
-import { CategoryBadge, ReintegrationBadge, RiskBadge, StatusBadge } from '../shared/adminDataTable/AdminBadges'
+import { ReintegrationBadge, RiskBadge, StatusBadge } from '../shared/adminDataTable/AdminBadges'
 import {
   FilterPanelCard,
   DateRangeFilter,
-  MinMaxFilter,
   MultiSelectFilter,
   SearchableEntityMultiFilter,
   TextSearchFilter,
@@ -32,7 +31,6 @@ import {
 import {
   formatAdminDate,
   inDateRange,
-  inPresentAgeRange,
   matchesIdMulti,
   matchesStringMulti,
   uniqSortedStrings,
@@ -43,13 +41,8 @@ function emptyFilters() {
     internalCode: '',
     safehouseIds: new Set<number>(),
     caseStatuses: new Set<string>(),
-    sexes: new Set<string>(),
-    presentAgeMin: '',
-    presentAgeMax: '',
-    caseCategories: new Set<string>(),
     admissionFrom: '',
     admissionTo: '',
-    lengthOfStay: '',
     reintegrations: new Set<string>(),
     riskLevels: new Set<string>(),
     socialWorkers: new Set<string>(),
@@ -107,8 +100,6 @@ export function ResidentsPage() {
   }, [safehouses])
 
   const caseStatusOpts = useMemo(() => uniqSortedStrings(rows.map((r) => r.caseStatus)), [rows])
-  const sexOpts = useMemo(() => uniqSortedStrings(rows.map((r) => r.sex)), [rows])
-  const catOpts = useMemo(() => uniqSortedStrings(rows.map((r) => r.caseCategory)), [rows])
   const reintOpts = useMemo(() => uniqSortedStrings(rows.map((r) => r.reintegrationStatus)), [rows])
   const riskOpts = useMemo(() => uniqSortedStrings(rows.map((r) => r.currentRiskLevel)), [rows])
   const swOpts = useMemo(() => uniqSortedStrings(rows.map((r) => r.assignedSocialWorker)), [rows])
@@ -122,17 +113,8 @@ export function ResidentsPage() {
       }
       if (!matchesIdMulti(r.safehouseId, filters.safehouseIds)) return false
       if (!matchesStringMulti(r.caseStatus, filters.caseStatuses)) return false
-      if (!matchesStringMulti(r.sex, filters.sexes)) return false
-      if (!inPresentAgeRange(r.presentAge, filters.presentAgeMin, filters.presentAgeMax)) return false
-      if (!matchesStringMulti(r.caseCategory, filters.caseCategories)) return false
       if (filters.admissionFrom || filters.admissionTo) {
         if (!inDateRange(r.dateOfAdmission, filters.admissionFrom, filters.admissionTo)) return false
-      }
-      if (
-        filters.lengthOfStay.trim() &&
-        !(r.lengthOfStay ?? '').toLowerCase().includes(filters.lengthOfStay.trim().toLowerCase())
-      ) {
-        return false
       }
       if (!matchesStringMulti(r.reintegrationStatus ?? '', filters.reintegrations)) return false
       if (!matchesStringMulti(r.currentRiskLevel ?? '', filters.riskLevels)) return false
@@ -147,16 +129,8 @@ export function ResidentsPage() {
           return row.safehouseId
         case 'caseStatus':
           return row.caseStatus
-        case 'sex':
-          return row.sex
-        case 'presentAge':
-          return row.presentAge ?? ''
-        case 'caseCategory':
-          return row.caseCategory
         case 'dateOfAdmission':
           return row.dateOfAdmission ?? ''
-        case 'lengthOfStay':
-          return row.lengthOfStay ?? ''
         case 'reintegrationStatus':
           return row.reintegrationStatus ?? ''
         case 'currentRiskLevel':
@@ -175,11 +149,7 @@ export function ResidentsPage() {
     if (filters.internalCode.trim()) p.push('Code')
     if (filters.safehouseIds.size) p.push(`Safehouse: ${filters.safehouseIds.size}`)
     if (filters.caseStatuses.size) p.push(`Status: ${filters.caseStatuses.size}`)
-    if (filters.sexes.size) p.push(`Sex: ${filters.sexes.size}`)
-    if (filters.presentAgeMin || filters.presentAgeMax) p.push('Age range')
-    if (filters.caseCategories.size) p.push(`Category: ${filters.caseCategories.size}`)
     if (filters.admissionFrom || filters.admissionTo) p.push('Admission range')
-    if (filters.lengthOfStay.trim()) p.push('Stay')
     if (filters.reintegrations.size) p.push(`Reintegration: ${filters.reintegrations.size}`)
     if (filters.riskLevels.size) p.push(`Risk: ${filters.riskLevels.size}`)
     if (filters.socialWorkers.size) p.push(`SW: ${filters.socialWorkers.size}`)
@@ -263,7 +233,7 @@ export function ResidentsPage() {
     requestAnimationFrame(() => document.getElementById('admin-add-resident')?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
   }
 
-  const colCount = 12
+  const colCount = 8
 
   return (
     <div className="space-y-6">
@@ -315,37 +285,12 @@ export function ResidentsPage() {
             selected={filters.caseStatuses}
             onChange={(s) => setFilters((f) => ({ ...f, caseStatuses: s }))}
           />
-          <MultiSelectFilter
-            labelText="Sex"
-            options={sexOpts.length ? sexOpts : ['F', 'M']}
-            selected={filters.sexes}
-            onChange={(s) => setFilters((f) => ({ ...f, sexes: s }))}
-          />
-          <MinMaxFilter
-            labelText="Present age (leading number)"
-            min={filters.presentAgeMin}
-            max={filters.presentAgeMax}
-            onMin={(v) => setFilters((f) => ({ ...f, presentAgeMin: v }))}
-            onMax={(v) => setFilters((f) => ({ ...f, presentAgeMax: v }))}
-          />
-          <MultiSelectFilter
-            labelText="Case category"
-            options={catOpts.length ? catOpts : ['Surrendered']}
-            selected={filters.caseCategories}
-            onChange={(s) => setFilters((f) => ({ ...f, caseCategories: s }))}
-          />
           <DateRangeFilter
             labelText="Date of admission"
             from={filters.admissionFrom}
             to={filters.admissionTo}
             onFrom={(v) => setFilters((f) => ({ ...f, admissionFrom: v }))}
             onTo={(v) => setFilters((f) => ({ ...f, admissionTo: v }))}
-          />
-          <TextSearchFilter
-            labelText="Length of stay"
-            value={filters.lengthOfStay}
-            onChange={(v) => setFilters((f) => ({ ...f, lengthOfStay: v }))}
-            placeholder="Contains…"
           />
           <MultiSelectFilter
             labelText="Reintegration status"
@@ -420,13 +365,15 @@ export function ResidentsPage() {
               <SortableTh label="Internal code" sortKey="internalCode" activeKey={sortKey} direction={sortDir} onSort={onSort} />
               <SortableTh label="Safehouse" sortKey="safehouseId" activeKey={sortKey} direction={sortDir} onSort={onSort} />
               <SortableTh label="Case status" sortKey="caseStatus" activeKey={sortKey} direction={sortDir} onSort={onSort} />
-              <SortableTh label="Sex" sortKey="sex" activeKey={sortKey} direction={sortDir} onSort={onSort} />
-              <SortableTh label="Present age" sortKey="presentAge" activeKey={sortKey} direction={sortDir} onSort={onSort} />
-              <SortableTh label="Category" sortKey="caseCategory" activeKey={sortKey} direction={sortDir} onSort={onSort} />
               <SortableTh label="Admission" sortKey="dateOfAdmission" activeKey={sortKey} direction={sortDir} onSort={onSort} />
-              <SortableTh label="Length of stay" sortKey="lengthOfStay" activeKey={sortKey} direction={sortDir} onSort={onSort} />
               <SortableTh label="Reintegration" sortKey="reintegrationStatus" activeKey={sortKey} direction={sortDir} onSort={onSort} />
-              <SortableTh label="Risk" sortKey="currentRiskLevel" activeKey={sortKey} direction={sortDir} onSort={onSort} />
+              <SortableTh
+                label="Current risk level"
+                sortKey="currentRiskLevel"
+                activeKey={sortKey}
+                direction={sortDir}
+                onSort={onSort}
+              />
               <SortableTh label="Social worker" sortKey="assignedSocialWorker" activeKey={sortKey} direction={sortDir} onSort={onSort} />
             </tr>
           </thead>
@@ -458,13 +405,7 @@ export function ResidentsPage() {
                   <td className="px-3 py-2.5">
                     <StatusBadge status={r.caseStatus} />
                   </td>
-                  <td className="px-3 py-2.5 text-muted-foreground">{r.sex}</td>
-                  <td className="px-3 py-2.5 text-muted-foreground">{r.presentAge ?? '—'}</td>
-                  <td className="px-3 py-2.5">
-                    <CategoryBadge>{r.caseCategory}</CategoryBadge>
-                  </td>
                   <td className="px-3 py-2.5 tabular-nums text-muted-foreground">{formatAdminDate(r.dateOfAdmission)}</td>
-                  <td className="px-3 py-2.5 text-muted-foreground">{r.lengthOfStay ?? '—'}</td>
                   <td className="px-3 py-2.5">
                     {r.reintegrationStatus ? <ReintegrationBadge value={r.reintegrationStatus} /> : <span className="text-muted-foreground">—</span>}
                   </td>

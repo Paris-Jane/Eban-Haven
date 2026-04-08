@@ -137,7 +137,7 @@ function CounselingSection({
       {err && <div className={alertError}>{err}</div>}
       <SectionHeader
         title="Counseling sessions"
-        description="Process recordings for this resident — open a row for full notes and follow-up."
+        description="Counseling sessions for this resident — open a row for full notes and follow-up."
         actions={<QuickActionButton onClick={() => setCreateOpen(true)}>Add session</QuickActionButton>}
       />
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">

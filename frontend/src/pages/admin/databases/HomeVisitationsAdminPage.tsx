@@ -460,7 +460,13 @@ export function HomeVisitationsAdminPage() {
               <SortableTh label="Type" sortKey="visitType" activeKey={sortKey} direction={sortDir} onSort={onSort} />
               <SortableTh label="Location" sortKey="locationVisited" activeKey={sortKey} direction={sortDir} onSort={onSort} />
               <SortableTh label="Cooperation" sortKey="familyCooperationLevel" activeKey={sortKey} direction={sortDir} onSort={onSort} />
-              <SortableTh label="Safety" sortKey="safetyConcernsNoted" activeKey={sortKey} direction={sortDir} onSort={onSort} />
+              <SortableTh
+                label="Safety concerns"
+                sortKey="safetyConcernsNoted"
+                activeKey={sortKey}
+                direction={sortDir}
+                onSort={onSort}
+              />
               <SortableTh label="Outcome" sortKey="visitOutcome" activeKey={sortKey} direction={sortDir} onSort={onSort} />
             </tr>
           </thead>

@@ -144,7 +144,7 @@ export function ReportsPage() {
       <div className={card}>
         <h3 className="text-sm font-semibold text-foreground">Annual accomplishment style — service pillars</h3>
         <p className="mt-1 text-xs text-muted-foreground">
-          Session interventions tagged in process recordings (caring, healing, teaching).
+          Session interventions tagged in counseling sessions (caring, healing, teaching).
         </p>
         <div className="mt-6 grid gap-4 sm:grid-cols-3">
           <div className="rounded-lg border border-border bg-muted/30 p-4 text-center">
@@ -178,9 +178,9 @@ export function ReportsPage() {
       </div>
 
       <div className={card}>
-        <h3 className="text-sm font-semibold text-foreground">Process documentation volume</h3>
+        <h3 className="text-sm font-semibold text-foreground">Counseling session volume</h3>
         <p className="mt-2 text-2xl font-heading font-bold text-foreground">{data.processRecordingsCount}</p>
-        <p className="mt-1 text-xs text-muted-foreground">Total process recording entries in the dataset.</p>
+        <p className="mt-1 text-xs text-muted-foreground">Total counseling session entries in the dataset.</p>
       </div>
     </div>
   )

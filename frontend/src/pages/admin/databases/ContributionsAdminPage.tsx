@@ -65,7 +65,6 @@ function emptyFilters() {
     donationTypes: new Set<string>(),
     amountMin: '',
     amountMax: '',
-    currencies: new Set<string>(),
     recurring: 'all' as TriBool,
     campaign: '',
     channels: new Set<string>(),
@@ -121,7 +120,6 @@ export function ContributionsAdminPage() {
   )
 
   const typeOpts = useMemo(() => uniqSortedStrings(rows.map((r) => r.donationType)), [rows])
-  const curOpts = useMemo(() => uniqSortedStrings(rows.map((r) => r.currencyCode)), [rows])
   const chOpts = useMemo(() => uniqSortedStrings(rows.map((r) => r.channelSource)), [rows])
   const impOpts = useMemo(() => uniqSortedStrings(rows.map((r) => r.impactUnit)), [rows])
 
@@ -135,7 +133,6 @@ export function ContributionsAdminPage() {
       if (!matchesIdMulti(r.supporterId, filters.supporterIds)) return false
       if (!matchesStringMulti(r.donationType, filters.donationTypes)) return false
       if (!inAmountRange(r.amount, filters.amountMin, filters.amountMax)) return false
-      if (!matchesStringMulti(r.currencyCode ?? '', filters.currencies)) return false
       if (!matchesTriBool(r.isRecurring, filters.recurring)) return false
       if (filters.campaign.trim() && !(r.campaignName ?? '').toLowerCase().includes(filters.campaign.trim().toLowerCase())) {
         return false
@@ -154,8 +151,6 @@ export function ContributionsAdminPage() {
           return row.donationType
         case 'amount':
           return row.amount ?? 0
-        case 'currencyCode':
-          return row.currencyCode ?? ''
         case 'isRecurring':
           return row.isRecurring ? 1 : 0
         case 'campaignName':
@@ -177,7 +172,6 @@ export function ContributionsAdminPage() {
     if (filters.supporterIds.size) p.push(`Supporters: ${filters.supporterIds.size}`)
     if (filters.donationTypes.size) p.push(`Types: ${filters.donationTypes.size}`)
     if (filters.amountMin || filters.amountMax) p.push('Amount range')
-    if (filters.currencies.size) p.push(`Currency: ${filters.currencies.size}`)
     if (filters.recurring !== 'all') p.push(`Recurring: ${filters.recurring}`)
     if (filters.campaign.trim()) p.push('Campaign')
     if (filters.channels.size) p.push(`Channel: ${filters.channels.size}`)
@@ -285,7 +279,7 @@ export function ContributionsAdminPage() {
     requestAnimationFrame(() => document.getElementById('admin-add-donation')?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
   }
 
-  const colCount = 11
+  const colCount = 10
 
   return (
     <div className="space-y-6">
@@ -345,12 +339,6 @@ export function ContributionsAdminPage() {
             max={filters.amountMax}
             onMin={(v) => setFilters((f) => ({ ...f, amountMin: v }))}
             onMax={(v) => setFilters((f) => ({ ...f, amountMax: v }))}
-          />
-          <MultiSelectFilter
-            labelText="Currency"
-            options={curOpts.length ? curOpts : ['PHP', 'USD']}
-            selected={filters.currencies}
-            onChange={(s) => setFilters((f) => ({ ...f, currencies: s }))}
           />
           <TriBoolFilter
             labelText="Recurring"
@@ -436,7 +424,6 @@ export function ContributionsAdminPage() {
               <SortableTh label="Supporter" sortKey="supporterDisplayName" activeKey={sortKey} direction={sortDir} onSort={onSort} />
               <SortableTh label="Type" sortKey="donationType" activeKey={sortKey} direction={sortDir} onSort={onSort} />
               <SortableTh label="Amount" sortKey="amount" activeKey={sortKey} direction={sortDir} onSort={onSort} />
-              <SortableTh label="Currency" sortKey="currencyCode" activeKey={sortKey} direction={sortDir} onSort={onSort} />
               <SortableTh label="Recurring" sortKey="isRecurring" activeKey={sortKey} direction={sortDir} onSort={onSort} />
               <SortableTh label="Campaign" sortKey="campaignName" activeKey={sortKey} direction={sortDir} onSort={onSort} />
               <SortableTh label="Channel" sortKey="channelSource" activeKey={sortKey} direction={sortDir} onSort={onSort} />
@@ -473,7 +460,6 @@ export function ContributionsAdminPage() {
                     <CategoryBadge>{r.donationType}</CategoryBadge>
                   </td>
                   <td className="px-3 py-2.5 tabular-nums font-medium">{formatMoney(r.amount, r.currencyCode)}</td>
-                  <td className="px-3 py-2.5 text-muted-foreground">{r.currencyCode ?? '—'}</td>
                   <td className="px-3 py-2.5">
                     <BooleanBadge value={r.isRecurring} />
                   </td>

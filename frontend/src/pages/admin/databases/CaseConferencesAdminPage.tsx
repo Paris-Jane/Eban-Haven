@@ -59,7 +59,7 @@ export function CaseConferencesAdminPage() {
   const [plans, setPlans] = useState<InterventionPlan[]>([])
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
-  const [showUpcoming, setShowUpcoming] = useState(false)
+  const [showUpcoming, setShowUpcoming] = useState(true)
   const [filterOpen, setFilterOpen] = useState(false)
   const [filters, setFilters] = useState(emptyFilters)
   const [resSearch, setResSearch] = useState('')
@@ -276,6 +276,35 @@ export function CaseConferencesAdminPage() {
 
       {error && <div className={alertError}>{error}</div>}
 
+      <div className={card}>
+        <button type="button" className="text-sm font-medium text-primary hover:underline" onClick={() => setShowUpcoming((s) => !s)}>
+          {showUpcoming ? 'Hide scheduled conferences' : 'Show scheduled conferences'}
+        </button>
+        {showUpcoming && (
+          <div className="mt-4">
+            <h3 className="text-sm font-semibold text-foreground">Upcoming / recent case conferences</h3>
+            <p className="mt-1 text-xs text-muted-foreground">Plans with a scheduled conference date.</p>
+            <ul className="mt-4 max-h-72 space-y-2 overflow-y-auto text-sm">
+              {upcomingPlans.length === 0 ? (
+                <li className="text-muted-foreground">None in dataset.</li>
+              ) : (
+                upcomingPlans.map((p) => (
+                  <li key={p.id} className="border-b border-border/60 pb-2">
+                    <Link className="font-medium text-primary hover:underline" to={`/admin/residents/${p.residentId}`}>
+                      {p.residentInternalCode}
+                    </Link>
+                    <span className="text-foreground"> · {p.planCategory}</span>
+                    <span className="ml-2 text-muted-foreground">
+                      {p.caseConferenceDate ? formatAdminDate(p.caseConferenceDate) : '—'} · {p.status}
+                    </span>
+                  </li>
+                ))
+              )}
+            </ul>
+          </div>
+        )}
+      </div>
+
       <AdminListToolbar
         searchValue={q}
         onSearchChange={setQ}
@@ -484,35 +513,6 @@ export function CaseConferencesAdminPage() {
         onCancel={() => setDeleteModal(null)}
         onConfirm={() => void confirmDelete()}
       />
-
-      <div className={card}>
-        <button type="button" className="text-sm font-medium text-primary hover:underline" onClick={() => setShowUpcoming((s) => !s)}>
-          {showUpcoming ? 'Hide scheduled conferences' : 'Show scheduled conferences'}
-        </button>
-        {showUpcoming && (
-          <div className="mt-4">
-            <h3 className="text-sm font-semibold text-foreground">Upcoming / recent case conferences</h3>
-            <p className="mt-1 text-xs text-muted-foreground">Plans with a scheduled conference date.</p>
-            <ul className="mt-4 max-h-72 space-y-2 overflow-y-auto text-sm">
-              {upcomingPlans.length === 0 ? (
-                <li className="text-muted-foreground">None in dataset.</li>
-              ) : (
-                upcomingPlans.map((p) => (
-                  <li key={p.id} className="border-b border-border/60 pb-2">
-                    <Link className="font-medium text-primary hover:underline" to={`/admin/residents/${p.residentId}`}>
-                      {p.residentInternalCode}
-                    </Link>
-                    <span className="text-foreground"> · {p.planCategory}</span>
-                    <span className="ml-2 text-muted-foreground">
-                      {p.caseConferenceDate ? formatAdminDate(p.caseConferenceDate) : '—'} · {p.status}
-                    </span>
-                  </li>
-                ))
-              )}
-            </ul>
-          </div>
-        )}
-      </div>
     </div>
   )
 }

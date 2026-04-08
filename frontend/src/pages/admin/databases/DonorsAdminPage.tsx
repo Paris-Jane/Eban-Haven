@@ -28,18 +28,8 @@ import { nextSortState, sortRows, SortableTh, type SortDirection } from '../shar
 import { AdminBulkActionsBar } from '../shared/adminDataTable/AdminBulkActionsBar'
 import { AdminDeleteModal } from '../shared/adminDataTable/AdminDeleteModal'
 import { CategoryBadge, StatusBadge } from '../shared/adminDataTable/AdminBadges'
-import {
-  FilterPanelCard,
-  DateRangeFilter,
-  MultiSelectFilter,
-  TextSearchFilter,
-} from '../shared/adminDataTable/AdminFilterPrimitives'
-import {
-  formatAdminDate,
-  inDateRange,
-  matchesStringMulti,
-  uniqSortedStrings,
-} from '../shared/adminDataTable/adminFormatters'
+import { FilterPanelCard, MultiSelectFilter, TextSearchFilter } from '../shared/adminDataTable/AdminFilterPrimitives'
+import { matchesStringMulti, uniqSortedStrings } from '../shared/adminDataTable/adminFormatters'
 
 const supporterTypes = [
   'MonetaryDonor',
@@ -55,11 +45,8 @@ function emptyDonorFilters() {
     displayName: '',
     email: '',
     supporterTypes: new Set<string>(),
-    relationshipTypes: new Set<string>(),
     regions: new Set<string>(),
     statuses: new Set<string>(),
-    dateFrom: '',
-    dateTo: '',
   }
 }
 
@@ -104,7 +91,6 @@ export function DonorsAdminPage() {
     void load()
   }, [load])
 
-  const relOptions = useMemo(() => uniqSortedStrings(rows.map((r) => r.relationshipType)), [rows])
   const regionOptions = useMemo(() => uniqSortedStrings(rows.map((r) => r.region)), [rows])
   const statusOptions = useMemo(() => uniqSortedStrings(rows.map((r) => r.status)), [rows])
   const typeOptions = useMemo(() => {
@@ -115,7 +101,7 @@ export function DonorsAdminPage() {
 
   const filteredSorted = useMemo(() => {
     let list = rows.filter((s) => {
-      const hay = `${s.displayName} ${s.email ?? ''} ${s.supporterType} ${s.relationshipType ?? ''} ${s.region ?? ''} ${s.status}`.toLowerCase()
+      const hay = `${s.displayName} ${s.email ?? ''} ${s.supporterType} ${s.region ?? ''} ${s.status}`.toLowerCase()
       if (q.trim() && !hay.includes(q.trim().toLowerCase())) return false
       if (filters.displayName.trim() && !s.displayName.toLowerCase().includes(filters.displayName.trim().toLowerCase())) {
         return false
@@ -124,12 +110,8 @@ export function DonorsAdminPage() {
         return false
       }
       if (!matchesStringMulti(s.supporterType, filters.supporterTypes)) return false
-      if (!matchesStringMulti(s.relationshipType ?? '', filters.relationshipTypes)) return false
       if (!matchesStringMulti(s.region ?? '', filters.regions)) return false
       if (!matchesStringMulti(s.status, filters.statuses)) return false
-      if (filters.dateFrom || filters.dateTo) {
-        if (!inDateRange(s.firstDonationDate, filters.dateFrom, filters.dateTo)) return false
-      }
       return true
     })
     list = sortRows(list, sortKey, sortDir, (row, key) => {
@@ -138,16 +120,12 @@ export function DonorsAdminPage() {
           return row.displayName
         case 'supporterType':
           return row.supporterType
-        case 'relationshipType':
-          return row.relationshipType ?? ''
         case 'email':
           return row.email ?? ''
         case 'region':
           return row.region ?? ''
         case 'status':
           return row.status
-        case 'firstDonationDate':
-          return row.firstDonationDate ?? ''
         default:
           return ''
       }
@@ -160,10 +138,8 @@ export function DonorsAdminPage() {
     if (filters.displayName.trim()) parts.push(`Name: ${filters.displayName.trim()}`)
     if (filters.email.trim()) parts.push(`Email: ${filters.email.trim()}`)
     if (filters.supporterTypes.size) parts.push(`Types: ${filters.supporterTypes.size}`)
-    if (filters.relationshipTypes.size) parts.push(`Relationship: ${filters.relationshipTypes.size}`)
     if (filters.regions.size) parts.push(`Region: ${filters.regions.size}`)
     if (filters.statuses.size) parts.push(`Status: ${filters.statuses.size}`)
-    if (filters.dateFrom || filters.dateTo) parts.push('Date range')
     return parts
   }, [filters])
 
@@ -275,7 +251,7 @@ export function DonorsAdminPage() {
     })
   }
 
-  const colCount = 10
+  const colCount = 7
 
   return (
     <div className="space-y-6">
@@ -329,12 +305,6 @@ export function DonorsAdminPage() {
             onChange={(s) => setFilters((f) => ({ ...f, supporterTypes: s }))}
           />
           <MultiSelectFilter
-            labelText="Relationship type"
-            options={relOptions.length ? relOptions : ['Local']}
-            selected={filters.relationshipTypes}
-            onChange={(s) => setFilters((f) => ({ ...f, relationshipTypes: s }))}
-          />
-          <MultiSelectFilter
             labelText="Region"
             options={regionOptions.length ? regionOptions : ['—']}
             selected={filters.regions}
@@ -345,13 +315,6 @@ export function DonorsAdminPage() {
             options={statusOptions.length ? statusOptions : ['Active', 'Inactive']}
             selected={filters.statuses}
             onChange={(s) => setFilters((f) => ({ ...f, statuses: s }))}
-          />
-          <DateRangeFilter
-            labelText="First donation date"
-            from={filters.dateFrom}
-            to={filters.dateTo}
-            onFrom={(v) => setFilters((f) => ({ ...f, dateFrom: v }))}
-            onTo={(v) => setFilters((f) => ({ ...f, dateTo: v }))}
           />
         </FilterPanelCard>
       )}
@@ -443,11 +406,9 @@ export function DonorsAdminPage() {
               </th>
               <SortableTh label="Display name" sortKey="displayName" activeKey={sortKey} direction={sortDir} onSort={onSort} />
               <SortableTh label="Type" sortKey="supporterType" activeKey={sortKey} direction={sortDir} onSort={onSort} />
-              <SortableTh label="Relationship" sortKey="relationshipType" activeKey={sortKey} direction={sortDir} onSort={onSort} />
               <SortableTh label="Email" sortKey="email" activeKey={sortKey} direction={sortDir} onSort={onSort} />
               <SortableTh label="Region" sortKey="region" activeKey={sortKey} direction={sortDir} onSort={onSort} />
               <SortableTh label="Status" sortKey="status" activeKey={sortKey} direction={sortDir} onSort={onSort} />
-              <SortableTh label="First donation" sortKey="firstDonationDate" activeKey={sortKey} direction={sortDir} onSort={onSort} />
               <th className="px-3 py-2.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">Actions</th>
             </tr>
           </thead>
@@ -483,13 +444,11 @@ export function DonorsAdminPage() {
                   <td className="px-3 py-2.5">
                     <CategoryBadge>{s.supporterType}</CategoryBadge>
                   </td>
-                  <td className="px-3 py-2.5 text-muted-foreground">{s.relationshipType ?? '—'}</td>
                   <td className="px-3 py-2.5 text-muted-foreground">{s.email ?? '—'}</td>
                   <td className="px-3 py-2.5 text-muted-foreground">{s.region ?? '—'}</td>
                   <td className="px-3 py-2.5">
                     <StatusBadge status={s.status} />
                   </td>
-                  <td className="px-3 py-2.5 tabular-nums text-muted-foreground">{formatAdminDate(s.firstDonationDate)}</td>
                   <td className="px-3 py-2.5" onClick={(e) => e.stopPropagation()}>
                     <button type="button" className="text-sm font-medium text-primary hover:underline" onClick={() => setEdit({ ...s })}>
                       Edit
