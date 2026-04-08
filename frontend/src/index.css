@@ -52,6 +52,27 @@
   html {
     @apply antialiased;
   }
+
+  :root[data-theme='ocean'] {
+    --color-background: hsl(200 50% 97%);
+    --color-foreground: hsl(206 46% 14%);
+    --color-card: hsl(0 0% 100%);
+    --color-card-foreground: hsl(206 46% 14%);
+    --color-popover: hsl(0 0% 100%);
+    --color-popover-foreground: hsl(206 46% 14%);
+    --color-primary: hsl(200 72% 38%);
+    --color-primary-foreground: hsl(0 0% 100%);
+    --color-secondary: hsl(188 42% 89%);
+    --color-secondary-foreground: hsl(206 46% 14%);
+    --color-muted: hsl(198 30% 93%);
+    --color-muted-foreground: hsl(206 18% 40%);
+    --color-accent: hsl(171 65% 38%);
+    --color-accent-foreground: hsl(0 0% 100%);
+    --color-border: hsl(197 26% 84%);
+    --color-input: hsl(197 26% 84%);
+    --color-ring: hsl(200 72% 38%);
+  }
+
   body {
     @apply bg-background text-foreground font-sans m-0 min-h-svh;
   }

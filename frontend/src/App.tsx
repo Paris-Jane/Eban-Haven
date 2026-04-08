@@ -2,12 +2,12 @@ import { Routes, Route } from 'react-router-dom'
 import { PublicLayout } from './layouts/PublicLayout'
 import { AdminLayout } from './layouts/AdminLayout'
 import { RequireAdmin } from './components/RequireAdmin'
-import { RequireAuth } from './components/RequireAuth'
 import { HomePage } from './pages/public/HomePage'
 import { ImpactPage } from './pages/public/ImpactPage'
 import { PrivacyPage } from './pages/public/PrivacyPage'
 import { LoginPage } from './pages/public/LoginPage'
 import { AccessibilityPage } from './pages/public/AccessibilityPage'
+import { RequireDonor } from './components/RequireDonor'
 import { DonorDashboardPage } from './pages/donor/DonorDashboardPage'
 import { AdminDashboardPage } from './pages/admin/dashboards/AdminDashboardPage'
 import { DonorsAdminPage } from './pages/admin/databases/DonorsAdminPage'
@@ -38,23 +38,22 @@ export default function App() {
         <Route
           path="/donor-dashboard"
           element={
-            <RequireAuth>
+            <RequireDonor>
               <DonorDashboardPage />
-            </RequireAuth>
+            </RequireDonor>
           }
         />
       </Route>
       <Route
         path="/admin"
         element={
-          <RequireAuth>
+          <RequireAdmin>
             <AdminLayout />
-          </RequireAuth>
+          </RequireAdmin>
         }
       >
         <Route index element={<AdminDashboardPage />} />
         <Route path="social-worker-dashboard" element={<SocialWorkerDashboardPage />} />
-        <Route path="donor-dashboard" element={<DonorDashboardPage />} />
         <Route path="donors" element={<DonorsAdminPage />} />
         <Route path="donors/:id" element={<DonorDetailPage />} />
         <Route path="donor-pipeline" element={<DonorPipelinePage />} />

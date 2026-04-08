@@ -53,6 +53,10 @@ public sealed class AuthController(HavenDbContext db, IConfiguration config) : C
         if (string.IsNullOrWhiteSpace(body.Email) || string.IsNullOrWhiteSpace(body.Password))
             return BadRequest(new { error = "Email and password are required." });
 
+        var passwordError = PasswordPolicy.Validate(body.Password);
+        if (passwordError is not null)
+            return BadRequest(new { error = passwordError });
+
         var email = body.Email.Trim().ToLowerInvariant();
         var exists = await db.Profiles.AnyAsync(p => p.Email != null && p.Email.ToLower() == email);
         if (exists)
@@ -124,8 +128,10 @@ public sealed class AuthController(HavenDbContext db, IConfiguration config) : C
         var claims = new List<Claim>
         {
             new(JwtRegisteredClaimNames.Sub, username),
+            new(ClaimTypes.NameIdentifier, username),
             new(ClaimTypes.Name, displayName?.Trim() ?? username),
-            new(ClaimTypes.Role, role == "admin" || role == "social_worker" || role == "staff" ? "Staff" : role),
+            new(ClaimTypes.Email, username),
+            new(ClaimTypes.Role, role),
             new("role", role),
         };
         var jwt = new JwtSecurityToken(

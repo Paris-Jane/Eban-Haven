@@ -1,4 +1,5 @@
 using EbanHaven.Api.Admin;
+using EbanHaven.Api.Auth;
 using EbanHaven.Api.Lighthouse;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -7,7 +8,7 @@ namespace EbanHaven.Api.Controllers;
 
 [ApiController]
 [Route("api/admin/email-hub")]
-[Authorize]
+[Authorize(Policy = AdminOnlyPolicy.Name)]
 public sealed class DonorEmailHubController(
     ILighthouseRepository repo,
     IDonorEmailComposer composer,

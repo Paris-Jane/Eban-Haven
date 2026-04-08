@@ -2,8 +2,10 @@ import { useEffect, useState, useCallback } from 'react'
 import { Navigate, useLocation } from 'react-router-dom'
 import { getMe } from '../api/auth'
 
-export function RequireAdmin({ children }: { children: React.ReactNode }) {
-  const [state, setState] = useState<'loading' | 'in' | 'out' | 'denied'>('loading')
+type Gate = 'loading' | 'in' | 'out' | 'denied'
+
+export function RequireDonor({ children }: { children: React.ReactNode }) {
+  const [state, setState] = useState<Gate>('loading')
   const location = useLocation()
 
   const refresh = useCallback(async () => {
@@ -13,7 +15,7 @@ export function RequireAdmin({ children }: { children: React.ReactNode }) {
       return
     }
 
-    setState(user.role === 'admin' ? 'in' : 'denied')
+    setState(user.role === 'donor' ? 'in' : 'denied')
   }, [])
 
   useEffect(() => {
@@ -33,7 +35,7 @@ export function RequireAdmin({ children }: { children: React.ReactNode }) {
   }
 
   if (state === 'denied') {
-    return <Navigate to="/donor-dashboard" replace />
+    return <Navigate to="/admin" replace />
   }
 
   return <>{children}</>

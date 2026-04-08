@@ -2,6 +2,7 @@ using EbanHaven.Api.Admin;
 using EbanHaven.Api.Auth;
 using EbanHaven.Api.Configuration;
 using EbanHaven.Api.DataAccess;
+using EbanHaven.Api.Infrastructure;
 using EbanHaven.Api.Lighthouse;
 using EbanHaven.Api.SocialChat;
 using Microsoft.AspNetCore.Authorization;
@@ -39,12 +40,18 @@ else
 builder.Services.AddHavenAuthentication(builder.Configuration);
 builder.Services.AddSingleton<IProfileRoleLookup, ProfileRoleLookup>();
 builder.Services.AddSingleton<IAuthorizationHandler, AdminOnlyHandler>();
+builder.Services.AddSingleton<IAuthorizationHandler, DonorOnlyHandler>();
 builder.Services.AddAuthorization(options =>
 {
     options.AddPolicy(AdminOnlyPolicy.Name, policy =>
     {
         policy.RequireAuthenticatedUser();
         policy.Requirements.Add(new AdminOnlyRequirement());
+    });
+    options.AddPolicy(DonorOnlyPolicy.Name, policy =>
+    {
+        policy.RequireAuthenticatedUser();
+        policy.Requirements.Add(new DonorOnlyRequirement());
     });
 });
 
@@ -98,6 +105,11 @@ builder.Services.AddCors(options =>
 var app = builder.Build();
 
 app.UseForwardedHeaders();
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHsts();
+}
+app.UseSecurityHeaders();
 app.UseHttpsRedirection();
 app.UseRouting();
 app.UseCors();

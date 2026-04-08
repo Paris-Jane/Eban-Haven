@@ -1,3 +1,4 @@
+using EbanHaven.Api.Auth;
 using EbanHaven.Api.SocialChat;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -6,7 +7,7 @@ namespace EbanHaven.Api.Controllers;
 
 [ApiController]
 [Route("api/admin/social-planner")]
-[Authorize]
+[Authorize(Policy = AdminOnlyPolicy.Name)]
 public sealed class SocialPlannerController(
     IPlannedSocialPostStore store,
     IMetaSchedulingService metaSchedulingService) : ControllerBase

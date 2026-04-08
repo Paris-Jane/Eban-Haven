@@ -3,6 +3,7 @@ import { Link, useLocation } from 'react-router-dom'
 import { AnimatePresence, motion } from 'framer-motion'
 import { Menu, X } from 'lucide-react'
 import { SiteLogoMark } from './SiteLogoMark'
+import { ThemeToggle } from './ThemeToggle'
 import { SITE_DISPLAY_NAME } from '../site'
 
 const links = [
@@ -40,6 +41,7 @@ export function Navigation() {
                 {item.label}
               </Link>
             ))}
+            <ThemeToggle />
             <Link
               to="/login"
               className="rounded-lg bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90"
@@ -77,6 +79,7 @@ export function Navigation() {
                     {item.label}
                   </Link>
                 ))}
+                <ThemeToggle />
                 <Link
                   to="/login"
                   className="block text-sm font-medium text-primary"

@@ -15,11 +15,16 @@ export async function logout(): Promise<void> {
   if (!res.ok && res.status !== 401) await parseJson(res)
 }
 
-export async function getMe(): Promise<{ user: string } | null> {
+export type SessionUser = {
+  user: string
+  role: string
+}
+
+export async function getMe(): Promise<SessionUser | null> {
   try {
     const res = await apiFetch('/api/auth/me')
     if (res.status === 401) return null
-    return await parseJson<{ user: string }>(res)
+    return await parseJson<SessionUser>(res)
   } catch {
     return null
   }

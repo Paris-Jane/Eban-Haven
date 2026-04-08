@@ -1,5 +1,6 @@
 using System.Globalization;
 using EbanHaven.Api.Admin;
+using EbanHaven.Api.Auth;
 using EbanHaven.Api.Lighthouse;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -14,7 +15,6 @@ namespace EbanHaven.Api.Controllers;
 public sealed class AdminController(ILighthouseRepository repo) : ControllerBase
 {
     [HttpGet("dashboard")]
-    [AllowAnonymous]
     public IActionResult Dashboard() => Ok(repo.GetAdminDashboard());
 
     [HttpGet("safehouses")]
@@ -24,6 +24,7 @@ public sealed class AdminController(ILighthouseRepository repo) : ControllerBase
     public IActionResult Supporters() => Ok(repo.ListSupporters());
 
     [HttpPost("supporters")]
+    [Authorize(Policy = AdminOnlyPolicy.Name)]
     public IActionResult CreateSupporter([FromBody] CreateSupporterRequest body)
     {
         if (string.IsNullOrWhiteSpace(body.SupporterType))
@@ -42,6 +43,7 @@ public sealed class AdminController(ILighthouseRepository repo) : ControllerBase
     }
 
     [HttpPatch("supporters/{id:int}")]
+    [Authorize(Policy = AdminOnlyPolicy.Name)]
     public IActionResult PatchSupporter(int id, [FromBody] PatchSupporterRequest body)
     {
         var u = repo.UpdateSupporter(id, body.Status, body.SupporterType);
@@ -52,6 +54,7 @@ public sealed class AdminController(ILighthouseRepository repo) : ControllerBase
     public IActionResult Donations([FromQuery] int? supporterId) => Ok(repo.ListDonations(supporterId));
 
     [HttpPost("donations")]
+    [Authorize(Policy = AdminOnlyPolicy.Name)]
     public IActionResult CreateDonation([FromBody] CreateDonationRequest body)
     {
         if (body.SupporterId <= 0)
@@ -93,6 +96,7 @@ public sealed class AdminController(ILighthouseRepository repo) : ControllerBase
     }
 
     [HttpPatch("residents/{id:int}")]
+    [Authorize(Policy = AdminOnlyPolicy.Name)]
     public IActionResult PatchResident(int id, [FromBody] Dictionary<string, string?> body)
     {
         var ok = repo.UpdateResident(id, body);
@@ -100,6 +104,7 @@ public sealed class AdminController(ILighthouseRepository repo) : ControllerBase
     }
 
     [HttpPost("residents")]
+    [Authorize(Policy = AdminOnlyPolicy.Name)]
     public IActionResult CreateResident([FromBody] CreateResidentRequest body)
     {
         if (string.IsNullOrWhiteSpace(body.InternalCode))
@@ -148,6 +153,7 @@ public sealed class AdminController(ILighthouseRepository repo) : ControllerBase
     }
 
     [HttpPatch("residents/{id:int}/status")]
+    [Authorize(Policy = AdminOnlyPolicy.Name)]
     public IActionResult UpdateResidentStatus(int id, [FromBody] UpdateCaseStatusRequest body)
     {
         if (string.IsNullOrWhiteSpace(body.Status))
@@ -160,6 +166,7 @@ public sealed class AdminController(ILighthouseRepository repo) : ControllerBase
     public IActionResult ProcessRecordings([FromQuery] int? residentId) => Ok(repo.ListProcessRecordings(residentId));
 
     [HttpPost("process-recordings")]
+    [Authorize(Policy = AdminOnlyPolicy.Name)]
     public IActionResult CreateProcessRecording([FromBody] CreateProcessRecordingRequest body)
     {
         if (body.ResidentId <= 0)
@@ -196,6 +203,7 @@ public sealed class AdminController(ILighthouseRepository repo) : ControllerBase
     }
 
     [HttpPatch("process-recordings/{id:int}")]
+    [Authorize(Policy = AdminOnlyPolicy.Name)]
     public IActionResult PatchProcessRecording(int id, [FromBody] PatchProcessRecordingDto body)
     {
         var u = repo.PatchProcessRecording(id, body);
@@ -206,6 +214,7 @@ public sealed class AdminController(ILighthouseRepository repo) : ControllerBase
     public IActionResult HomeVisitations([FromQuery] int? residentId) => Ok(repo.ListHomeVisitations(residentId));
 
     [HttpPost("home-visitations")]
+    [Authorize(Policy = AdminOnlyPolicy.Name)]
     public IActionResult CreateHomeVisitation([FromBody] CreateHomeVisitationRequest body)
     {
         if (body.ResidentId <= 0)
@@ -240,6 +249,7 @@ public sealed class AdminController(ILighthouseRepository repo) : ControllerBase
     }
 
     [HttpPatch("home-visitations/{id:int}")]
+    [Authorize(Policy = AdminOnlyPolicy.Name)]
     public IActionResult PatchHomeVisitation(int id, [FromBody] PatchHomeVisitationDto body)
     {
         var u = repo.PatchHomeVisitation(id, body);
@@ -250,6 +260,7 @@ public sealed class AdminController(ILighthouseRepository repo) : ControllerBase
     public IActionResult InterventionPlans([FromQuery] int? residentId) => Ok(repo.ListInterventionPlans(residentId));
 
     [HttpPost("intervention-plans")]
+    [Authorize(Policy = AdminOnlyPolicy.Name)]
     public IActionResult CreateInterventionPlan([FromBody] CreateInterventionPlanRequest body)
     {
         if (body.ResidentId <= 0) return BadRequest(new { error = "ResidentId is required." });
@@ -267,6 +278,7 @@ public sealed class AdminController(ILighthouseRepository repo) : ControllerBase
     }
 
     [HttpPatch("intervention-plans/{id:int}")]
+    [Authorize(Policy = AdminOnlyPolicy.Name)]
     public IActionResult PatchInterventionPlan(int id, [FromBody] PatchInterventionPlanDto body)
     {
         var u = repo.PatchInterventionPlan(id, body);
@@ -274,14 +286,17 @@ public sealed class AdminController(ILighthouseRepository repo) : ControllerBase
     }
 
     [HttpDelete("intervention-plans/{id:int}")]
+    [Authorize(Policy = AdminOnlyPolicy.Name)]
     public IActionResult DeleteInterventionPlan(int id) =>
         repo.DeleteInterventionPlan(id) ? NoContent() : NotFound();
 
     [HttpDelete("supporters/{id:int}")]
+    [Authorize(Policy = AdminOnlyPolicy.Name)]
     public IActionResult DeleteSupporter(int id) =>
         repo.DeleteSupporter(id) ? NoContent() : NotFound();
 
     [HttpPatch("supporters/{id:int}/fields")]
+    [Authorize(Policy = AdminOnlyPolicy.Name)]
     public IActionResult PatchSupporterFields(int id, [FromBody] Dictionary<string, string?> body)
     {
         var u = repo.PatchSupporterFields(id, body);
@@ -289,10 +304,12 @@ public sealed class AdminController(ILighthouseRepository repo) : ControllerBase
     }
 
     [HttpDelete("donations/{id:int}")]
+    [Authorize(Policy = AdminOnlyPolicy.Name)]
     public IActionResult DeleteDonation(int id) =>
         repo.DeleteDonation(id) ? NoContent() : NotFound();
 
     [HttpPatch("donations/{id:int}/fields")]
+    [Authorize(Policy = AdminOnlyPolicy.Name)]
     public IActionResult PatchDonationFields(int id, [FromBody] Dictionary<string, string?> body)
     {
         var u = repo.PatchDonationFields(id, body);
@@ -300,6 +317,7 @@ public sealed class AdminController(ILighthouseRepository repo) : ControllerBase
     }
 
     [HttpPost("donation-allocations")]
+    [Authorize(Policy = AdminOnlyPolicy.Name)]
     public IActionResult CreateAllocation([FromBody] CreateAllocationRequest body)
     {
         if (body.DonationId <= 0) return BadRequest(new { error = "DonationId is required." });
@@ -313,6 +331,7 @@ public sealed class AdminController(ILighthouseRepository repo) : ControllerBase
     }
 
     [HttpPatch("donation-allocations/{id:int}")]
+    [Authorize(Policy = AdminOnlyPolicy.Name)]
     public IActionResult PatchAllocationFields(int id, [FromBody] Dictionary<string, string?> body)
     {
         var u = repo.PatchAllocationFields(id, body);
@@ -320,18 +339,22 @@ public sealed class AdminController(ILighthouseRepository repo) : ControllerBase
     }
 
     [HttpDelete("donation-allocations/{id:int}")]
+    [Authorize(Policy = AdminOnlyPolicy.Name)]
     public IActionResult DeleteAllocation(int id) =>
         repo.DeleteAllocation(id) ? NoContent() : NotFound();
 
     [HttpDelete("residents/{id:int}")]
+    [Authorize(Policy = AdminOnlyPolicy.Name)]
     public IActionResult DeleteResident(int id) =>
         repo.DeleteResident(id) ? NoContent() : NotFound();
 
     [HttpDelete("process-recordings/{id:int}")]
+    [Authorize(Policy = AdminOnlyPolicy.Name)]
     public IActionResult DeleteProcessRecording(int id) =>
         repo.DeleteProcessRecording(id) ? NoContent() : NotFound();
 
     [HttpDelete("home-visitations/{id:int}")]
+    [Authorize(Policy = AdminOnlyPolicy.Name)]
     public IActionResult DeleteHomeVisitation(int id) =>
         repo.DeleteHomeVisitation(id) ? NoContent() : NotFound();
 
@@ -339,6 +362,7 @@ public sealed class AdminController(ILighthouseRepository repo) : ControllerBase
     public IActionResult IncidentReports([FromQuery] int? residentId) => Ok(repo.ListIncidentReports(residentId));
 
     [HttpPost("incident-reports")]
+    [Authorize(Policy = AdminOnlyPolicy.Name)]
     public IActionResult CreateIncidentReport([FromBody] CreateIncidentReportRequest body)
     {
         if (body.ResidentId <= 0) return BadRequest(new { error = "ResidentId is required." });
@@ -364,6 +388,7 @@ public sealed class AdminController(ILighthouseRepository repo) : ControllerBase
     }
 
     [HttpPatch("incident-reports/{id:int}")]
+    [Authorize(Policy = AdminOnlyPolicy.Name)]
     public IActionResult PatchIncidentReport(int id, [FromBody] Dictionary<string, string?> body)
     {
         var u = repo.PatchIncidentReport(id, body);
@@ -371,6 +396,7 @@ public sealed class AdminController(ILighthouseRepository repo) : ControllerBase
     }
 
     [HttpDelete("incident-reports/{id:int}")]
+    [Authorize(Policy = AdminOnlyPolicy.Name)]
     public IActionResult DeleteIncidentReport(int id) =>
         repo.DeleteIncidentReport(id) ? NoContent() : NotFound();
 
@@ -378,6 +404,7 @@ public sealed class AdminController(ILighthouseRepository repo) : ControllerBase
     public IActionResult EducationRecords([FromQuery] int? residentId) => Ok(repo.ListEducationRecords(residentId));
 
     [HttpPost("education-records")]
+    [Authorize(Policy = AdminOnlyPolicy.Name)]
     public IActionResult CreateEducationRecord([FromBody] CreateEducationRecordRequest body)
     {
         var date = body.RecordDate ?? DateOnly.FromDateTime(DateTime.UtcNow);
@@ -386,6 +413,7 @@ public sealed class AdminController(ILighthouseRepository repo) : ControllerBase
     }
 
     [HttpPatch("education-records/{id:int}")]
+    [Authorize(Policy = AdminOnlyPolicy.Name)]
     public IActionResult PatchEducationRecord(int id, [FromBody] PatchEducationRecordRequest body)
     {
         var date = body.RecordDate;
@@ -397,6 +425,7 @@ public sealed class AdminController(ILighthouseRepository repo) : ControllerBase
     public IActionResult HealthRecords([FromQuery] int? residentId) => Ok(repo.ListHealthRecords(residentId));
 
     [HttpPost("health-records")]
+    [Authorize(Policy = AdminOnlyPolicy.Name)]
     public IActionResult CreateHealthRecord([FromBody] CreateHealthRecordRequest body)
     {
         var date = body.RecordDate ?? DateOnly.FromDateTime(DateTime.UtcNow);
@@ -405,6 +434,7 @@ public sealed class AdminController(ILighthouseRepository repo) : ControllerBase
     }
 
     [HttpPatch("health-records/{id:int}")]
+    [Authorize(Policy = AdminOnlyPolicy.Name)]
     public IActionResult PatchHealthRecord(int id, [FromBody] PatchHealthRecordRequest body)
     {
         var u = repo.PatchHealthRecord(id, body.HealthScore, body.RecordDate, body.ExtendedJson);
@@ -420,6 +450,7 @@ public sealed class AdminController(ILighthouseRepository repo) : ControllerBase
         Ok(repo.ListResidents(null, null, null, null).Select(LegacyCaseFromSummary).ToList());
 
     [HttpPost("cases")]
+    [Authorize(Policy = AdminOnlyPolicy.Name)]
     public IActionResult CreateCase([FromBody] LegacyCreateCaseRequest body)
     {
         if (string.IsNullOrWhiteSpace(body.ReferenceCode))
@@ -431,6 +462,7 @@ public sealed class AdminController(ILighthouseRepository repo) : ControllerBase
     }
 
     [HttpPatch("cases/{id:int}/status")]
+    [Authorize(Policy = AdminOnlyPolicy.Name)]
     public IActionResult UpdateCaseStatus(int id, [FromBody] UpdateCaseStatusRequest body)
     {
         if (string.IsNullOrWhiteSpace(body.Status))
@@ -443,6 +475,7 @@ public sealed class AdminController(ILighthouseRepository repo) : ControllerBase
     public IActionResult Visitations() => Ok(repo.ListHomeVisitations(null));
 
     [HttpPost("visitations")]
+    [Authorize(Policy = AdminOnlyPolicy.Name)]
     public IActionResult CreateVisitation([FromBody] LegacyCreateVisitationRequest body)
     {
         if (string.IsNullOrWhiteSpace(body.VisitorName))
@@ -511,4 +544,3 @@ public sealed class AdminController(ILighthouseRepository repo) : ControllerBase
         status = v.VisitType,
     };
 }
-

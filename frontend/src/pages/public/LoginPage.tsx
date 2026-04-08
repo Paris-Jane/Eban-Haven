@@ -254,6 +254,9 @@ export function LoginPage() {
                     value={rPassword}
                     onChange={(e) => setRPassword(e.target.value)}
                   />
+                  <span className="mt-1 block text-xs text-muted-foreground">
+                    Passwords must be at least 14 characters long.
+                  </span>
                 </label>
                 <label className="text-sm">
                   <span className="text-muted-foreground">Supporter type *</span>

@@ -47,7 +47,6 @@ const navGroups: NavGroup[] = [
     title: 'Dashboards',
     items: [
       { to: '/admin', label: 'Admin Dashboard', icon: LayoutDashboard, end: true },
-      { to: '/admin/donor-dashboard', label: 'Donor Dashboard', icon: Heart },
       { to: '/admin/social-worker-dashboard', label: 'Social Worker Dashboard', icon: UserCheck },
       { to: '/admin/reports', label: 'Reports & analytics', icon: BarChart3 },
     ],
