@@ -297,6 +297,45 @@ public sealed class AdminController(ILighthouseRepository repo) : ControllerBase
     public IActionResult DeleteHomeVisitation(int id) =>
         repo.DeleteHomeVisitation(id) ? NoContent() : NotFound();
 
+    [HttpGet("incident-reports")]
+    public IActionResult IncidentReports([FromQuery] int? residentId) => Ok(repo.ListIncidentReports(residentId));
+
+    [HttpPost("incident-reports")]
+    public IActionResult CreateIncidentReport([FromBody] CreateIncidentReportRequest body)
+    {
+        if (body.ResidentId <= 0) return BadRequest(new { error = "ResidentId is required." });
+        if (string.IsNullOrWhiteSpace(body.IncidentType)) return BadRequest(new { error = "IncidentType is required." });
+        if (string.IsNullOrWhiteSpace(body.Severity)) return BadRequest(new { error = "Severity is required." });
+        try
+        {
+            var date = body.IncidentDate != null
+                ? DateOnly.Parse(body.IncidentDate, CultureInfo.InvariantCulture)
+                : DateOnly.FromDateTime(DateTime.UtcNow);
+            var resDate = !string.IsNullOrWhiteSpace(body.ResolutionDate)
+                ? DateOnly.Parse(body.ResolutionDate, CultureInfo.InvariantCulture)
+                : (DateOnly?)null;
+            var created = repo.CreateIncidentReport(
+                body.ResidentId, body.SafehouseId, date,
+                body.IncidentType.Trim(), body.Severity.Trim(),
+                body.Description?.Trim(), body.ResponseTaken?.Trim(),
+                body.Resolved, resDate,
+                body.ReportedBy?.Trim(), body.FollowUpRequired);
+            return Created($"/api/admin/incident-reports/{created.Id}", created);
+        }
+        catch (Exception ex) { return BadRequest(new { error = ex.Message }); }
+    }
+
+    [HttpPatch("incident-reports/{id:int}")]
+    public IActionResult PatchIncidentReport(int id, [FromBody] Dictionary<string, string?> body)
+    {
+        var u = repo.PatchIncidentReport(id, body);
+        return u is null ? NotFound() : Ok(u);
+    }
+
+    [HttpDelete("incident-reports/{id:int}")]
+    public IActionResult DeleteIncidentReport(int id) =>
+        repo.DeleteIncidentReport(id) ? NoContent() : NotFound();
+
     [HttpGet("education-records")]
     public IActionResult EducationRecords([FromQuery] int? residentId) => Ok(repo.ListEducationRecords(residentId));
 
@@ -397,6 +436,10 @@ public sealed class AdminController(ILighthouseRepository repo) : ControllerBase
     }
 
     // Request records for new endpoints
+    public sealed record CreateIncidentReportRequest(
+        int ResidentId, int? SafehouseId, string? IncidentDate, string IncidentType, string Severity,
+        string? Description, string? ResponseTaken, bool Resolved, string? ResolutionDate,
+        string? ReportedBy, bool FollowUpRequired);
     public sealed record CreateInterventionPlanRequest(
         int ResidentId,
         string PlanCategory,

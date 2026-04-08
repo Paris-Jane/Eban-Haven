@@ -196,6 +196,21 @@ export type InterventionPlan = {
   updatedAt: string
 }
 
+export type IncidentReport = {
+  id: number
+  residentId: number
+  safehouseId: number | null
+  incidentDate: string
+  incidentType: string
+  severity: string
+  description: string | null
+  responseTaken: string | null
+  resolved: boolean
+  resolutionDate: string | null
+  reportedBy: string | null
+  followUpRequired: boolean
+}
+
 export type ReportsSummary = {
   totalResidents: number
   activeResidents: number

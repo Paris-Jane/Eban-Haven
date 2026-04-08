@@ -238,6 +238,20 @@ public sealed record PatchInterventionPlanDto(
     string? Status,
     string? CaseConferenceDate);
 
+public sealed record IncidentReportDto(
+    int Id,
+    int ResidentId,
+    int? SafehouseId,
+    string IncidentDate,
+    string IncidentType,
+    string Severity,
+    string? Description,
+    string? ResponseTaken,
+    bool Resolved,
+    string? ResolutionDate,
+    string? ReportedBy,
+    bool FollowUpRequired);
+
 // ── ML feature extraction DTOs ────────────────────────────────────────────────
 
 /// <summary>Pre-computed feature vector for the Reintegration Readiness model.</summary>

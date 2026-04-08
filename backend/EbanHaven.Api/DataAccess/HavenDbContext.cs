@@ -18,6 +18,7 @@ public sealed class HavenDbContext(DbContextOptions<HavenDbContext> options) : D
     public DbSet<HealthWellbeingRecord> HealthWellbeingRecords => Set<HealthWellbeingRecord>();
     public DbSet<PublicImpactSnapshot> PublicImpactSnapshots => Set<PublicImpactSnapshot>();
     public DbSet<SafehouseMonthlyMetric> SafehouseMonthlyMetrics => Set<SafehouseMonthlyMetric>();
+    public DbSet<IncidentReport> IncidentReports => Set<IncidentReport>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -36,6 +37,7 @@ public sealed class HavenDbContext(DbContextOptions<HavenDbContext> options) : D
         modelBuilder.Entity<HealthWellbeingRecord>().ToTable("health_wellbeing_records").HasKey(x => x.HealthRecordId);
         modelBuilder.Entity<PublicImpactSnapshot>().ToTable("public_impact_snapshots").HasKey(x => x.SnapshotId);
         modelBuilder.Entity<SafehouseMonthlyMetric>().ToTable("safehouse_monthly_metrics").HasKey(x => x.MetricId);
+        modelBuilder.Entity<IncidentReport>().ToTable("incident_reports").HasKey(x => x.IncidentId);
     }
 }
 

@@ -55,6 +55,13 @@ public interface ILighthouseRepository
     HealthRecordDto CreateHealthRecord(int residentId, DateOnly recordDate, double? healthScore);
     HealthRecordDto? PatchHealthRecord(int id, double? healthScore, DateOnly? recordDate);
 
+    IReadOnlyList<IncidentReportDto> ListIncidentReports(int? residentId);
+    IncidentReportDto CreateIncidentReport(int residentId, int? safehouseId, DateOnly incidentDate, string incidentType,
+        string severity, string? description, string? responseTaken, bool resolved, DateOnly? resolutionDate,
+        string? reportedBy, bool followUpRequired);
+    IncidentReportDto? PatchIncidentReport(int id, IReadOnlyDictionary<string, string?> fields);
+    bool DeleteIncidentReport(int id);
+
     ReportsSummaryDto GetReportsSummary();
     PublicImpactSummaryDto GetPublicImpactSummary();
     IReadOnlyList<PublicImpactSnapshotDto> GetPublishedSnapshots();

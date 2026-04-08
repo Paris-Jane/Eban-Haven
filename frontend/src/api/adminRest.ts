@@ -408,21 +408,38 @@ export async function patchHealthRecord(
   )
 }
 
-// Incident reports are not yet backed by a table.
-export async function listIncidentReports(_residentId?: number): Promise<T.JsonTableRow[]> {
-  return []
+export async function listIncidentReports(residentId?: number): Promise<T.IncidentReport[]> {
+  const qs = residentId ? `?residentId=${residentId}` : ''
+  return parseJson<T.IncidentReport[]>(await apiFetch(`${base}/incident-reports${qs}`))
 }
 
 export async function createIncidentReport(
-  _residentId: number,
-  _fields: Record<string, string>,
-): Promise<T.JsonTableRow> {
-  throw new Error('Incident reports not yet available')
+  residentId: number,
+  fields: Record<string, string>,
+): Promise<T.IncidentReport> {
+  const body = {
+    residentId,
+    safehouseId: fields.safehouse_id ? parseInt(fields.safehouse_id, 10) : null,
+    incidentDate: fields.incident_date ?? null,
+    incidentType: fields.incident_type ?? 'Medical',
+    severity: fields.severity ?? 'Medium',
+    description: fields.description ?? null,
+    responseTaken: fields.response_taken ?? null,
+    resolved: fields.resolved === 'true' || fields.resolved === '1',
+    resolutionDate: fields.resolution_date ?? null,
+    reportedBy: fields.reported_by ?? null,
+    followUpRequired: fields.follow_up_required === 'true' || fields.follow_up_required === '1',
+  }
+  return parseJson<T.IncidentReport>(
+    await apiFetch(`${base}/incident-reports`, { method: 'POST', body: JSON.stringify(body) }),
+  )
 }
 
 export async function patchIncidentReport(
-  _id: number,
-  _fields: Record<string, string | null | undefined>,
-): Promise<T.JsonTableRow> {
-  throw new Error('Incident reports not yet available')
+  id: number,
+  fields: Record<string, string | null | undefined>,
+): Promise<T.IncidentReport> {
+  return parseJson<T.IncidentReport>(
+    await apiFetch(`${base}/incident-reports/${id}`, { method: 'PATCH', body: JSON.stringify(fields) }),
+  )
 }

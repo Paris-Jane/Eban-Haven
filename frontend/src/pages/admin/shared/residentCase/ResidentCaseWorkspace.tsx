@@ -10,6 +10,7 @@ import {
   listEducationRecords,
   listHealthRecords,
   listIncidentReports,
+  createIncidentReport,
   type ResidentDetail,
   type ProcessRecording,
   type HomeVisitation,
@@ -23,7 +24,7 @@ import { alertError, btnPrimary, card, input, label, pageDesc, pageTitle } from 
 import { ReintegrationBadge, RiskBadge, StatusBadge } from '../adminDataTable/AdminBadges'
 import { formatAdminDate } from '../adminDataTable/adminFormatters'
 import { CASE_STATUSES, RISK_LEVELS, SEX_OPTIONS } from './caseConstants'
-import { CaseDrawer, EmptyState, QuickActionButton, SectionHeader, StatTile } from './caseUi'
+import { CaseDrawer, EmptyState, QuickActionButton, SectionHeader, StatTile, ToggleField } from './caseUi'
 import { CareProgressContent } from './CareProgressContent'
 import { PlansTabContent } from './PlansTabContent'
 
@@ -62,6 +63,16 @@ export function ResidentCaseWorkspace({ residentId }: { residentId: number }) {
   const [profileOpen, setProfileOpen] = useState(false)
   const [profileSaving, setProfileSaving] = useState(false)
   const [incidentInfoOpen, setIncidentInfoOpen] = useState(false)
+  const [incidentFormSaving, setIncidentFormSaving] = useState(false)
+  const [incidentFormError, setIncidentFormError] = useState<string | null>(null)
+  const [incidentDate, setIncidentDate] = useState(() => new Date().toISOString().slice(0, 10))
+  const [incidentType, setIncidentType] = useState('Medical')
+  const [incidentSeverity, setIncidentSeverity] = useState('Medium')
+  const [incidentDescription, setIncidentDescription] = useState('')
+  const [incidentResponse, setIncidentResponse] = useState('')
+  const [incidentReportedBy, setIncidentReportedBy] = useState('')
+  const [incidentResolved, setIncidentResolved] = useState(false)
+  const [incidentFollowUp, setIncidentFollowUp] = useState(false)
   const [sig, setSig] = useState({ counseling: 0, visit: 0, education: 0, health: 0, plan: 0 })
 
   const load = useCallback(async () => {
@@ -86,7 +97,22 @@ export function ResidentCaseWorkspace({ residentId }: { residentId: number }) {
       setPlans(pl)
       setEdu(e)
       setHl(h)
-      setInc(i)
+      setInc(i.map(r => ({
+        id: r.id,
+        fields: {
+          resident_id: String(r.residentId),
+          safehouse_id: r.safehouseId != null ? String(r.safehouseId) : '',
+          incident_date: r.incidentDate,
+          incident_type: r.incidentType,
+          severity: r.severity,
+          description: r.description ?? '',
+          response_taken: r.responseTaken ?? '',
+          resolved: String(r.resolved),
+          resolution_date: r.resolutionDate ?? '',
+          reported_by: r.reportedBy ?? '',
+          follow_up_required: String(r.followUpRequired),
+        },
+      })))
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load')
       setDetail(null)
@@ -345,16 +371,50 @@ export function ResidentCaseWorkspace({ residentId }: { residentId: number }) {
         <div className="space-y-4">
           <SectionHeader
             title="Incident reports"
-            description="Serious events and responses. The API is not yet connected for this resident view."
+            description="Logged incidents, responses, and follow-up actions for this resident."
+            actions={<QuickActionButton onClick={() => { setIncidentInfoOpen(true); setIncidentFormError(null) }}>Add incident</QuickActionButton>}
           />
           {inc.length === 0 ? (
             <EmptyState
               title="No incident reports"
-              hint="Incident capture will appear here when the backend endpoint is enabled."
-              action={<QuickActionButton onClick={() => setIncidentInfoOpen(true)}>Learn more</QuickActionButton>}
+              hint="Log safety incidents, conflicts, medical events, and responses here."
+              action={<QuickActionButton onClick={() => { setIncidentInfoOpen(true); setIncidentFormError(null) }}>Add first incident</QuickActionButton>}
             />
           ) : (
-            <p className="text-sm text-muted-foreground">Legacy rows: {inc.length}</p>
+            <div className="space-y-2">
+              {inc.map((row) => {
+                const f = row.fields
+                const severity = f.severity ?? ''
+                const severityColor =
+                  severity === 'High' ? 'text-red-600 bg-red-50 border-red-200' :
+                  severity === 'Medium' ? 'text-amber-600 bg-amber-50 border-amber-200' :
+                  'text-green-700 bg-green-50 border-green-200'
+                const resolved = f.resolved === 'True' || f.resolved === 'true'
+                return (
+                  <div key={row.id} className="rounded-xl border border-border bg-card px-4 py-3 text-sm">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-medium text-foreground">{f.incident_type}</span>
+                      <span className={`rounded-full border px-2 py-0.5 text-xs font-medium ${severityColor}`}>{severity}</span>
+                      {resolved ? (
+                        <span className="rounded-full border border-green-200 bg-green-50 px-2 py-0.5 text-xs font-medium text-green-700">Resolved</span>
+                      ) : (
+                        <span className="rounded-full border border-orange-200 bg-orange-50 px-2 py-0.5 text-xs font-medium text-orange-700">Open</span>
+                      )}
+                      <span className="ml-auto text-xs text-muted-foreground">{f.incident_date}</span>
+                    </div>
+                    {f.description && <p className="mt-1.5 text-muted-foreground">{f.description}</p>}
+                    {f.response_taken && <p className="mt-1 text-xs text-muted-foreground"><span className="font-medium">Response:</span> {f.response_taken}</p>}
+                    <div className="mt-1.5 flex flex-wrap gap-3 text-xs text-muted-foreground">
+                      {f.reported_by && <span>Reported by: {f.reported_by}</span>}
+                      {f.resolution_date && <span>Resolved: {f.resolution_date}</span>}
+                      {(f.follow_up_required === 'True' || f.follow_up_required === 'true') && (
+                        <span className="font-medium text-amber-600">Follow-up required</span>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
           )}
         </div>
       )}
@@ -380,11 +440,84 @@ export function ResidentCaseWorkspace({ residentId }: { residentId: number }) {
       )}
 
       {incidentInfoOpen && (
-        <CaseDrawer title="Incident reports" onClose={() => setIncidentInfoOpen(false)}>
-          <p className="text-sm text-muted-foreground">
-            Incident reporting is not yet wired to the admin API for this app. Use your case notes or external reporting workflow until
-            the endpoint is available.
-          </p>
+        <CaseDrawer title="Log incident" onClose={() => setIncidentInfoOpen(false)}>
+          <form
+            className="space-y-4"
+            onSubmit={async (e) => {
+              e.preventDefault()
+              setIncidentFormSaving(true)
+              setIncidentFormError(null)
+              try {
+                await createIncidentReport(residentId, {
+                  incident_date: incidentDate,
+                  incident_type: incidentType,
+                  severity: incidentSeverity,
+                  description: incidentDescription,
+                  response_taken: incidentResponse,
+                  reported_by: incidentReportedBy,
+                  resolved: String(incidentResolved),
+                  follow_up_required: String(incidentFollowUp),
+                })
+                setIncidentInfoOpen(false)
+                setIncidentDate(new Date().toISOString().slice(0, 10))
+                setIncidentType('Medical')
+                setIncidentSeverity('Medium')
+                setIncidentDescription('')
+                setIncidentResponse('')
+                setIncidentReportedBy('')
+                setIncidentResolved(false)
+                setIncidentFollowUp(false)
+                await load()
+              } catch (err) {
+                setIncidentFormError(err instanceof Error ? err.message : 'Failed to save')
+              } finally {
+                setIncidentFormSaving(false)
+              }
+            }}
+          >
+            {incidentFormError && (
+              <p className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+                {incidentFormError}
+              </p>
+            )}
+            <label className={label}>
+              <span className="text-xs text-muted-foreground">Date *</span>
+              <input type="date" className={input} value={incidentDate} onChange={e => setIncidentDate(e.target.value)} required />
+            </label>
+            <label className={label}>
+              <span className="text-xs text-muted-foreground">Incident type *</span>
+              <select className={input} value={incidentType} onChange={e => setIncidentType(e.target.value)}>
+                {['Medical','Security','Behavioral','SelfHarm','RunawayAttempt','ConflictWithPeer','PropertyDamage','Other'].map(t => (
+                  <option key={t} value={t}>{t}</option>
+                ))}
+              </select>
+            </label>
+            <label className={label}>
+              <span className="text-xs text-muted-foreground">Severity *</span>
+              <select className={input} value={incidentSeverity} onChange={e => setIncidentSeverity(e.target.value)}>
+                <option value="Low">Low</option>
+                <option value="Medium">Medium</option>
+                <option value="High">High</option>
+              </select>
+            </label>
+            <label className={label}>
+              <span className="text-xs text-muted-foreground">Description</span>
+              <textarea className={input} rows={3} value={incidentDescription} onChange={e => setIncidentDescription(e.target.value)} />
+            </label>
+            <label className={label}>
+              <span className="text-xs text-muted-foreground">Response taken</span>
+              <textarea className={input} rows={2} value={incidentResponse} onChange={e => setIncidentResponse(e.target.value)} />
+            </label>
+            <label className={label}>
+              <span className="text-xs text-muted-foreground">Reported by</span>
+              <input className={input} value={incidentReportedBy} onChange={e => setIncidentReportedBy(e.target.value)} placeholder="e.g. SW-01" />
+            </label>
+            <ToggleField labelText="Resolved" value={incidentResolved} onChange={setIncidentResolved} />
+            <ToggleField labelText="Follow-up required" value={incidentFollowUp} onChange={setIncidentFollowUp} />
+            <button type="submit" disabled={incidentFormSaving} className={btnPrimary}>
+              {incidentFormSaving ? 'Saving…' : 'Save incident'}
+            </button>
+          </form>
         </CaseDrawer>
       )}
     </div>

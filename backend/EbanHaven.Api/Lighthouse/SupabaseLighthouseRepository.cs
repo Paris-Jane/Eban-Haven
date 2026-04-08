@@ -923,6 +923,75 @@ public sealed class SupabaseLighthouseRepository(HavenDbContext db) : ILighthous
         return new HealthRecordDto(row.HealthRecordId, row.ResidentId, row.RecordDate.ToString("yyyy-MM-dd"), row.GeneralHealthScore);
     }
 
+    // ── Incident Reports ──────────────────────────────────────────────────────
+
+    private static IncidentReportDto ToIncidentDto(DataAccess.Entities.IncidentReport r) =>
+        new(r.IncidentId, r.ResidentId, r.SafehouseId,
+            r.IncidentDate.ToString("yyyy-MM-dd"),
+            r.IncidentType, r.Severity, r.Description, r.ResponseTaken,
+            r.Resolved,
+            r.ResolutionDate?.ToString("yyyy-MM-dd"),
+            r.ReportedBy, r.FollowUpRequired);
+
+    public IReadOnlyList<IncidentReportDto> ListIncidentReports(int? residentId)
+    {
+        IQueryable<DataAccess.Entities.IncidentReport> q = db.IncidentReports;
+        if (residentId is > 0) q = q.Where(x => x.ResidentId == residentId.Value);
+        return q.OrderByDescending(x => x.IncidentDate).Select(x => ToIncidentDto(x)).ToList();
+    }
+
+    public IncidentReportDto CreateIncidentReport(int residentId, int? safehouseId, DateOnly incidentDate,
+        string incidentType, string severity, string? description, string? responseTaken,
+        bool resolved, DateOnly? resolutionDate, string? reportedBy, bool followUpRequired)
+    {
+        var row = new DataAccess.Entities.IncidentReport
+        {
+            ResidentId      = residentId,
+            SafehouseId     = safehouseId,
+            IncidentDate    = incidentDate,
+            IncidentType    = incidentType,
+            Severity        = severity,
+            Description     = description,
+            ResponseTaken   = responseTaken,
+            Resolved        = resolved,
+            ResolutionDate  = resolutionDate,
+            ReportedBy      = reportedBy,
+            FollowUpRequired = followUpRequired,
+        };
+        db.IncidentReports.Add(row);
+        db.SaveChanges();
+        return ToIncidentDto(row);
+    }
+
+    public IncidentReportDto? PatchIncidentReport(int id, IReadOnlyDictionary<string, string?> fields)
+    {
+        var row = db.IncidentReports.FirstOrDefault(x => x.IncidentId == id);
+        if (row is null) return null;
+
+        if (fields.TryGetValue("incident_type", out var it) && it is not null)   row.IncidentType    = it;
+        if (fields.TryGetValue("severity",      out var sv) && sv is not null)   row.Severity        = sv;
+        if (fields.TryGetValue("description",   out var desc))                   row.Description     = desc;
+        if (fields.TryGetValue("response_taken", out var rt))                    row.ResponseTaken   = rt;
+        if (fields.TryGetValue("reported_by",   out var rb))                     row.ReportedBy      = rb;
+        if (fields.TryGetValue("resolved",      out var res) && res is not null) row.Resolved        = res.Equals("true",  StringComparison.OrdinalIgnoreCase) || res == "1";
+        if (fields.TryGetValue("follow_up_required", out var fu) && fu is not null) row.FollowUpRequired = fu.Equals("true", StringComparison.OrdinalIgnoreCase) || fu == "1";
+        if (fields.TryGetValue("incident_date", out var idate) && DateOnly.TryParse(idate, out var id2)) row.IncidentDate = id2;
+        if (fields.TryGetValue("resolution_date", out var rdate))
+            row.ResolutionDate = !string.IsNullOrWhiteSpace(rdate) && DateOnly.TryParse(rdate, out var rd) ? rd : null;
+
+        db.SaveChanges();
+        return ToIncidentDto(row);
+    }
+
+    public bool DeleteIncidentReport(int id)
+    {
+        var row = db.IncidentReports.FirstOrDefault(x => x.IncidentId == id);
+        if (row is null) return false;
+        db.IncidentReports.Remove(row);
+        db.SaveChanges();
+        return true;
+    }
+
     private ServicePillarCountsDto CountPillarKeywords()
     {
         var caring = 0;
