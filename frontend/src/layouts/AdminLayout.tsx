@@ -3,11 +3,6 @@ import { Link, NavLink, Outlet } from 'react-router-dom'
 import {
   BarChart3,
   Bot,
-  CalendarDays,
-  ClipboardList,
-  FileText,
-  Gift,
-  Heart,
   Layers,
   LayoutDashboard,
   LineChart,
@@ -15,11 +10,9 @@ import {
   Menu,
   PanelLeftClose,
   PanelLeft,
-  PieChart,
   RefreshCcw,
   TrendingUp,
   UserCheck,
-  Video,
   X,
 } from 'lucide-react'
 import { logoutAndReload } from '../api/auth'
@@ -55,10 +48,6 @@ const navGroups: NavGroup[] = [
     items: [
       { to: '/admin/social-worker-dashboard', label: 'Social Worker Dashboard', icon: UserCheck },
       { to: '/admin/resident-information', label: 'Resident Information', icon: Layers },
-      { to: '/admin/residents', label: 'Residents', icon: ClipboardList },
-      { to: '/admin/process-recordings', label: 'Process Recordings', icon: FileText },
-      { to: '/admin/home-visitations', label: 'Home Visitations', icon: Video },
-      { to: '/admin/case-conferences', label: 'Case Conferences', icon: CalendarDays },
     ],
   },
   {
@@ -67,9 +56,6 @@ const navGroups: NavGroup[] = [
       { to: '/admin/donor-dashboard', label: 'Donor Dashboard', icon: TrendingUp },
       { to: '/admin/donor-all', label: 'Donor Information', icon: Layers },
       { to: '/admin/email-hub', label: 'Donor Retention', icon: RefreshCcw },
-      { to: '/admin/donors', label: 'Donors', icon: Heart },
-      { to: '/admin/contributions', label: 'Donations', icon: Gift },
-      { to: '/admin/allocations', label: 'Allocations', icon: PieChart },
     ],
   },
   {
