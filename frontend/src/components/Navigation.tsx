@@ -1,10 +1,10 @@
 import { useState } from 'react'
-import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import { AnimatePresence, motion } from 'framer-motion'
 import { LayoutDashboard, LogIn, LogOut, Menu, Shield, X } from 'lucide-react'
 import { SiteLogoMark } from './SiteLogoMark'
 import { SITE_DISPLAY_NAME } from '../site'
-import { logout } from '../api/auth'
+import { logoutAndReload } from '../api/auth'
 import { useAuthSession } from '../hooks/useAuthSession'
 
 const links = [
@@ -24,14 +24,12 @@ function isAdminRole(role: string | undefined) {
 export function Navigation() {
   const [open, setOpen] = useState(false)
   const location = useLocation()
-  const navigate = useNavigate()
   const session = useAuthSession()
   const isActive = (path: string) => location.pathname === path
 
   async function onLogout() {
     setOpen(false)
-    await logout()
-    navigate('/', { replace: true })
+    await logoutAndReload('/')
   }
 
   return (

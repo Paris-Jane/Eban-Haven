@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom'
+import { Link, NavLink, Outlet } from 'react-router-dom'
 import {
   BarChart3,
   Bot,
@@ -21,7 +21,7 @@ import {
   Video,
   X,
 } from 'lucide-react'
-import { logout } from '../api/auth'
+import { logoutAndReload } from '../api/auth'
 import type { LucideIcon } from 'lucide-react'
 import { SiteLogoMark } from '../components/SiteLogoMark'
 import { SITE_DISPLAY_NAME } from '../site'
@@ -89,7 +89,6 @@ function navItemClassName(active: boolean, collapsed: boolean) {
 }
 
 export function AdminLayout() {
-  const navigate = useNavigate()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
     try {
@@ -108,8 +107,7 @@ export function AdminLayout() {
   }, [sidebarCollapsed])
 
   async function signOut() {
-    await logout()
-    navigate('/login', { replace: true })
+    await logoutAndReload('/login')
   }
 
   const asideWidthMobile = 'w-[min(16rem,85vw)]'
