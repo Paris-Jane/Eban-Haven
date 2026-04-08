@@ -14,7 +14,7 @@ import {
   tableHead,
   tableRowHover,
   tableWrap,
-} from './adminStyles'
+} from '../shared/adminStyles'
 import {
   createHomeVisitation,
   getHomeVisitations,
@@ -23,7 +23,7 @@ import {
   type HomeVisitation,
   type InterventionPlan,
   type ResidentSummary,
-} from '../../api/admin'
+} from '../../../api/admin'
 
 const visitTypes = [
   'Initial Assessment',

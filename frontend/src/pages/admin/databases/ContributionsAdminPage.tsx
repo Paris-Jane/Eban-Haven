@@ -13,7 +13,7 @@ import {
   tableHead,
   tableRowHover,
   tableWrap,
-} from './adminStyles'
+} from '../shared/adminStyles'
 import {
   createDonation,
   deleteDonation,
@@ -21,12 +21,12 @@ import {
   getSupporters,
   patchDonationFields,
   type Donation,
-} from '../../api/admin'
-import { AdminListToolbar } from './AdminListToolbar'
-import { nextSortState, sortRows, SortableTh, type SortDirection } from './SortableTh'
-import { AdminBulkActionsBar } from './adminDataTable/AdminBulkActionsBar'
-import { AdminDeleteModal } from './adminDataTable/AdminDeleteModal'
-import { BooleanBadge, CategoryBadge } from './adminDataTable/AdminBadges'
+} from '../../../api/admin'
+import { AdminListToolbar } from '../shared/AdminListToolbar'
+import { nextSortState, sortRows, SortableTh, type SortDirection } from '../shared/SortableTh'
+import { AdminBulkActionsBar } from '../shared/adminDataTable/AdminBulkActionsBar'
+import { AdminDeleteModal } from '../shared/adminDataTable/AdminDeleteModal'
+import { BooleanBadge, CategoryBadge } from '../shared/adminDataTable/AdminBadges'
 import {
   FilterPanelCard,
   DateRangeFilter,
@@ -35,7 +35,7 @@ import {
   SearchableEntityMultiFilter,
   TextSearchFilter,
   TriBoolFilter,
-} from './adminDataTable/AdminFilterPrimitives'
+} from '../shared/adminDataTable/AdminFilterPrimitives'
 import {
   formatAdminDate,
   inAmountRange,
@@ -45,7 +45,7 @@ import {
   matchesTriBool,
   type TriBool,
   uniqSortedStrings,
-} from './adminDataTable/adminFormatters'
+} from '../shared/adminDataTable/adminFormatters'
 
 function formatMoney(amount: number | null, code: string | null) {
   if (amount == null) return '—'

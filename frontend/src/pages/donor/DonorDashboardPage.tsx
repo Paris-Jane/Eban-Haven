@@ -2,9 +2,9 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Heart } from 'lucide-react'
-import { createDonation, getDonations, getSupporters, type Donation, type Supporter } from '../api/admin'
-import { getMe } from '../api/auth'
-import { SITE_DISPLAY_NAME } from '../site'
+import { createDonation, getDonations, getSupporters, type Donation, type Supporter } from '../../api/admin'
+import { getMe } from '../../api/auth'
+import { SITE_DISPLAY_NAME } from '../../site'
 
 const moneyPhp = new Intl.NumberFormat(undefined, { style: 'currency', currency: 'PHP' })
 

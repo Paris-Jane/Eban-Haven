@@ -13,7 +13,7 @@ import {
   tableHead,
   tableRowHover,
   tableWrap,
-} from './adminStyles'
+} from '../shared/adminStyles'
 import {
   createAllocation,
   deleteAllocation,
@@ -22,19 +22,19 @@ import {
   getSafehouses,
   patchAllocationFields,
   type DonationAllocation,
-} from '../../api/admin'
-import { AdminListToolbar } from './AdminListToolbar'
-import { nextSortState, sortRows, SortableTh, type SortDirection } from './SortableTh'
-import { AdminBulkActionsBar } from './adminDataTable/AdminBulkActionsBar'
-import { AdminDeleteModal } from './adminDataTable/AdminDeleteModal'
-import { CategoryBadge } from './adminDataTable/AdminBadges'
+} from '../../../api/admin'
+import { AdminListToolbar } from '../shared/AdminListToolbar'
+import { nextSortState, sortRows, SortableTh, type SortDirection } from '../shared/SortableTh'
+import { AdminBulkActionsBar } from '../shared/adminDataTable/AdminBulkActionsBar'
+import { AdminDeleteModal } from '../shared/adminDataTable/AdminDeleteModal'
+import { CategoryBadge } from '../shared/adminDataTable/AdminBadges'
 import {
   FilterPanelCard,
   DateRangeFilter,
   MinMaxFilter,
   MultiSelectFilter,
   SearchableEntityMultiFilter,
-} from './adminDataTable/AdminFilterPrimitives'
+} from '../shared/adminDataTable/AdminFilterPrimitives'
 import {
   formatAdminDate,
   inAmountRange,
@@ -42,7 +42,7 @@ import {
   matchesIdMulti,
   matchesStringMulti,
   uniqSortedStrings,
-} from './adminDataTable/adminFormatters'
+} from '../shared/adminDataTable/adminFormatters'
 
 function formatMoneyPhp(amount: number) {
   try {

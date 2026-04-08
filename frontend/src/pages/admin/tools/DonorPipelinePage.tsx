@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { GitBranch } from 'lucide-react'
-import { getSupporters, type Supporter } from '../../api/admin'
-import { alertError, btnPrimary, card, input, label, pageDesc, pageTitle } from './adminStyles'
+import { getSupporters, type Supporter } from '../../../api/admin'
+import { alertError, btnPrimary, card, input, label, pageDesc, pageTitle } from '../shared/adminStyles'
 
 type Stage = 'prospect' | 'donor' | 'inactive'
 

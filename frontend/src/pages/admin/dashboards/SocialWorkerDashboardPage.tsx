@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 import { ArrowRight, CalendarDays, ClipboardList, FileText, Video } from 'lucide-react'
-import { linkTile, pageDesc, pageTitle } from './adminStyles'
+import { linkTile, pageDesc, pageTitle } from '../shared/adminStyles'
 
 const shortcuts = [
   {

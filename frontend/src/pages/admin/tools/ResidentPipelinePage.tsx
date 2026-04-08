@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Waypoints } from 'lucide-react'
-import { getResidents, type ResidentSummary } from '../../api/admin'
-import { alertError, btnPrimary, card, input, label, pageDesc, pageTitle } from './adminStyles'
+import { getResidents, type ResidentSummary } from '../../../api/admin'
+import { alertError, btnPrimary, card, input, label, pageDesc, pageTitle } from '../shared/adminStyles'
 
 type Stage = 'inProgram' | 'reintegration' | 'exited'
 

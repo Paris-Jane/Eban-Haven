@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
-import { AtRiskDonors } from '../../components/ml/AtRiskDonors'
+import { AtRiskDonors } from '../../../components/ml/AtRiskDonors'
 import {
   alertError,
   btnPrimary,
@@ -14,7 +14,7 @@ import {
   tableHead,
   tableRowHover,
   tableWrap,
-} from './adminStyles'
+} from '../shared/adminStyles'
 import {
   createDonation,
   createSupporter,
@@ -25,7 +25,7 @@ import {
   type Donation,
   type DonationAllocation,
   type Supporter,
-} from '../../api/admin'
+} from '../../../api/admin'
 
 const supporterTypes = [
   'MonetaryDonor',

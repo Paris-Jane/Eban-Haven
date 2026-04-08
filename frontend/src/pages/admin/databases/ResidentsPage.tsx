@@ -14,13 +14,13 @@ import {
   tableHead,
   tableRowHover,
   tableWrap,
-} from './adminStyles'
-import { createResident, deleteResident, getResidents, getSafehouses, type ResidentSummary } from '../../api/admin'
-import { AdminListToolbar } from './AdminListToolbar'
-import { nextSortState, sortRows, SortableTh, type SortDirection } from './SortableTh'
-import { AdminBulkActionsBar } from './adminDataTable/AdminBulkActionsBar'
-import { AdminDeleteModal } from './adminDataTable/AdminDeleteModal'
-import { CategoryBadge, ReintegrationBadge, RiskBadge, StatusBadge } from './adminDataTable/AdminBadges'
+} from '../shared/adminStyles'
+import { createResident, deleteResident, getResidents, getSafehouses, type ResidentSummary } from '../../../api/admin'
+import { AdminListToolbar } from '../shared/AdminListToolbar'
+import { nextSortState, sortRows, SortableTh, type SortDirection } from '../shared/SortableTh'
+import { AdminBulkActionsBar } from '../shared/adminDataTable/AdminBulkActionsBar'
+import { AdminDeleteModal } from '../shared/adminDataTable/AdminDeleteModal'
+import { CategoryBadge, ReintegrationBadge, RiskBadge, StatusBadge } from '../shared/adminDataTable/AdminBadges'
 import {
   FilterPanelCard,
   DateRangeFilter,
@@ -28,7 +28,7 @@ import {
   MultiSelectFilter,
   SearchableEntityMultiFilter,
   TextSearchFilter,
-} from './adminDataTable/AdminFilterPrimitives'
+} from '../shared/adminDataTable/AdminFilterPrimitives'
 import {
   formatAdminDate,
   inDateRange,
@@ -36,7 +36,7 @@ import {
   matchesIdMulti,
   matchesStringMulti,
   uniqSortedStrings,
-} from './adminDataTable/adminFormatters'
+} from '../shared/adminDataTable/adminFormatters'
 
 function emptyFilters() {
   return {

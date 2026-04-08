@@ -4,7 +4,7 @@ import {
   deleteInterventionPlan,
   patchInterventionPlan,
   type InterventionPlan,
-} from '../../../api/admin'
+} from '../../../../api/admin'
 import { alertError, btnPrimary, input, label } from '../adminStyles'
 import { AdminDeleteModal } from '../adminDataTable/AdminDeleteModal'
 import { CategoryBadge, StatusBadge } from '../adminDataTable/AdminBadges'

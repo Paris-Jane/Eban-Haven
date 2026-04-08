@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import { motion } from 'framer-motion'
-import { PUBLIC_CONTACT, SITE_DISPLAY_NAME } from '../site'
+import { PUBLIC_CONTACT, SITE_DISPLAY_NAME } from '../../site'
 
 const section = {
   hidden: { opacity: 0, y: 20 },

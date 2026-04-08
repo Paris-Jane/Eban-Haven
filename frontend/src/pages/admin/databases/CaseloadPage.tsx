@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
-import { ReintegrationReadiness } from '../../components/ml/ReintegrationReadiness'
+import { ReintegrationReadiness } from '../../../components/ml/ReintegrationReadiness'
 import {
   alertError,
   btnPrimary,
@@ -14,7 +14,7 @@ import {
   tableHead,
   tableRowHover,
   tableWrap,
-} from './adminStyles'
+} from '../shared/adminStyles'
 import {
   createResident,
   getResident,
@@ -24,7 +24,7 @@ import {
   type ResidentDetail,
   type ResidentSummary,
   type SafehouseOption,
-} from '../../api/admin'
+} from '../../../api/admin'
 
 const statusOptions = ['Active', 'Closed', 'Transferred', ''] as const
 

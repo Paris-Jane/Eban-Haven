@@ -4,8 +4,8 @@ import {
   type SocialChatMessage,
   type SocialChatResponse,
   sendSocialChat,
-} from '../../api/socialChat'
-import { alertError, btnPrimary, card, input, pageDesc, pageTitle } from './adminStyles'
+} from '../../../api/socialChat'
+import { alertError, btnPrimary, card, input, pageDesc, pageTitle } from '../shared/adminStyles'
 
 type ChatBubble = {
   id: string

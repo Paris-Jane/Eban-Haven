@@ -18,7 +18,7 @@ import {
   type HealthRecord,
   type JsonTableRow,
   type SafehouseOption,
-} from '../../../api/admin'
+} from '../../../../api/admin'
 import { alertError, btnPrimary, card, input, label, pageDesc, pageTitle } from '../adminStyles'
 import { ReintegrationBadge, RiskBadge, StatusBadge } from '../adminDataTable/AdminBadges'
 import { formatAdminDate } from '../adminDataTable/adminFormatters'
@@ -436,8 +436,8 @@ function OverviewPanel({
               key={i}
               className={`rounded-lg border px-4 py-3 text-sm ${
                 a.level === 'risk'
-                  ? 'border-rose-400/60 bg-rose-500/10 text-rose-950 dark:text-rose-100'
-                  : 'border-amber-400/50 bg-amber-500/10 text-amber-950 dark:text-amber-50'
+                  ? 'border-rose-400/60 bg-rose-500/10 text-black dark:text-black'
+                  : 'border-amber-400/50 bg-amber-500/10 text-black dark:text-black'
               }`}
             >
               {a.text}
@@ -476,17 +476,6 @@ function OverviewPanel({
             </div>
           ))}
         </dl>
-      </div>
-
-      <div>
-        <h3 className="mb-3 text-base font-semibold text-foreground">Quick actions</h3>
-        <div className="flex flex-wrap gap-2">
-          <QuickActionButton onClick={() => onQuick('incident')}>Add incident</QuickActionButton>
-          <QuickActionButton onClick={() => onQuick('counseling')}>Add counseling session</QuickActionButton>
-          <QuickActionButton onClick={() => onQuick('visit')}>Add home visit</QuickActionButton>
-          <QuickActionButton onClick={() => onQuick('plan')}>Add intervention plan</QuickActionButton>
-          <QuickActionButton onClick={() => onQuick('education')}>Add education record</QuickActionButton>
-        </div>
       </div>
 
       <div>

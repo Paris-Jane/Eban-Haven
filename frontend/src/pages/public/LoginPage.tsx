@@ -2,9 +2,9 @@ import { useState, type FormEvent } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Lock } from 'lucide-react'
-import { login } from '../api/auth'
-import { registerDonorAccount } from '../api/registration'
-import { SITE_DISPLAY_NAME } from '../site'
+import { login } from '../../api/auth'
+import { registerDonorAccount } from '../../api/registration'
+import { SITE_DISPLAY_NAME } from '../../site'
 
 const supporterTypeOptions = [
   { value: 'MonetaryDonor', label: 'Monetary donor' },

@@ -2,8 +2,8 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { ArrowRight, BookOpen, Heart, Home, UserRound } from 'lucide-react'
-import { getImpactSummary, type PublicImpactSummary } from '../api/impact'
-import { IMAGES, SITE_DISPLAY_NAME } from '../site'
+import { getImpactSummary, type PublicImpactSummary } from '../../api/impact'
+import { IMAGES, SITE_DISPLAY_NAME } from '../../site'
 
 const fadeUp = {
   hidden: { opacity: 0, y: 30 },

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
-import { getReportsSummary, type ReportsSummary } from '../../api/admin'
-import { card, pageDesc, pageTitle, statCardInner } from './adminStyles'
+import { getReportsSummary, type ReportsSummary } from '../../../api/admin'
+import { card, pageDesc, pageTitle, statCardInner } from '../shared/adminStyles'
 
 const moneyPhp = new Intl.NumberFormat(undefined, { style: 'currency', currency: 'PHP' })
 

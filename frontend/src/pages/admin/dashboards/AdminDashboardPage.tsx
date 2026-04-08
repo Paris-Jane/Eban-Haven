@@ -12,8 +12,8 @@ import {
   Video,
   Waypoints,
 } from 'lucide-react'
-import { getDashboard, type DashboardSummary } from '../../api/admin'
-import { btnPrimary, card, linkTile, pageDesc, pageTitle, statCardInner, statCardSub, statCardValue } from './adminStyles'
+import { getDashboard, type DashboardSummary } from '../../../api/admin'
+import { btnPrimary, card, linkTile, pageDesc, pageTitle, statCardInner, statCardSub, statCardValue } from '../shared/adminStyles'
 
 function StatCard({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (

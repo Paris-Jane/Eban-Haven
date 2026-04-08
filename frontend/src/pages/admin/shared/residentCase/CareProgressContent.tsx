@@ -14,7 +14,7 @@ import {
   type HomeVisitation,
   type EducationRecord,
   type HealthRecord,
-} from '../../../api/admin'
+} from '../../../../api/admin'
 import { alertError, btnPrimary, input, label } from '../adminStyles'
 import { AdminDeleteModal } from '../adminDataTable/AdminDeleteModal'
 import { BooleanBadge, CategoryBadge, VisitOutcomeBadge } from '../adminDataTable/AdminBadges'

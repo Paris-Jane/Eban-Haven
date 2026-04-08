@@ -1,5 +1,5 @@
 import { useParams } from 'react-router-dom'
-import { ResidentCaseWorkspace } from './residentCase/ResidentCaseWorkspace'
+import { ResidentCaseWorkspace } from '../shared/residentCase/ResidentCaseWorkspace'
 
 export function ResidentDetailPage() {
   const { id: idParam } = useParams()
