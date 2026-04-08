@@ -86,7 +86,7 @@ export function ResidentPipelinePage() {
         <div>
           <h2 className={`${pageTitle} flex items-center gap-2`}>
             <Waypoints className="h-7 w-7 text-primary" />
-            Resident pipeline
+            Resident tools
           </h2>
           <p className={pageDesc}>
             Board view by case and reintegration status. Open a card for the full resident record, visits, process

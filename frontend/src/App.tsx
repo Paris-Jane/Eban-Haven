@@ -24,6 +24,7 @@ import { HomeVisitationsAdminPage } from './pages/admin/HomeVisitationsAdminPage
 import { CaseConferencesAdminPage } from './pages/admin/CaseConferencesAdminPage'
 import { ReportsPage } from './pages/admin/ReportsPage'
 import { SocialPlannerPage } from './pages/admin/SocialPlannerPage'
+import { SocialWorkerDashboardPage } from './pages/admin/SocialWorkerDashboardPage'
 
 export default function App() {
   return (
@@ -52,6 +53,8 @@ export default function App() {
         }
       >
         <Route index element={<AdminDashboardPage />} />
+        <Route path="social-worker-dashboard" element={<SocialWorkerDashboardPage />} />
+        <Route path="donor-dashboard" element={<DonorDashboardPage />} />
         <Route path="donors" element={<DonorsAdminPage />} />
         <Route path="donors/:id" element={<DonorDetailPage />} />
         <Route path="donor-pipeline" element={<DonorPipelinePage />} />

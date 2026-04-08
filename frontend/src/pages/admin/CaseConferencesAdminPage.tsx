@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
-import { Link } from 'react-router-dom'
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
 import {
   alertError,
   btnPrimary,
@@ -17,6 +17,7 @@ import {
 } from './adminStyles'
 import {
   createInterventionPlan,
+  deleteInterventionPlan,
   getInterventionPlans,
   getResidents,
   type InterventionPlan,
@@ -24,24 +25,71 @@ import {
 } from '../../api/admin'
 import { useSupabaseForLighthouseData } from '../../lib/useSupabaseLighthouse'
 import { AdminListToolbar } from './AdminListToolbar'
-import { scrollToAddForm } from './scrollToAdd'
+import { matchesColFilter, nextSortState, sortRows, SortableTh, type SortDirection } from './SortableTh'
 
 const PLAN_STATUSES = ['In Progress', 'On Hold', 'Achieved', 'Not Achieved'] as const
 
+type ColFilters = {
+  id: string
+  residentId: string
+  residentInternalCode: string
+  planCategory: string
+  planDescription: string
+  servicesProvided: string
+  targetValue: string
+  targetDate: string
+  status: string
+  caseConferenceDate: string
+  createdAt: string
+  updatedAt: string
+}
+
+const emptyFilters = (): ColFilters => ({
+  id: '',
+  residentId: '',
+  residentInternalCode: '',
+  planCategory: '',
+  planDescription: '',
+  servicesProvided: '',
+  targetValue: '',
+  targetDate: '',
+  status: '',
+  caseConferenceDate: '',
+  createdAt: '',
+  updatedAt: '',
+})
+
+const FILTER_LABELS: Record<keyof ColFilters, string> = {
+  id: 'Plan ID',
+  residentId: 'Resident ID',
+  residentInternalCode: 'Resident code',
+  planCategory: 'Category',
+  planDescription: 'Description',
+  servicesProvided: 'Services',
+  targetValue: 'Target value',
+  targetDate: 'Target date',
+  status: 'Status',
+  caseConferenceDate: 'Conference date',
+  createdAt: 'Created',
+  updatedAt: 'Updated',
+}
+
 export function CaseConferencesAdminPage() {
   const sbData = useSupabaseForLighthouseData()
+  const navigate = useNavigate()
   const [residents, setResidents] = useState<ResidentSummary[]>([])
-  const [filterRes, setFilterRes] = useState<number>(0)
-  const [statusFilter, setStatusFilter] = useState('')
   const [q, setQ] = useState('')
   const [plans, setPlans] = useState<InterventionPlan[]>([])
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [showUpcoming, setShowUpcoming] = useState(false)
   const [filterOpen, setFilterOpen] = useState(false)
-  const [categoryFilter, setCategoryFilter] = useState('')
+  const [colFilters, setColFilters] = useState<ColFilters>(emptyFilters)
   const [showAddPlan, setShowAddPlan] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [sortKey, setSortKey] = useState<string | null>(null)
+  const [sortDir, setSortDir] = useState<SortDirection>(null)
+  const [selected, setSelected] = useState<Set<number>>(new Set())
 
   const [newResidentId, setNewResidentId] = useState(0)
   const [newCategory, setNewCategory] = useState('')
@@ -52,23 +100,21 @@ export function CaseConferencesAdminPage() {
   const [newStatus, setNewStatus] = useState<string>(PLAN_STATUSES[0])
   const [newConfDate, setNewConfDate] = useState('')
 
-  const addFirstFieldRef = useRef<HTMLSelectElement>(null)
-
   const load = useCallback(async () => {
     setLoading(true)
     try {
       const res = await getResidents({})
       setResidents(res)
-      const rid = filterRes || undefined
-      const p = await getInterventionPlans(rid)
+      const p = await getInterventionPlans()
       setPlans(p)
+      setNewResidentId((prev) => prev || res[0]?.id || 0)
       setError(null)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load')
     } finally {
       setLoading(false)
     }
-  }, [filterRes])
+  }, [])
 
   useEffect(() => {
     void load()
@@ -76,30 +122,100 @@ export function CaseConferencesAdminPage() {
 
   useEffect(() => {
     if (!showAddPlan) return
-    setNewResidentId((prev) => {
-      if (prev && residents.some((r) => r.id === prev)) return prev
-      if (filterRes && residents.some((r) => r.id === filterRes)) return filterRes
-      return residents[0]?.id ?? 0
+    setNewResidentId((prev) => (prev && residents.some((r) => r.id === prev) ? prev : residents[0]?.id ?? 0))
+  }, [showAddPlan, residents])
+
+  const filteredSorted = useMemo(() => {
+    let list = plans.filter((p) => {
+      const hay = `${p.residentInternalCode} ${p.planCategory} ${p.planDescription} ${p.servicesProvided ?? ''} ${p.status} ${p.id}`.toLowerCase()
+      if (q.trim() && !hay.includes(q.trim().toLowerCase())) return false
+      if (!matchesColFilter(p.id, colFilters.id)) return false
+      if (!matchesColFilter(p.residentId, colFilters.residentId)) return false
+      if (!matchesColFilter(p.residentInternalCode, colFilters.residentInternalCode)) return false
+      if (!matchesColFilter(p.planCategory, colFilters.planCategory)) return false
+      if (!matchesColFilter(p.planDescription, colFilters.planDescription)) return false
+      if (!matchesColFilter(p.servicesProvided, colFilters.servicesProvided)) return false
+      if (!matchesColFilter(p.targetValue, colFilters.targetValue)) return false
+      if (!matchesColFilter(p.targetDate, colFilters.targetDate)) return false
+      if (!matchesColFilter(p.status, colFilters.status)) return false
+      if (!matchesColFilter(p.caseConferenceDate, colFilters.caseConferenceDate)) return false
+      if (!matchesColFilter(p.createdAt, colFilters.createdAt)) return false
+      if (!matchesColFilter(p.updatedAt, colFilters.updatedAt)) return false
+      return true
     })
-  }, [showAddPlan, residents, filterRes])
+    list = sortRows(list, sortKey, sortDir, (row, key) => {
+      switch (key) {
+        case 'id':
+          return row.id
+        case 'residentInternalCode':
+          return row.residentInternalCode
+        case 'planCategory':
+          return row.planCategory
+        case 'status':
+          return row.status
+        case 'caseConferenceDate':
+          return row.caseConferenceDate ?? ''
+        case 'targetDate':
+          return row.targetDate ?? ''
+        default:
+          return ''
+      }
+    })
+    return list
+  }, [plans, q, colFilters, sortKey, sortDir])
 
-  const statusOptions = [...new Set(plans.map((p) => p.status).filter(Boolean))].sort()
+  const upcomingPlans = useMemo(
+    () =>
+      [...plans]
+        .filter((p) => p.caseConferenceDate)
+        .sort((a, b) => (a.caseConferenceDate ?? '').localeCompare(b.caseConferenceDate ?? ''))
+        .slice(0, 40),
+    [plans],
+  )
 
-  const needle = q.trim().toLowerCase()
-  const filtered = plans.filter((p) => {
-    if (statusFilter && p.status !== statusFilter) return false
-    if (categoryFilter.trim() && !p.planCategory.toLowerCase().includes(categoryFilter.trim().toLowerCase())) return false
-    if (needle) {
-      const hay = `${p.residentInternalCode} ${p.planCategory} ${p.planDescription} ${p.servicesProvided ?? ''} ${p.status}`.toLowerCase()
-      if (!hay.includes(needle)) return false
+  function onSort(key: string) {
+    const next = nextSortState(key, sortKey, sortDir)
+    setSortKey(next.key)
+    setSortDir(next.dir)
+  }
+
+  function toggleSelect(id: number) {
+    setSelected((prev) => {
+      const n = new Set(prev)
+      if (n.has(id)) n.delete(id)
+      else n.add(id)
+      return n
+    })
+  }
+
+  function toggleSelectAll() {
+    const ids = filteredSorted.map((p) => p.id)
+    const allOn = ids.length > 0 && ids.every((id) => selected.has(id))
+    setSelected((prev) => {
+      const n = new Set(prev)
+      if (allOn) for (const id of ids) n.delete(id)
+      else for (const id of ids) n.add(id)
+      return n
+    })
+  }
+
+  async function bulkDelete() {
+    if (!sbData || selected.size === 0) return
+    if (!confirm(`Delete ${selected.size} plan(s)? This cannot be undone.`)) return
+    setSaving(true)
+    setError(null)
+    try {
+      for (const id of selected) {
+        await deleteInterventionPlan(id)
+      }
+      setSelected(new Set())
+      await load()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Delete failed')
+    } finally {
+      setSaving(false)
     }
-    return true
-  })
-
-  const upcomingPlans = [...plans]
-    .filter((p) => p.caseConferenceDate)
-    .sort((a, b) => (a.caseConferenceDate ?? '').localeCompare(b.caseConferenceDate ?? ''))
-    .slice(0, 40)
+  }
 
   async function onCreatePlan(e: FormEvent) {
     e.preventDefault()
@@ -125,6 +241,7 @@ export function CaseConferencesAdminPage() {
       setNewTargetDate('')
       setNewConfDate('')
       setNewStatus(PLAN_STATUSES[0])
+      setShowAddPlan(false)
       await load()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save plan')
@@ -135,16 +252,18 @@ export function CaseConferencesAdminPage() {
 
   function openAddPlan() {
     setShowAddPlan(true)
-    scrollToAddForm('admin-add-intervention-plan', addFirstFieldRef.current)
+    requestAnimationFrame(() => document.getElementById('admin-add-intervention-plan')?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
   }
+
+  const colCount = sbData ? 7 : 6
 
   return (
     <div className="space-y-8">
       <div>
         <h2 className={pageTitle}>Case conferences</h2>
         <p className={pageDesc}>
-          Intervention plans and scheduled case conference dates. Use <strong>Add plan</strong> to create a plan tied to a
-          resident; filter and search the list or open a resident from a row.
+          Intervention plans and conference dates. Filter by any column; click a row to open the resident. Bulk delete
+          requires Supabase.
         </p>
       </div>
 
@@ -153,67 +272,63 @@ export function CaseConferencesAdminPage() {
       <AdminListToolbar
         searchValue={q}
         onSearchChange={setQ}
-        searchPlaceholder="Plan category, services, resident code…"
+        searchPlaceholder="Search plans…"
         filterOpen={filterOpen}
         onFilterToggle={() => setFilterOpen((o) => !o)}
         onAddClick={openAddPlan}
         addLabel="Add plan"
       />
 
+      {selected.size > 0 && sbData && (
+        <div className="flex flex-wrap items-center gap-3 rounded-lg border border-border bg-muted/40 px-4 py-3 text-sm">
+          <span className="text-muted-foreground">{selected.size} selected</span>
+          <button type="button" className={btnPrimary} disabled={saving} onClick={() => void bulkDelete()}>
+            Delete selected…
+          </button>
+          <button type="button" className="text-sm text-primary hover:underline" onClick={() => setSelected(new Set())}>
+            Clear selection
+          </button>
+        </div>
+      )}
+
       {filterOpen && (
-        <div className={`${card} flex flex-wrap items-end gap-3`}>
-          <label className={label}>
-            Resident (loads plans)
-            <select
-              className={`${input} min-w-[12rem]`}
-              value={filterRes || ''}
-              onChange={(e) => setFilterRes(Number(e.target.value))}
-            >
-              <option value={0}>All residents</option>
-              {residents.map((r) => (
-                <option key={r.id} value={r.id}>
-                  {r.internalCode}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className={label}>
-            Plan status
-            <select className={input} value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
-              <option value="">All</option>
-              {statusOptions.map((s) => (
-                <option key={s} value={s}>
-                  {s}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className={label}>
-            Category contains
-            <input
-              className={input}
-              value={categoryFilter}
-              onChange={(e) => setCategoryFilter(e.target.value)}
-              placeholder="e.g. Education"
-            />
-          </label>
+        <div className={`${card} grid max-h-[60vh] gap-3 overflow-y-auto sm:grid-cols-2 lg:grid-cols-3`}>
+          <p className="text-sm font-medium sm:col-span-2 lg:col-span-3">Filter by column (contains)</p>
+          {(Object.keys(colFilters) as (keyof ColFilters)[]).map((k) => (
+            <label key={k} className={label}>
+              {FILTER_LABELS[k]}
+              <input
+                className={input}
+                value={colFilters[k]}
+                onChange={(e) => setColFilters((f) => ({ ...f, [k]: e.target.value }))}
+                placeholder="Contains…"
+              />
+            </label>
+          ))}
+          <button type="button" className="text-sm text-primary hover:underline sm:col-span-2 lg:col-span-3" onClick={() => setColFilters(emptyFilters())}>
+            Clear column filters
+          </button>
         </div>
       )}
 
       {showAddPlan && (
         <div id="admin-add-intervention-plan" className={`${card} scroll-mt-28 space-y-4`}>
-          <p className={sectionFormTitle}>New intervention plan</p>
+          <div className="flex items-center justify-between">
+            <p className={sectionFormTitle}>New intervention plan</p>
+            <button type="button" className="text-sm text-muted-foreground hover:text-foreground" onClick={() => setShowAddPlan(false)}>
+              Close
+            </button>
+          </div>
           {!sbData ? (
             <p className="text-sm text-muted-foreground">
-              Creating plans requires Supabase program data. Set <code className="rounded bg-muted px-1">VITE_USE_SUPABASE_DATA=true</code> and
-              apply lighthouse migrations, then reload.
+              Creating plans requires Supabase program data. Set <code className="rounded bg-muted px-1">VITE_USE_SUPABASE_DATA=true</code> and apply
+              lighthouse migrations.
             </p>
           ) : (
             <form onSubmit={onCreatePlan} className="grid gap-3 sm:grid-cols-2">
               <label className={label}>
                 Resident *
                 <select
-                  ref={addFirstFieldRef}
                   className={input}
                   value={newResidentId || ''}
                   onChange={(e) => setNewResidentId(Number(e.target.value))}
@@ -238,32 +353,15 @@ export function CaseConferencesAdminPage() {
               </label>
               <label className={`${label} sm:col-span-2`}>
                 Plan category *
-                <input
-                  className={input}
-                  value={newCategory}
-                  onChange={(e) => setNewCategory(e.target.value)}
-                  placeholder="e.g. Education, Safety"
-                  required
-                />
+                <input className={input} value={newCategory} onChange={(e) => setNewCategory(e.target.value)} required />
               </label>
               <label className={`${label} sm:col-span-2`}>
                 Plan description *
-                <textarea
-                  className={input}
-                  rows={3}
-                  value={newDescription}
-                  onChange={(e) => setNewDescription(e.target.value)}
-                  required
-                />
+                <textarea className={input} rows={3} value={newDescription} onChange={(e) => setNewDescription(e.target.value)} required />
               </label>
               <label className={`${label} sm:col-span-2`}>
                 Services provided
-                <input
-                  className={input}
-                  value={newServices}
-                  onChange={(e) => setNewServices(e.target.value)}
-                  placeholder="Optional, comma-separated"
-                />
+                <input className={input} value={newServices} onChange={(e) => setNewServices(e.target.value)} />
               </label>
               <label className={label}>
                 Case conference date
@@ -275,7 +373,7 @@ export function CaseConferencesAdminPage() {
               </label>
               <label className={label}>
                 Target value (numeric)
-                <input className={input} value={newTargetVal} onChange={(e) => setNewTargetVal(e.target.value)} placeholder="Optional" />
+                <input className={input} value={newTargetVal} onChange={(e) => setNewTargetVal(e.target.value)} />
               </label>
               <div className="flex items-end">
                 <button type="submit" disabled={saving} className={btnPrimary}>
@@ -284,34 +382,6 @@ export function CaseConferencesAdminPage() {
               </div>
             </form>
           )}
-          <div className="flex flex-wrap items-center gap-2 border-t border-border pt-4">
-            <button type="button" className="text-sm text-primary hover:underline" onClick={() => setShowUpcoming((s) => !s)}>
-              {showUpcoming ? 'Hide scheduled conferences' : 'Show scheduled conferences'}
-            </button>
-          </div>
-          {showUpcoming && (
-            <div id="admin-case-upcoming">
-              <h3 className="text-sm font-semibold text-foreground">Upcoming / recent case conferences</h3>
-              <p className="mt-1 text-xs text-muted-foreground">Plans with a scheduled conference date (current list filter).</p>
-              <ul className="mt-4 max-h-72 space-y-2 overflow-y-auto text-sm">
-                {upcomingPlans.length === 0 ? (
-                  <li className="text-muted-foreground">No plans with conference dates in current filter.</li>
-                ) : (
-                  upcomingPlans.map((p) => (
-                    <li key={p.id} className="border-b border-border/60 pb-2">
-                      <Link className="font-medium text-primary hover:underline" to={`/admin/residents/${p.residentId}`}>
-                        {p.residentInternalCode}
-                      </Link>
-                      <span className="text-foreground"> · {p.planCategory}</span>
-                      <span className="ml-2 text-muted-foreground">
-                        {p.caseConferenceDate ? new Date(p.caseConferenceDate).toLocaleDateString() : '—'} · {p.status}
-                      </span>
-                    </li>
-                  ))
-                )}
-              </ul>
-            </div>
-          )}
         </div>
       )}
 
@@ -319,34 +389,51 @@ export function CaseConferencesAdminPage() {
         <table className="w-full min-w-[640px] text-left text-sm">
           <thead className={tableHead}>
             <tr>
-              <th className="px-4 py-3">Resident</th>
-              <th className="px-4 py-3">Category</th>
-              <th className="px-4 py-3">Status</th>
-              <th className="px-4 py-3">Conference</th>
+              {sbData && (
+                <th className="w-10 px-2 py-2">
+                  <input
+                    type="checkbox"
+                    aria-label="Select all"
+                    checked={filteredSorted.length > 0 && filteredSorted.every((p) => selected.has(p.id))}
+                    onChange={() => toggleSelectAll()}
+                  />
+                </th>
+              )}
+              <SortableTh label="ID" sortKey="id" activeKey={sortKey} direction={sortDir} onSort={onSort} />
+              <SortableTh label="Resident" sortKey="residentInternalCode" activeKey={sortKey} direction={sortDir} onSort={onSort} />
+              <SortableTh label="Category" sortKey="planCategory" activeKey={sortKey} direction={sortDir} onSort={onSort} />
+              <SortableTh label="Status" sortKey="status" activeKey={sortKey} direction={sortDir} onSort={onSort} />
+              <SortableTh label="Conference" sortKey="caseConferenceDate" activeKey={sortKey} direction={sortDir} onSort={onSort} />
               <th className="px-4 py-3">Services</th>
             </tr>
           </thead>
           <tbody className={tableBody}>
             {loading ? (
               <tr>
-                <td colSpan={5} className={emptyCell}>
+                <td colSpan={colCount} className={emptyCell}>
                   Loading…
                 </td>
               </tr>
-            ) : filtered.length === 0 ? (
+            ) : filteredSorted.length === 0 ? (
               <tr>
-                <td colSpan={5} className={emptyCell}>
+                <td colSpan={colCount} className={emptyCell}>
                   No plans match.
                 </td>
               </tr>
             ) : (
-              filtered.map((p) => (
-                <tr key={p.id} className={tableRowHover}>
-                  <td className="px-4 py-3 font-medium">
-                    <Link className="text-primary hover:underline" to={`/admin/residents/${p.residentId}`}>
-                      {p.residentInternalCode}
-                    </Link>
-                  </td>
+              filteredSorted.map((p) => (
+                <tr
+                  key={p.id}
+                  className={`${tableRowHover} cursor-pointer`}
+                  onClick={() => navigate(`/admin/residents/${p.residentId}`)}
+                >
+                  {sbData && (
+                    <td className="px-2 py-2" onClick={(e) => e.stopPropagation()}>
+                      <input type="checkbox" checked={selected.has(p.id)} onChange={() => toggleSelect(p.id)} aria-label={`Select ${p.id}`} />
+                    </td>
+                  )}
+                  <td className="px-4 py-3 text-muted-foreground">{p.id}</td>
+                  <td className="px-4 py-3 font-medium text-primary">{p.residentInternalCode}</td>
                   <td className="px-4 py-3">{p.planCategory}</td>
                   <td className="px-4 py-3">{p.status}</td>
                   <td className="px-4 py-3 text-muted-foreground">
@@ -360,6 +447,35 @@ export function CaseConferencesAdminPage() {
             )}
           </tbody>
         </table>
+      </div>
+
+      <div className={card}>
+        <button type="button" className="text-sm font-medium text-primary hover:underline" onClick={() => setShowUpcoming((s) => !s)}>
+          {showUpcoming ? 'Hide scheduled conferences' : 'Show scheduled conferences'}
+        </button>
+        {showUpcoming && (
+          <div className="mt-4">
+            <h3 className="text-sm font-semibold text-foreground">Upcoming / recent case conferences</h3>
+            <p className="mt-1 text-xs text-muted-foreground">Plans with a scheduled conference date.</p>
+            <ul className="mt-4 max-h-72 space-y-2 overflow-y-auto text-sm">
+              {upcomingPlans.length === 0 ? (
+                <li className="text-muted-foreground">None in dataset.</li>
+              ) : (
+                upcomingPlans.map((p) => (
+                  <li key={p.id} className="border-b border-border/60 pb-2">
+                    <Link className="font-medium text-primary hover:underline" to={`/admin/residents/${p.residentId}`}>
+                      {p.residentInternalCode}
+                    </Link>
+                    <span className="text-foreground"> · {p.planCategory}</span>
+                    <span className="ml-2 text-muted-foreground">
+                      {p.caseConferenceDate ? new Date(p.caseConferenceDate).toLocaleDateString() : '—'} · {p.status}
+                    </span>
+                  </li>
+                ))
+              )}
+            </ul>
+          </div>
+        )}
       </div>
     </div>
   )

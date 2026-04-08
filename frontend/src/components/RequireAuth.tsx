@@ -8,8 +8,24 @@ export function RequireAuth({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<'loading' | 'in' | 'out'>('loading')
   const location = useLocation()
 
-  const refresh = useCallback(() => {
-    void getMe().then((u) => setState(u ? 'in' : 'out'))
+  const refresh = useCallback(async () => {
+    const u = await getMe()
+    if (u) {
+      setState('in')
+      return
+    }
+    if (isSupabaseConfigured()) {
+      try {
+        const { data } = await getSupabase().auth.getSession()
+        if (data.session) {
+          setState('in')
+          return
+        }
+      } catch {
+        /* ignore */
+      }
+    }
+    setState('out')
   }, [])
 
   useEffect(() => {

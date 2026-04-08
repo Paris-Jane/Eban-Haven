@@ -80,7 +80,7 @@ export function DonorPipelinePage() {
         <div>
           <h2 className={`${pageTitle} flex items-center gap-2`}>
             <GitBranch className="h-7 w-7 text-primary" />
-            Donor pipeline
+            Donor tools
           </h2>
           <p className={pageDesc}>
             Move supporters from prospect to active donor using your dataset (status + first gift date). Open a card

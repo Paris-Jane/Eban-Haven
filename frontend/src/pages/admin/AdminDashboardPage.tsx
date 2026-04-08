@@ -75,14 +75,14 @@ export function AdminDashboardPage() {
             className={`${btnPrimary} inline-flex items-center gap-2`}
           >
             <GitBranch className="h-4 w-4" />
-            Donor pipeline
+            Donor tools
           </Link>
           <Link
             to="/admin/resident-pipeline"
             className={`${btnPrimary} inline-flex items-center gap-2`}
           >
             <Waypoints className="h-4 w-4" />
-            Resident pipeline
+            Resident tools
           </Link>
         </div>
       </div>
@@ -207,7 +207,7 @@ export function AdminDashboardPage() {
         </Link>
         <Link to="/admin/donor-pipeline" className={linkTile}>
           <span className="flex items-center gap-2">
-            <GitBranch className="h-4 w-4" /> Donor pipeline
+            <GitBranch className="h-4 w-4" /> Donor tools
           </span>
           <ArrowRight className="h-4 w-4 opacity-70" />
         </Link>
@@ -219,7 +219,7 @@ export function AdminDashboardPage() {
         </Link>
         <Link to="/admin/resident-pipeline" className={linkTile}>
           <span className="flex items-center gap-2">
-            <Waypoints className="h-4 w-4" /> Resident pipeline
+            <Waypoints className="h-4 w-4" /> Resident tools
           </span>
           <ArrowRight className="h-4 w-4 opacity-70" />
         </Link>

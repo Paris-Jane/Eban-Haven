@@ -107,7 +107,7 @@ export function SocialPlannerPage() {
     <div className="space-y-8">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <h2 className={pageTitle}>Social planner</h2>
+          <h2 className={pageTitle}>Marketing tools</h2>
           <p className={pageDesc}>
             Admin-only AI assistant for captions, post ideas, timing, CTAs, and reasoning grounded in approved
             nonprofit context. The MVP uses server-side placeholders for brand, metrics, and causal inputs so we

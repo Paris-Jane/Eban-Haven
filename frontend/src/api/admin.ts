@@ -134,6 +134,22 @@ export async function deleteAllocation(id: number) {
   return useSupabaseForLighthouseData() ? sb.deleteAllocation(id) : sbDataOnly()
 }
 
+export async function deleteResident(id: number) {
+  return useSupabaseForLighthouseData() ? sb.deleteResident(id) : sbDataOnly()
+}
+
+export async function deleteProcessRecording(id: number) {
+  return useSupabaseForLighthouseData() ? sb.deleteProcessRecording(id) : sbDataOnly()
+}
+
+export async function deleteHomeVisitation(id: number) {
+  return useSupabaseForLighthouseData() ? sb.deleteHomeVisitation(id) : sbDataOnly()
+}
+
+export async function deleteInterventionPlan(id: number) {
+  return useSupabaseForLighthouseData() ? sb.deleteInterventionPlan(id) : sbDataOnly()
+}
+
 export async function listEducationRecords(residentId?: number) {
   return useSupabaseForLighthouseData() ? sb.listEducationRecords(residentId) : []
 }

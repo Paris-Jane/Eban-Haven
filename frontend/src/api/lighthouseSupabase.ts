@@ -1019,6 +1019,26 @@ export async function deleteAllocation(id: number): Promise<void> {
   if (error) throw error
 }
 
+export async function deleteResident(id: number): Promise<void> {
+  const { error } = await getSupabase().from('lighthouse_residents').delete().eq('resident_id', id)
+  if (error) throw error
+}
+
+export async function deleteProcessRecording(id: number): Promise<void> {
+  const { error } = await getSupabase().from('lighthouse_process_recordings').delete().eq('recording_id', id)
+  if (error) throw error
+}
+
+export async function deleteHomeVisitation(id: number): Promise<void> {
+  const { error } = await getSupabase().from('lighthouse_home_visitations').delete().eq('visitation_id', id)
+  if (error) throw error
+}
+
+export async function deleteInterventionPlan(id: number): Promise<void> {
+  const { error } = await getSupabase().from('lighthouse_intervention_plans').delete().eq('plan_id', id)
+  if (error) throw error
+}
+
 export async function listEducationRecords(residentId?: number): Promise<T.JsonTableRow[]> {
   let rows = await loadTable('lighthouse_education_records', 'education_record_id')
   if (residentId != null && residentId > 0) rows = rows.filter((r) => gi(r, 'resident_id') === residentId)

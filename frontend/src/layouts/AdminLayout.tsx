@@ -14,6 +14,7 @@ import {
   LogOut,
   Menu,
   PieChart,
+  UserCheck,
   Video,
   Waypoints,
   X,
@@ -28,22 +29,54 @@ type NavItem = {
   label: string
   icon: LucideIcon
   end?: boolean
+  /** Use when leaving the `/admin` tree (e.g. donor portal). */
+  plainLink?: boolean
 }
 
-const nav: NavItem[] = [
-  { to: '/admin', label: 'Dashboard', icon: LayoutDashboard, end: true },
-  { to: '/admin/donors', label: 'Donors', icon: Heart },
-  { to: '/admin/donor-pipeline', label: 'Donor pipeline', icon: GitBranch },
-  { to: '/admin/contributions', label: 'Contributions', icon: Gift },
-  { to: '/admin/allocations', label: 'Allocations', icon: PieChart },
-  { to: '/admin/residents', label: 'Residents', icon: ClipboardList },
-  { to: '/admin/resident-pipeline', label: 'Resident pipeline', icon: Waypoints },
-  { to: '/admin/process-recordings', label: 'Process recording', icon: FileText },
-  { to: '/admin/home-visitations', label: 'Home visitation', icon: Video },
-  { to: '/admin/case-conferences', label: 'Case conferences', icon: CalendarDays },
-  { to: '/admin/reports', label: 'Reports & Analytics', icon: BarChart3 },
-  { to: '/admin/social-planner', label: 'Social planner', icon: Bot },
+type NavGroup = {
+  title: string
+  items: NavItem[]
+}
+
+const navGroups: NavGroup[] = [
+  {
+    title: 'Dashboards',
+    items: [
+      { to: '/admin', label: 'Admin Dashboard', icon: LayoutDashboard, end: true },
+      { to: '/admin/donor-dashboard', label: 'Donor Dashboard', icon: Heart },
+      { to: '/admin/social-worker-dashboard', label: 'Social Worker Dashboard', icon: UserCheck },
+      { to: '/admin/reports', label: 'Reports & analytics', icon: BarChart3 },
+    ],
+  },
+  {
+    title: 'Databases',
+    items: [
+      { to: '/admin/donors', label: 'Donors', icon: Heart },
+      { to: '/admin/contributions', label: 'Contributions', icon: Gift },
+      { to: '/admin/allocations', label: 'Allocations', icon: PieChart },
+      { to: '/admin/residents', label: 'Residents', icon: ClipboardList },
+      { to: '/admin/process-recordings', label: 'Process recording', icon: FileText },
+      { to: '/admin/home-visitations', label: 'Home visitations', icon: Video },
+      { to: '/admin/case-conferences', label: 'Case conferences', icon: CalendarDays },
+    ],
+  },
+  {
+    title: 'Tools',
+    items: [
+      { to: '/admin/donor-pipeline', label: 'Donor tools', icon: GitBranch },
+      { to: '/admin/resident-pipeline', label: 'Resident tools', icon: Waypoints },
+      { to: '/admin/social-planner', label: 'Marketing tools', icon: Bot },
+    ],
+  },
 ]
+
+function navItemClassName(active: boolean) {
+  return `flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
+    active
+      ? 'bg-sidebar-primary/25 text-sidebar-primary-foreground'
+      : 'text-sidebar-foreground/75 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+  }`
+}
 
 export function AdminLayout() {
   const navigate = useNavigate()
@@ -90,24 +123,39 @@ export function AdminLayout() {
             <X className="h-5 w-5" />
           </button>
         </div>
-        <nav className="flex-1 space-y-0.5 overflow-y-auto p-3">
-          {nav.map((item) => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              end={item.end === true}
-              onClick={() => setSidebarOpen(false)}
-              className={({ isActive }) =>
-                `flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
-                  isActive
-                    ? 'bg-sidebar-primary/25 text-sidebar-primary-foreground'
-                    : 'text-sidebar-foreground/75 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
-                }`
-              }
-            >
-              <item.icon className="h-4 w-4 shrink-0 opacity-90" />
-              {item.label}
-            </NavLink>
+        <nav className="flex-1 space-y-6 overflow-y-auto p-3">
+          {navGroups.map((group) => (
+            <div key={group.title}>
+              <p className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-wider text-sidebar-foreground/45">
+                {group.title}
+              </p>
+              <div className="space-y-0.5">
+                {group.items.map((item) =>
+                  item.plainLink ? (
+                    <Link
+                      key={item.to}
+                      to={item.to}
+                      onClick={() => setSidebarOpen(false)}
+                      className={navItemClassName(false)}
+                    >
+                      <item.icon className="h-4 w-4 shrink-0 opacity-90" />
+                      {item.label}
+                    </Link>
+                  ) : (
+                    <NavLink
+                      key={item.to}
+                      to={item.to}
+                      end={item.end === true}
+                      onClick={() => setSidebarOpen(false)}
+                      className={({ isActive }) => navItemClassName(isActive)}
+                    >
+                      <item.icon className="h-4 w-4 shrink-0 opacity-90" />
+                      {item.label}
+                    </NavLink>
+                  ),
+                )}
+              </div>
+            </div>
           ))}
         </nav>
         <div className="space-y-1 border-t border-sidebar-border p-3">
