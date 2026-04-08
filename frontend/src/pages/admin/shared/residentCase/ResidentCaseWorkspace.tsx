@@ -297,7 +297,18 @@ export function ResidentCaseWorkspace({ residentId }: { residentId: number }) {
   }
 
   if (loading) return <p className="text-muted-foreground">Loading case…</p>
-  if (!detail) return <p className="text-destructive">Resident not found.</p>
+  if (error && !detail) return (
+    <div className="space-y-3">
+      <p className="text-destructive">{error}</p>
+      <Link to="/admin/residents" className="text-sm text-primary hover:underline">← Back to residents</Link>
+    </div>
+  )
+  if (!detail) return (
+    <div className="space-y-3">
+      <p className="text-destructive">Resident not found.</p>
+      <Link to="/admin/residents" className="text-sm text-primary hover:underline">← Back to residents</Link>
+    </div>
+  )
 
   return (
     <div className="space-y-8">
