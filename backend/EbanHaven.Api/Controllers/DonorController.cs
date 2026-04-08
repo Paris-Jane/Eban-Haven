@@ -54,4 +54,51 @@ public sealed class DonorController(ILighthouseRepository repo) : ControllerBase
             allocations,
         });
     }
+
+    [HttpPost("donations")]
+    public IActionResult CreateDonation([FromBody] DonorCreateDonationRequest body)
+    {
+        if (string.IsNullOrWhiteSpace(body.DonationType))
+            return BadRequest(new { error = "DonationType is required." });
+
+        var email =
+            User.FindFirst(ClaimTypes.Email)?.Value
+            ?? User.FindFirst("email")?.Value
+            ?? User.FindFirst("sub")?.Value;
+
+        if (string.IsNullOrWhiteSpace(email))
+            return Unauthorized(new { error = "A valid donor email claim is required." });
+
+        var supporter = repo.ListSupporters()
+            .FirstOrDefault(s => string.Equals(s.Email, email, StringComparison.OrdinalIgnoreCase));
+
+        if (supporter is null)
+            return BadRequest(new { error = "No supporter profile matches your email. Ask staff to add your email to your supporter record." });
+
+        try
+        {
+            var dt = body.DonationDate ?? DateTime.UtcNow.Date;
+            var created = repo.CreateDonation(
+                supporter.Id,
+                body.DonationType.Trim(),
+                dt,
+                body.Amount,
+                body.CurrencyCode,
+                body.Notes,
+                body.CampaignName);
+            return Created($"/api/donor/donations/{created.Id}", created);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
 }
+
+public sealed record DonorCreateDonationRequest(
+    string DonationType,
+    DateTime? DonationDate,
+    decimal? Amount,
+    string? CurrencyCode,
+    string? Notes,
+    string? CampaignName);

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Heart } from 'lucide-react'
-import { getDonorDashboard } from '../../api/donor'
+import { createMyDonation, getDonorDashboard } from '../../api/donor'
 import type { Donation, DonationAllocation, Supporter } from '../../api/adminTypes'
 import { SITE_DISPLAY_NAME } from '../../site'
 
@@ -15,6 +15,13 @@ export function DonorDashboardPage() {
   const [allocations, setAllocations] = useState<DonationAllocation[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [selectedAmt, setSelectedAmt] = useState<number | null>(500)
+  const [customAmt, setCustomAmt] = useState('')
+  const [designate, setDesignate] = useState('General Fund')
+  const [message, setMessage] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+
+  const amounts = [500, 1000, 2500, 5000] as const
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -48,6 +55,42 @@ export function DonorDashboardPage() {
       new Set(allocations.map((allocation) => allocation.programArea?.trim()).filter(Boolean)),
     ) as string[]
   }, [allocations])
+
+  async function onDonate(e: React.FormEvent) {
+    e.preventDefault()
+    if (!supporter) {
+      setError('Your account is not yet linked to a supporter profile. Contact the team or register with the same email you use to give.')
+      return
+    }
+    const amt =
+      customAmt.trim() !== ''
+        ? parseFloat(customAmt)
+        : selectedAmt != null
+          ? selectedAmt
+          : 0
+    if (!Number.isFinite(amt) || amt <= 0) {
+      setError('Enter a valid amount.')
+      return
+    }
+    setSubmitting(true)
+    setError(null)
+    try {
+      await createMyDonation({
+        donationType: 'Monetary',
+        amount: amt,
+        currencyCode: 'PHP',
+        notes: message.trim() || `${designate}${message ? ` · ${message}` : ''}`,
+        campaignName: designate || undefined,
+      })
+      setCustomAmt('')
+      setMessage('')
+      await load()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Donation could not be recorded.')
+    } finally {
+      setSubmitting(false)
+    }
+  }
 
   return (
     <div className="min-h-[calc(100vh-5rem)] bg-muted/30 py-16 lg:py-24">
@@ -129,6 +172,71 @@ export function DonorDashboardPage() {
                   </div>
                 </div>
               </section>
+
+              <h2 className="mb-4 mt-10 font-heading text-lg font-semibold text-foreground">Make a donation</h2>
+              <form onSubmit={onDonate} className="space-y-4 rounded-xl border border-border bg-background p-6">
+                <p className="text-sm text-muted-foreground">Select an amount (₱)</p>
+                <div className="flex flex-wrap gap-2">
+                  {amounts.map((a) => (
+                    <button
+                      key={a}
+                      type="button"
+                      onClick={() => {
+                        setSelectedAmt(a)
+                        setCustomAmt('')
+                      }}
+                      className={`rounded-lg border px-4 py-2 text-sm font-medium transition-colors ${
+                        selectedAmt === a && !customAmt
+                          ? 'border-primary bg-primary/10 text-primary'
+                          : 'border-border hover:bg-muted'
+                      }`}
+                    >
+                      ₱{a.toLocaleString()}
+                    </button>
+                  ))}
+                </div>
+                <label className="block text-sm">
+                  <span className="text-muted-foreground">Or enter a custom amount</span>
+                  <input
+                    type="number"
+                    min={0}
+                    step="0.01"
+                    className="mt-1 w-full rounded-lg border border-input bg-card px-3 py-2 text-sm"
+                    value={customAmt}
+                    onChange={(e) => {
+                      setCustomAmt(e.target.value)
+                      setSelectedAmt(null)
+                    }}
+                    placeholder="0"
+                  />
+                </label>
+                <label className="block text-sm">
+                  <span className="text-muted-foreground">Designate to</span>
+                  <input
+                    className="mt-1 w-full rounded-lg border border-input bg-card px-3 py-2 text-sm"
+                    value={designate}
+                    onChange={(e) => setDesignate(e.target.value)}
+                  />
+                </label>
+                <label className="block text-sm">
+                  <span className="text-muted-foreground">Message (optional)</span>
+                  <textarea
+                    className="mt-1 w-full rounded-lg border border-input bg-card px-3 py-2 text-sm"
+                    rows={2}
+                    value={message}
+                    onChange={(e) => setMessage(e.target.value)}
+                  />
+                </label>
+                <button
+                  type="submit"
+                  disabled={submitting || !supporter}
+                  className="w-full rounded-lg bg-primary py-3 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
+                >
+                  {submitting
+                    ? 'Saving…'
+                    : `Donate ${moneyPhp.format(customAmt ? parseFloat(customAmt) || 0 : selectedAmt ?? 0)}`}
+                </button>
+              </form>
 
               <h2 className="mb-3 mt-10 font-heading text-lg font-semibold text-foreground">Your donation history</h2>
               {donations.length === 0 ? (
