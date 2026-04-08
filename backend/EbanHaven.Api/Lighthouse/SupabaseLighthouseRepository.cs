@@ -15,6 +15,7 @@ public sealed class SupabaseLighthouseRepository(HavenDbContext db) : ILighthous
     public AdminDashboardDto GetAdminDashboard()
     {
         var today = DateTime.UtcNow.Date;
+        var todayDate = DateOnly.FromDateTime(today);
         var weekStart = today.AddDays(-(int)today.DayOfWeek);
 
         var activeResidents = db.Residents.Count(r => r.CaseStatus.ToLower() == "active");
@@ -54,7 +55,7 @@ public sealed class SupabaseLighthouseRepository(HavenDbContext db) : ILighthous
             .ToList();
 
         var upcomingConferences = db.InterventionPlans
-            .Where(p => p.CaseConferenceDate != null && p.CaseConferenceDate.Value.ToDateTime(TimeOnly.MinValue) >= today)
+            .Where(p => p.CaseConferenceDate != null && p.CaseConferenceDate.Value >= todayDate)
             .OrderBy(p => p.CaseConferenceDate)
             .Take(12)
             .Select(p => new { p.PlanId, p.ResidentId, p.PlanCategory, p.Status, p.PlanDescription, p.CaseConferenceDate })
