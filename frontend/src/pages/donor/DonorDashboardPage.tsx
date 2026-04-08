@@ -2,8 +2,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Heart } from 'lucide-react'
-import { createDonation, getDonations, getSupporters, type Donation, type Supporter } from '../../api/admin'
-import { getMe } from '../../api/auth'
+import { createMyDonation, getDonorMe, getMyDonations } from '../../api/donor'
+import type { Donation, Supporter } from '../../api/adminTypes'
 import { SITE_DISPLAY_NAME } from '../../site'
 
 const moneyPhp = new Intl.NumberFormat(undefined, { style: 'currency', currency: 'PHP' })
@@ -26,23 +26,11 @@ export function DonorDashboardPage() {
     setLoading(true)
     setError(null)
     try {
-      const me = await getMe()
-      const em = me?.user?.toLowerCase() ?? null
-      setEmail(em)
-      if (!em) {
-        setSupporter(null)
-        setDonations([])
-        return
-      }
-      const supporters = await getSupporters()
-      const s = supporters.find((x) => (x.email ?? '').toLowerCase() === em)
-      setSupporter(s ?? null)
-      if (s) {
-        const d = await getDonations(s.id)
-        setDonations(d)
-      } else {
-        setDonations([])
-      }
+      const me = await getDonorMe()
+      setEmail(me.email ?? null)
+      setSupporter(me.supporter ?? null)
+      const d = await getMyDonations()
+      setDonations(d)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load')
     } finally {
@@ -81,8 +69,7 @@ export function DonorDashboardPage() {
     setSubmitting(true)
     setError(null)
     try {
-      await createDonation({
-        supporterId: supporter.id,
+      await createMyDonation({
         donationType: 'Monetary',
         amount: amt,
         currencyCode: 'PHP',
