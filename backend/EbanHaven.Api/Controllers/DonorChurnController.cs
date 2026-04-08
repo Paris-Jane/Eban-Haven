@@ -1,3 +1,4 @@
+using System.Data;
 using System.Text.Json.Serialization;
 using Dapper;
 using EbanHaven.Api.DataAccess;
@@ -164,7 +165,8 @@ public sealed class DonorChurnController(HavenDbContext db, IHttpClientFactory h
         CancellationToken ct = default)
     {
         var conn = db.Database.GetDbConnection();
-        await conn.OpenAsync(ct);
+        if (conn.State == ConnectionState.Closed)
+            await conn.OpenAsync(ct);
         var rows = (await conn.QueryAsync<dynamic>(BatchFeatureSql)).ToList();
 
         if (rows.Count == 0)
@@ -220,7 +222,8 @@ public sealed class DonorChurnController(HavenDbContext db, IHttpClientFactory h
     public async Task<IActionResult> GetChurnRisk(int supporterId, CancellationToken ct)
     {
         var conn = db.Database.GetDbConnection();
-        await conn.OpenAsync(ct);
+        if (conn.State == ConnectionState.Closed)
+            await conn.OpenAsync(ct);
         var row = await conn.QueryFirstOrDefaultAsync<dynamic>(
             SingleFeatureSql, new { SupporterId = supporterId });
 

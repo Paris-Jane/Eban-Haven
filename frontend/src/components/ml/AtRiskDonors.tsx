@@ -16,6 +16,8 @@ interface Props {
   limit?: number;
   threshold?: number;
   onScheduleOutreach?: (supporterId: number) => void;
+  /** Optional map of supporterId → display name, to show names alongside IDs. */
+  supporterNames?: Map<number, string>;
 }
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -83,7 +85,7 @@ function SkeletonRow() {
 
 // ── Main component ────────────────────────────────────────────────────────────
 
-export function AtRiskDonors({ limit = 25, threshold = 0.55, onScheduleOutreach }: Props) {
+export function AtRiskDonors({ limit = 25, threshold = 0.55, onScheduleOutreach, supporterNames }: Props) {
   const [donors,    setDonors]    = useState<AtRiskDonor[]>([]);
   const [loading,   setLoading]   = useState(true);
   const [error,     setError]     = useState<string | null>(null);
@@ -170,7 +172,7 @@ export function AtRiskDonors({ limit = 25, threshold = 0.55, onScheduleOutreach 
         <table className="w-full text-sm">
           <thead>
             <tr className="bg-gray-50 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
-              <th className="px-4 py-3 w-20">Donor ID</th>
+              <th className="px-4 py-3">Donor</th>
               <th className="px-4 py-3">Risk Tier</th>
               <th className="px-4 py-3 w-36">Churn Probability</th>
               <th className="px-4 py-3">Risk Signals</th>
@@ -193,7 +195,11 @@ export function AtRiskDonors({ limit = 25, threshold = 0.55, onScheduleOutreach 
                   const donorId = donor.supporter_id ?? 0;
                   return (
                     <tr key={donorId} className="hover:bg-gray-50 transition-colors">
-                      <td className="px-4 py-3 font-mono text-gray-700 text-xs">#{donorId}</td>
+                      <td className="px-4 py-3">
+                        {supporterNames?.get(donorId)
+                          ? <span className="text-sm font-medium text-gray-800">{supporterNames.get(donorId)}</span>
+                          : <span className="font-mono text-gray-700 text-xs">#{donorId}</span>}
+                      </td>
                       <td className="px-4 py-3">
                         <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs font-semibold ${tier.badge}`}>
                           <span className={`w-1.5 h-1.5 rounded-full ${tier.dot}`} />

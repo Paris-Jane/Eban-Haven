@@ -2,9 +2,11 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { ChevronDown, LoaderCircle, Mail, RefreshCw, Sparkles } from 'lucide-react'
 import {
   generateDonorEmail,
+  getAtRiskDonors,
   getDonorEmailProfile,
   sendDonorEmail,
   getSupporters,
+  type AtRiskDonorInfo,
   type DonorEmailProfile,
   type GeneratedDonorEmail,
   type SentDonorEmail,
@@ -94,9 +96,9 @@ export function EmailHubPage() {
   const [copyState, setCopyState] = useState<'subject' | 'body' | 'html' | null>(null)
   const [showHistory, setShowHistory] = useState(false)
   const [showComposerSettings, setShowComposerSettings] = useState(false)
-  const [previewMode, setPreviewMode] = useState<'plain' | 'rich'>('rich')
   const [signature, setSignature] = useState<SignatureFields>(() => loadStoredSignature())
   const [recipientEmail, setRecipientEmail] = useState('')
+  const [atRiskMap, setAtRiskMap] = useState<Map<number, AtRiskDonorInfo>>(new Map())
 
   useEffect(() => {
     try {
@@ -144,15 +146,38 @@ export function EmailHubPage() {
     if (selectedId != null) void loadProfile(selectedId)
   }, [selectedId, loadProfile])
 
+  // Load churn predictions silently — failures just mean no risk indicators shown
+  useEffect(() => {
+    getAtRiskDonors(0.55, 100)
+      .then((rows) => {
+        setAtRiskMap(new Map(
+          rows
+            .filter((r) => r.supporter_id != null)
+            .map((r) => [r.supporter_id!, r])
+        ))
+      })
+      .catch(() => { /* non-critical — sidebar still works without risk data */ })
+  }, [])
+
   const filteredSupporters = useMemo(() => {
     const needle = search.trim().toLowerCase()
-    if (!needle) return supporters
-    return supporters.filter((supporter) =>
-      `${supporter.displayName} ${supporter.email ?? ''} ${supporter.organizationName ?? ''} ${supporter.region ?? ''}`
-        .toLowerCase()
-        .includes(needle),
-    )
-  }, [supporters, search])
+    const matches = needle
+      ? supporters.filter((s) =>
+          `${s.displayName} ${s.email ?? ''} ${s.organizationName ?? ''} ${s.region ?? ''}`
+            .toLowerCase()
+            .includes(needle),
+        )
+      : supporters
+    // Sort: high-risk first, then moderate, then the rest (by churn probability desc within tier)
+    return [...matches].sort((a, b) => {
+      const ra = atRiskMap.get(a.id)
+      const rb = atRiskMap.get(b.id)
+      if (ra && !rb) return -1
+      if (!ra && rb) return 1
+      if (ra && rb) return rb.churn_probability - ra.churn_probability
+      return 0
+    })
+  }, [supporters, search, atRiskMap])
 
   async function onGenerateEmail() {
     if (selectedId == null) return
@@ -177,7 +202,7 @@ export function EmailHubPage() {
     }
   }
 
-  async function handleCopy(kind: 'subject' | 'body' | 'html', value: string) {
+  async function handleCopy(kind: 'subject' | 'body', value: string) {
     try {
       await copyText(value)
       setCopyState(kind)
@@ -215,10 +240,6 @@ export function EmailHubPage() {
     setSignature((current) => ({ ...current, [key]: value }))
   }
 
-  function createMarkup(html: string) {
-    return { __html: html }
-  }
-
   return (
     <div className="space-y-8">
       <div>
@@ -238,7 +259,14 @@ export function EmailHubPage() {
           <div className="flex items-center justify-between gap-3">
             <div>
               <p className={sectionFormTitle}>Donors</p>
-              <p className="mt-1 text-sm text-muted-foreground">Pick a donor to build a custom email.</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {atRiskMap.size > 0 ? (
+                  <span>
+                    <span className="font-medium text-red-600">{atRiskMap.size} at risk</span>
+                    {' · sorted to top'}
+                  </span>
+                ) : 'Pick a donor to build a custom email.'}
+              </p>
             </div>
             <button
               type="button"
@@ -268,6 +296,9 @@ export function EmailHubPage() {
             ) : (
               filteredSupporters.map((supporter) => {
                 const selected = supporter.id === selectedId
+                const risk = atRiskMap.get(supporter.id)
+                const isHigh = risk?.risk_tier === 'High Risk'
+                const isMod = risk?.risk_tier === 'Moderate Risk'
                 return (
                   <button
                     key={supporter.id}
@@ -276,12 +307,29 @@ export function EmailHubPage() {
                     className={`w-full rounded-xl border p-3 text-left transition-colors ${
                       selected
                         ? 'border-primary/50 bg-primary/10'
-                        : 'border-border bg-background hover:border-primary/30 hover:bg-muted/40'
+                        : isHigh
+                          ? 'border-red-200 bg-red-50/60 hover:bg-red-50'
+                          : isMod
+                            ? 'border-amber-200 bg-amber-50/60 hover:bg-amber-50'
+                            : 'border-border bg-background hover:border-primary/30 hover:bg-muted/40'
                     }`}
                   >
-                    <p className="font-medium text-foreground">{supporter.displayName}</p>
+                    <div className="flex items-start justify-between gap-2">
+                      <p className={`font-medium ${isHigh ? 'text-red-800' : isMod ? 'text-amber-800' : 'text-foreground'}`}>
+                        {supporter.displayName}
+                      </p>
+                      {risk && (
+                        <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                          isHigh
+                            ? 'bg-red-100 text-red-700'
+                            : 'bg-amber-100 text-amber-700'
+                        }`}>
+                          {Math.round(risk.churn_probability * 100)}% churn risk
+                        </span>
+                      )}
+                    </div>
                     <p className="mt-1 text-xs text-muted-foreground">{supporter.email ?? 'No email on file'}</p>
-                    <p className="mt-2 text-xs text-muted-foreground">
+                    <p className="mt-1 text-xs text-muted-foreground">
                       {supporter.supporterType}
                       {supporter.region ? ` · ${supporter.region}` : ''}
                     </p>
@@ -544,7 +592,7 @@ export function EmailHubPage() {
                     {generating ? 'Generating email…' : 'Generate email'}
                   </button>
                   <p className="text-xs text-muted-foreground">
-                    `Open email draft` uses plain text. The rich preview below shows the styled HTML version.
+                    The generated draft will use plain text formatting so it pastes cleanly into email clients.
                   </p>
                 </div>
 
@@ -567,52 +615,18 @@ export function EmailHubPage() {
 
                     <div>
                       <div className="flex flex-wrap items-center justify-between gap-3">
-                        <div className="flex items-center gap-2 rounded-full border border-border bg-card p-1">
-                          <button
-                            type="button"
-                            className={`rounded-full px-3 py-1.5 text-xs font-medium ${
-                              previewMode === 'rich' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground'
-                            }`}
-                            onClick={() => setPreviewMode('rich')}
-                          >
-                            Rich preview
-                          </button>
-                          <button
-                            type="button"
-                            className={`rounded-full px-3 py-1.5 text-xs font-medium ${
-                              previewMode === 'plain' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground'
-                            }`}
-                            onClick={() => setPreviewMode('plain')}
-                          >
-                            Plain text
-                          </button>
-                        </div>
-                        <div className="flex flex-wrap items-center gap-2">
-                          <button
-                            type="button"
-                            className="rounded-lg border border-border bg-card px-3 py-2 text-xs font-medium text-foreground hover:bg-muted/50"
-                            onClick={() => void handleCopy('body', generated.body)}
-                          >
-                            {copyState === 'body' ? 'Copied' : 'Copy text'}
-                          </button>
-                          <button
-                            type="button"
-                            className="rounded-lg border border-border bg-card px-3 py-2 text-xs font-medium text-foreground hover:bg-muted/50"
-                            onClick={() => void handleCopy('html', generated.htmlBody)}
-                          >
-                            {copyState === 'html' ? 'Copied' : 'Copy HTML'}
-                          </button>
-                        </div>
+                        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Body</p>
+                        <button
+                          type="button"
+                          className="rounded-lg border border-border bg-card px-3 py-2 text-xs font-medium text-foreground hover:bg-muted/50"
+                          onClick={() => void handleCopy('body', generated.body)}
+                        >
+                          {copyState === 'body' ? 'Copied' : 'Copy body'}
+                        </button>
                       </div>
-                      {previewMode === 'plain' ? (
-                        <pre className="mt-2 whitespace-pre-wrap rounded-xl border border-border bg-card p-4 font-sans text-sm leading-relaxed text-foreground">
-                          {generated.body}
-                        </pre>
-                      ) : (
-                        <div className="mt-2 overflow-hidden rounded-xl border border-border bg-[#f4efe8]">
-                          <div className="max-h-[48rem] overflow-auto" dangerouslySetInnerHTML={createMarkup(generated.htmlBody)} />
-                        </div>
-                      )}
+                      <pre className="mt-2 whitespace-pre-wrap rounded-xl border border-border bg-card p-4 font-sans text-sm leading-relaxed text-foreground">
+                        {generated.body}
+                      </pre>
                     </div>
 
                     <div className="flex flex-wrap items-center gap-3">

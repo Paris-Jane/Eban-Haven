@@ -49,7 +49,15 @@ public sealed class DonorEmailHubController(
         if (string.IsNullOrWhiteSpace(request.Body) || string.IsNullOrWhiteSpace(request.HtmlBody))
             return BadRequest(new { error = "Email content is required." });
 
-        var sent = await deliveryService.SendAsync(request, cancellationToken);
+        SentDonorEmailDto sent;
+        try
+        {
+            sent = await deliveryService.SendAsync(request, cancellationToken);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Problem(detail: ex.Message, statusCode: StatusCodes.Status422UnprocessableEntity, title: "Email delivery failed");
+        }
         return Ok(sent);
     }
 

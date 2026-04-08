@@ -299,3 +299,12 @@ export type SafehousePerformance = {
   avgEducationProgress: number | null
   avgHealthScore: number | null
 }
+
+export type AtRiskDonorInfo = {
+  supporter_id: number | null
+  churn_probability: number
+  prediction: string
+  risk_tier: 'High Risk' | 'Moderate Risk' | 'Low Risk'
+  threshold_used: number
+  top_risk_signals: string[]
+}

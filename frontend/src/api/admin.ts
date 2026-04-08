@@ -13,6 +13,7 @@ export {
   deleteDonation,
   patchDonationFields,
   getAllocations,
+  getAtRiskDonors,
   getDonorEmailProfile,
   generateDonorEmail,
   sendDonorEmail,

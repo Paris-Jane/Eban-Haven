@@ -70,6 +70,12 @@ export async function getAllocations(params?: {
   return parseJson<T.DonationAllocation[]>(await apiFetch(`${base}/donation-allocations${q}`))
 }
 
+export async function getAtRiskDonors(threshold = 0.55, limit = 50): Promise<T.AtRiskDonorInfo[]> {
+  return parseJson<T.AtRiskDonorInfo[]>(
+    await apiFetch(`/api/donors/at-risk?threshold=${threshold}&limit=${limit}`),
+  )
+}
+
 export async function getDonorEmailProfile(supporterId: number): Promise<T.DonorEmailProfile> {
   return parseJson<T.DonorEmailProfile>(await apiFetch(`${base}/email-hub/supporters/${supporterId}`))
 }
