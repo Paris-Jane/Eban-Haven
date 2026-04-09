@@ -1,6 +1,16 @@
 /** Base URL for the ASP.NET API (no trailing slash). Empty = same origin. */
+const PRODUCTION_API_FALLBACK =
+  'https://eban-haven-backend-hrb6hua3baf6hngc.canadacentral-01.azurewebsites.net'
+
 export function apiBaseUrl(): string {
-  return (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '')
+  const configuredBase = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '')
+  if (configuredBase) return configuredBase
+
+  if (typeof window !== 'undefined' && window.location.hostname.endsWith('.vercel.app')) {
+    return PRODUCTION_API_FALLBACK
+  }
+
+  return ''
 }
 
 function resolveUrl(input: string): string {

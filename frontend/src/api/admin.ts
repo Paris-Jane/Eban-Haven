@@ -22,6 +22,7 @@ export {
   deleteAllocation,
   getResidents,
   getResident,
+  getReintegrationReadinessCohort,
   patchResident,
   createResident,
   deleteResident,

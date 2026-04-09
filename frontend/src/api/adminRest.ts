@@ -1,5 +1,6 @@
 import { apiFetch, parseJson } from './client'
 import type * as T from './adminTypes'
+import type { ReintegrationResult } from '../components/ml/reintegrationReadinessShared'
 
 const base = '/api/admin'
 
@@ -129,6 +130,13 @@ export async function getResidents(params: {
 
 export async function getResident(id: number): Promise<T.ResidentDetail> {
   return parseJson<T.ResidentDetail>(await apiFetch(`${base}/residents/${id}`))
+}
+
+export async function getReintegrationReadinessCohort(signal?: AbortSignal): Promise<{
+  residents: Array<T.ResidentSummary & { readiness: ReintegrationResult }>
+  failed_count: number
+}> {
+  return parseJson(await apiFetch('/api/residents/reintegration-readiness/cohort', { signal }))
 }
 
 export async function patchResident(

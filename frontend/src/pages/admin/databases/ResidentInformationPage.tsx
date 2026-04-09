@@ -3,11 +3,13 @@ import { ResidentsPage } from './ResidentsPage'
 import { ProcessRecordingsPage } from './ProcessRecordingsPage'
 import { HomeVisitationsAdminPage } from './HomeVisitationsAdminPage'
 import { CaseConferencesAdminPage } from './CaseConferencesAdminPage'
+import { ReintegrationReadinessPage } from './ReintegrationReadinessPage'
 
-type Tab = 'residents' | 'process-recordings' | 'home-visitations' | 'case-conferences'
+type Tab = 'residents' | 'reintegration-readiness' | 'process-recordings' | 'home-visitations' | 'case-conferences'
 
 const tabs: { id: Tab; label: string }[] = [
   { id: 'residents', label: 'Residents' },
+  { id: 'reintegration-readiness', label: 'Reintegration Readiness' },
   { id: 'process-recordings', label: 'Process Recordings' },
   { id: 'home-visitations', label: 'Home Visitations' },
   { id: 'case-conferences', label: 'Case Conferences' },
@@ -37,6 +39,7 @@ export function ResidentInformationPage() {
       </div>
 
       {active === 'residents' && <ResidentsPage />}
+      {active === 'reintegration-readiness' && <ReintegrationReadinessPage />}
       {active === 'process-recordings' && <ProcessRecordingsPage />}
       {active === 'home-visitations' && <HomeVisitationsAdminPage />}
       {active === 'case-conferences' && <CaseConferencesAdminPage />}

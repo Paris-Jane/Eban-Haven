@@ -10,7 +10,7 @@ namespace EbanHaven.Api.Controllers;
 
 // ── DTOs ──────────────────────────────────────────────────────────────────────
 
-file record ReintegrationFeaturesPayload(
+internal sealed record ReintegrationFeaturesPayload(
     [property: JsonPropertyName("resident_id")]              int    ResidentId,
     [property: JsonPropertyName("safehouse_id")]             string SafehouseId,
     [property: JsonPropertyName("age_at_entry")]             int    AgeAtEntry,
@@ -30,7 +30,7 @@ file record ReintegrationFeaturesPayload(
     [property: JsonPropertyName("pct_plans_achieved")]       double PctPlansAchieved
 );
 
-file record ImprovementArea(
+internal sealed record ImprovementArea(
     [property: JsonPropertyName("feature")]         string Feature,
     [property: JsonPropertyName("label")]           string Label,
     [property: JsonPropertyName("resident_value")]  double ResidentValue,
@@ -39,13 +39,55 @@ file record ImprovementArea(
     [property: JsonPropertyName("suggestion")]      string Suggestion
 );
 
-file record ReintegrationPredictionResponse(
+internal sealed record ReintegrationPredictionResponse(
     [property: JsonPropertyName("resident_id")]               int?                ResidentId,
     [property: JsonPropertyName("reintegration_probability")] double              ReintegrationProbability,
     [property: JsonPropertyName("prediction")]                string              Prediction,
     [property: JsonPropertyName("risk_tier")]                 string              RiskTier,
     [property: JsonPropertyName("threshold_used")]            double              ThresholdUsed,
     [property: JsonPropertyName("top_improvements")]          List<ImprovementArea> TopImprovements
+);
+
+internal sealed record ReintegrationCohortResidentResponse(
+    [property: JsonPropertyName("id")]                         int Id,
+    [property: JsonPropertyName("caseControlNo")]              string CaseControlNo,
+    [property: JsonPropertyName("internalCode")]               string InternalCode,
+    [property: JsonPropertyName("safehouseId")]                int SafehouseId,
+    [property: JsonPropertyName("safehouseName")]              string? SafehouseName,
+    [property: JsonPropertyName("caseStatus")]                 string CaseStatus,
+    [property: JsonPropertyName("caseCategory")]               string CaseCategory,
+    [property: JsonPropertyName("sex")]                        string Sex,
+    [property: JsonPropertyName("assignedSocialWorker")]       string? AssignedSocialWorker,
+    [property: JsonPropertyName("dateOfAdmission")]            string? DateOfAdmission,
+    [property: JsonPropertyName("reintegrationStatus")]        string? ReintegrationStatus,
+    [property: JsonPropertyName("reintegrationType")]          string? ReintegrationType,
+    [property: JsonPropertyName("presentAge")]                 string? PresentAge,
+    [property: JsonPropertyName("lengthOfStay")]               string? LengthOfStay,
+    [property: JsonPropertyName("currentRiskLevel")]           string? CurrentRiskLevel,
+    [property: JsonPropertyName("readiness")]                  ReintegrationPredictionResponse Readiness
+);
+
+internal sealed record ReintegrationCohortResponse(
+    [property: JsonPropertyName("residents")]                  List<ReintegrationCohortResidentResponse> Residents,
+    [property: JsonPropertyName("failed_count")]               int FailedCount
+);
+
+internal sealed record ResidentCohortRow(
+    int Id,
+    string CaseControlNo,
+    string InternalCode,
+    int SafehouseId,
+    string? SafehouseName,
+    string CaseStatus,
+    string CaseCategory,
+    string Sex,
+    string? AssignedSocialWorker,
+    DateOnly? DateOfAdmission,
+    string? ReintegrationStatus,
+    string? ReintegrationType,
+    string? PresentAge,
+    string? LengthOfStay,
+    string? CurrentRiskLevel
 );
 
 // ── Controller ────────────────────────────────────────────────────────────────
@@ -140,47 +182,151 @@ public sealed class ReintegrationReadinessController(HavenDbContext db, IHttpCli
         WHERE r.resident_id = @ResidentId
         """;
 
+    [HttpGet("reintegration-readiness/cohort")]
+    public async Task<IActionResult> GetReintegrationReadinessCohort(CancellationToken ct)
+    {
+        List<ResidentCohortRow> residents;
+        try
+        {
+            residents = await (
+                from resident in db.Residents.AsNoTracking()
+                where resident.CaseStatus == "Active"
+                join safehouse in db.Safehouses.AsNoTracking()
+                    on resident.SafehouseId equals safehouse.SafehouseId into safehouseJoin
+                from safehouse in safehouseJoin.DefaultIfEmpty()
+                orderby resident.InternalCode
+                select new ResidentCohortRow(
+                    resident.ResidentId,
+                    resident.CaseControlNo,
+                    resident.InternalCode,
+                    resident.SafehouseId,
+                    safehouse != null ? safehouse.Name : null,
+                    resident.CaseStatus,
+                    resident.CaseCategory,
+                    resident.Sex,
+                    resident.AssignedSocialWorker,
+                    resident.DateOfAdmission,
+                    resident.ReintegrationStatus,
+                    resident.ReintegrationType,
+                    resident.PresentAge,
+                    resident.LengthOfStay,
+                    resident.CurrentRiskLevel))
+                .ToListAsync(ct);
+        }
+        catch (Exception ex)
+        {
+            return Problem(detail: $"Failed to load resident cohort: {ex.Message}", statusCode: 500);
+        }
+
+        var results = new List<ReintegrationCohortResidentResponse>(residents.Count);
+        var failedCount = 0;
+        string? firstFailure = null;
+
+        foreach (var resident in residents)
+        {
+            if (ct.IsCancellationRequested)
+                break;
+
+            try
+            {
+                var featureRow = await LoadFeatureRowAsync((int)resident.Id, ct);
+                if (featureRow is null)
+                {
+                    failedCount++;
+                    firstFailure ??= $"Resident {resident.Id} not found.";
+                    continue;
+                }
+
+                var prediction = await PredictReintegrationAsync(MapFeaturesPayload(resident.Id, featureRow), ct);
+                results.Add(new ReintegrationCohortResidentResponse(
+                    Id: resident.Id,
+                    CaseControlNo: resident.CaseControlNo,
+                    InternalCode: resident.InternalCode,
+                    SafehouseId: resident.SafehouseId,
+                    SafehouseName: resident.SafehouseName,
+                    CaseStatus: resident.CaseStatus,
+                    CaseCategory: resident.CaseCategory,
+                    Sex: resident.Sex,
+                    AssignedSocialWorker: resident.AssignedSocialWorker,
+                    DateOfAdmission: resident.DateOfAdmission?.ToString("yyyy-MM-dd"),
+                    ReintegrationStatus: resident.ReintegrationStatus,
+                    ReintegrationType: resident.ReintegrationType,
+                    PresentAge: resident.PresentAge,
+                    LengthOfStay: resident.LengthOfStay,
+                    CurrentRiskLevel: resident.CurrentRiskLevel,
+                    Readiness: prediction));
+            }
+            catch (Exception ex) when (!ct.IsCancellationRequested)
+            {
+                failedCount++;
+                firstFailure ??= ex.Message;
+            }
+        }
+
+        if (results.Count == 0 && failedCount > 0)
+            return Problem(detail: firstFailure ?? "Reintegration readiness cohort unavailable.", statusCode: 502);
+
+        return Ok(new ReintegrationCohortResponse(results, failedCount));
+    }
+
     // ── GET /api/residents/{residentId}/reintegration-readiness ───────────────
 
     [HttpGet("{residentId:int}/reintegration-readiness")]
     public async Task<IActionResult> GetReintegrationReadiness(int residentId, CancellationToken ct)
     {
-        dynamic? row;
         try
         {
-            var conn = db.Database.GetDbConnection();
-            if (conn.State == ConnectionState.Closed)
-                await conn.OpenAsync(ct);
-            row = await conn.QueryFirstOrDefaultAsync<dynamic>(FeatureSql, new { ResidentId = residentId });
+            var row = await LoadFeatureRowAsync(residentId, ct);
+            if (row is null)
+                return NotFound(new { message = $"Resident {residentId} not found." });
+
+            var prediction = await PredictReintegrationAsync(MapFeaturesPayload(residentId, row), ct);
+            return Ok(prediction);
         }
         catch (Exception ex)
         {
-            return Problem(detail: $"SQL error: {ex.Message}", statusCode: 500);
+            return Problem(detail: ex.Message, statusCode: ex is HttpRequestException ? 502 : 500);
         }
+    }
 
-        if (row is null)
-            return NotFound(new { message = $"Resident {residentId} not found." });
+    private async Task<dynamic?> LoadFeatureRowAsync(int residentId, CancellationToken ct)
+    {
+        var conn = db.Database.GetDbConnection();
+        if (conn.State == ConnectionState.Closed)
+            await conn.OpenAsync(ct);
 
-        var payload = new ReintegrationFeaturesPayload(
-            ResidentId:             residentId,
-            SafehouseId:            (string)(row.safehouse_code ?? "Unknown"),
-            AgeAtEntry:             (int)ToDouble(row.age_at_entry, 15),
-            DaysInProgram:          (int)ToDouble(row.days_in_program, 0),
-            ReferralSource:         "Unknown",
-            TotalSessions:          ToDouble(row.total_sessions, 0),
-            PctProgressNoted:       ToDouble(row.pct_progress_noted, 0),
-            PctConcernsFlagged:     ToDouble(row.pct_concerns_flagged, 0),
-            LatestAttendanceRate:   0.0,
-            AvgProgressPercent:     ToDouble(row.avg_progress_percent, 0),
-            AvgGeneralHealthScore:  ToDouble(row.avg_general_health_score, 5),
-            PctPsychCheckupDone:    0.0,
-            NumHealthRecords:       ToDouble(row.num_health_records, 0),
-            TotalIncidents:         ToDouble(row.total_incidents, 0),
-            NumSevereIncidents:     ToDouble(row.num_severe_incidents, 0),
-            TotalPlans:             ToDouble(row.total_plans, 0),
-            PctPlansAchieved:       ToDouble(row.pct_plans_achieved, 0)
-        );
+        try
+        {
+            return await conn.QueryFirstOrDefaultAsync<dynamic>(FeatureSql, new { ResidentId = residentId });
+        }
+        catch (Exception ex)
+        {
+            throw new InvalidOperationException($"SQL error: {ex.Message}", ex);
+        }
+    }
 
+    private static ReintegrationFeaturesPayload MapFeaturesPayload(int residentId, dynamic row) =>
+        new(
+            ResidentId: residentId,
+            SafehouseId: (string)(row.safehouse_code ?? "Unknown"),
+            AgeAtEntry: (int)ToDouble(row.age_at_entry, 15),
+            DaysInProgram: (int)ToDouble(row.days_in_program, 0),
+            ReferralSource: "Unknown",
+            TotalSessions: ToDouble(row.total_sessions, 0),
+            PctProgressNoted: ToDouble(row.pct_progress_noted, 0),
+            PctConcernsFlagged: ToDouble(row.pct_concerns_flagged, 0),
+            LatestAttendanceRate: 0.0,
+            AvgProgressPercent: ToDouble(row.avg_progress_percent, 0),
+            AvgGeneralHealthScore: ToDouble(row.avg_general_health_score, 5),
+            PctPsychCheckupDone: 0.0,
+            NumHealthRecords: ToDouble(row.num_health_records, 0),
+            TotalIncidents: ToDouble(row.total_incidents, 0),
+            NumSevereIncidents: ToDouble(row.num_severe_incidents, 0),
+            TotalPlans: ToDouble(row.total_plans, 0),
+            PctPlansAchieved: ToDouble(row.pct_plans_achieved, 0));
+
+    private async Task<ReintegrationPredictionResponse> PredictReintegrationAsync(ReintegrationFeaturesPayload payload, CancellationToken ct)
+    {
         var http = httpFactory.CreateClient("MlService");
         HttpResponseMessage response;
         try
@@ -189,15 +335,18 @@ public sealed class ReintegrationReadinessController(HavenDbContext db, IHttpCli
         }
         catch (HttpRequestException ex)
         {
-            return Problem(detail: $"ML service unavailable: {ex.Message}", statusCode: 502);
+            throw new HttpRequestException($"ML service unavailable: {ex.Message}", ex);
         }
 
         if (!response.IsSuccessStatusCode)
-            return Problem(detail: $"ML service error {(int)response.StatusCode}: {await response.Content.ReadAsStringAsync(ct)}",
-                           statusCode: (int)response.StatusCode);
+            throw new InvalidOperationException(
+                $"ML service error {(int)response.StatusCode}: {await response.Content.ReadAsStringAsync(ct)}");
 
         var prediction = await response.Content.ReadFromJsonAsync<ReintegrationPredictionResponse>(ct);
-        return Ok(prediction);
+        if (prediction is null)
+            throw new InvalidOperationException("ML service returned an empty reintegration readiness response.");
+
+        return prediction;
     }
 
     private static double ToDouble(dynamic? value, double fallback) =>

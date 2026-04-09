@@ -1,35 +1,11 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import { apiFetch, getStaffToken, parseJson } from "../../api/client";
-
-// ── Types ─────────────────────────────────────────────────────────────────────
-
-interface ImprovementArea {
-  feature:         string;
-  label:           string;
-  resident_value:  number;
-  benchmark_value: number;
-  gap_score:       number;
-  suggestion:      string;
-}
-
-interface ReintegrationResult {
-  resident_id:               number | null;
-  reintegration_probability: number;
-  prediction:                "Ready" | "Not Ready";
-  risk_tier:                 "High Readiness" | "Moderate Readiness" | "Low Readiness";
-  threshold_used:            number;
-  top_improvements:          ImprovementArea[];
-}
-
-// ── Constants ─────────────────────────────────────────────────────────────────
-
-const TIER_CONFIG: Record<ReintegrationResult["risk_tier"], {
-  badge: string; text: string; border: string; dot: string; bar: string; bg: string; icon: string;
-}> = {
-  "High Readiness":     { badge: "bg-emerald-100 text-emerald-800 border-emerald-300", text: "text-emerald-800", border: "border-emerald-300", dot: "bg-emerald-500", bar: "bg-emerald-500", bg: "bg-emerald-50",  icon: "✅" },
-  "Moderate Readiness": { badge: "bg-amber-100 text-amber-800 border-amber-300",       text: "text-amber-800",   border: "border-amber-300",   dot: "bg-amber-400",   bar: "bg-amber-400",   bg: "bg-amber-50",   icon: "⏳" },
-  "Low Readiness":      { badge: "bg-red-100 text-red-800 border-red-300",             text: "text-red-800",     border: "border-red-300",     dot: "bg-red-500",     bar: "bg-red-400",     bg: "bg-red-50",     icon: "⚠️" },
-};
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { apiFetch, getStaffToken, parseJson } from '../../api/client'
+import {
+  formatFeatureValue,
+  type ImprovementArea,
+  type ReintegrationResult,
+  TIER_CONFIG,
+} from './reintegrationReadinessShared'
 
 // ── Sub-components ────────────────────────────────────────────────────────────
 
@@ -38,9 +14,9 @@ function ReadinessGauge({ probability, thresholdUsed, tier }: {
   thresholdUsed: number;
   tier:          ReintegrationResult["risk_tier"];
 }) {
-  const pct       = Math.round(probability    * 100);
-  const threshold = Math.round(thresholdUsed  * 100);
-  const config    = TIER_CONFIG[tier];
+  const pct = Math.round(probability * 100)
+  const threshold = Math.round(thresholdUsed * 100)
+  const config = TIER_CONFIG[tier]
   return (
     <div className="space-y-1.5">
       <div className="flex items-center justify-between">
@@ -59,31 +35,16 @@ function ReadinessGauge({ probability, thresholdUsed, tier }: {
         <span>100%</span>
       </div>
     </div>
-  );
-}
-
-// Features with a percentage/rate display (0–1 stored, shown as %)
-const PERCENT_FEATURES = new Set([
-  "pct_progress_noted", "pct_concerns_flagged", "latest_attendance_rate",
-  "pct_psych_checkup_done", "pct_plans_achieved",
-]);
-
-// Features with a 0–100 display
-const PCT100_FEATURES = new Set(["avg_progress_percent"]);
-
-function formatFeatureValue(feature: string, value: number): string {
-  if (PERCENT_FEATURES.has(feature))  return `${Math.round(value * 100)}%`;
-  if (PCT100_FEATURES.has(feature))   return `${Math.round(value)}%`;
-  if (feature === "avg_general_health_score") return `${value.toFixed(1)} / 10`;
-  return Number.isInteger(value) ? String(value) : value.toFixed(1);
+  )
 }
 
 function ImprovementCard({ area, rank }: { area: ImprovementArea; rank: number }) {
-  const residentFmt  = formatFeatureValue(area.feature, area.resident_value);
-  const benchmarkFmt = formatFeatureValue(area.feature, area.benchmark_value);
-  const isLowerBetter = area.feature === "total_incidents"    ||
-                        area.feature === "num_severe_incidents" ||
-                        area.feature === "pct_concerns_flagged";
+  const residentFmt = formatFeatureValue(area.feature, area.resident_value)
+  const benchmarkFmt = formatFeatureValue(area.feature, area.benchmark_value)
+  const isLowerBetter =
+    area.feature === 'total_incidents' ||
+    area.feature === 'num_severe_incidents' ||
+    area.feature === 'pct_concerns_flagged'
 
   return (
     <div className="flex gap-3 p-3 rounded-xl bg-gray-50 border border-gray-200">
@@ -94,7 +55,10 @@ function ImprovementCard({ area, rank }: { area: ImprovementArea; rank: number }
         <div className="flex items-center justify-between gap-2 flex-wrap">
           <span className="text-xs font-semibold text-gray-800">{area.label}</span>
           <div className="flex items-center gap-1.5 text-[11px] shrink-0">
-            <span className="text-red-600 font-medium">{isLowerBetter && area.resident_value > area.benchmark_value ? "▲ " : "▼ "}{residentFmt}</span>
+            <span className="text-red-600 font-medium">
+              {isLowerBetter && area.resident_value > area.benchmark_value ? '▲ ' : '▼ '}
+              {residentFmt}
+            </span>
             <span className="text-gray-400">→</span>
             <span className="text-emerald-700 font-medium">{benchmarkFmt}</span>
           </div>
@@ -102,7 +66,7 @@ function ImprovementCard({ area, rank }: { area: ImprovementArea; rank: number }
         <p className="text-[11px] text-gray-500 mt-0.5 leading-relaxed">{area.suggestion}</p>
       </div>
     </div>
-  );
+  )
 }
 
 function SkeletonCard() {
@@ -120,73 +84,73 @@ function SkeletonCard() {
         <div className="h-8 bg-gray-100 rounded-full" />
       </div>
     </div>
-  );
+  )
 }
 
 // ── Main component ────────────────────────────────────────────────────────────
 
 export function ReintegrationReadiness({ residentId }: { residentId: number }) {
-  const [result,    setResult]    = useState<ReintegrationResult | null>(null);
-  const [loading,   setLoading]   = useState(true);
-  const [error,     setError]     = useState<string | null>(null);
-  const [lastFetch, setLastFetch] = useState<Date | null>(null);
-  const abortRef = useRef<AbortController | null>(null);
+  const [result, setResult] = useState<ReintegrationResult | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [lastFetch, setLastFetch] = useState<Date | null>(null)
+  const abortRef = useRef<AbortController | null>(null)
 
   const fetchResult = useCallback(() => {
     if (!getStaffToken()) {
-      setResult(null);
-      setError("Sign in to view reintegration readiness predictions.");
-      setLoading(false);
-      return;
+      setResult(null)
+      setError('Sign in to view reintegration readiness predictions.')
+      setLoading(false)
+      return
     }
 
-    abortRef.current?.abort();
-    const controller = new AbortController();
-    abortRef.current = controller;
+    abortRef.current?.abort()
+    const controller = new AbortController()
+    abortRef.current = controller
 
-    setLoading(true);
-    setError(null);
+    setLoading(true)
+    setError(null)
 
     apiFetch(`/api/residents/${residentId}/reintegration-readiness`, { signal: controller.signal })
       .then(async (res) => {
         if (res.status === 401 || res.status === 403) {
-          throw new Error("Session expired. Sign in again to load this prediction.");
+          throw new Error('Session expired. Sign in again to load this prediction.')
         }
         if (res.status === 404) {
-          throw new Error("Resident record not found.");
+          throw new Error('Resident record not found.')
         }
         if (!res.ok) {
-          const text = await res.text();
+          const text = await res.text()
           try {
-            const j = JSON.parse(text) as { detail?: string; title?: string };
-            throw new Error(j.detail ?? j.title ?? `HTTP ${res.status}: ${text.slice(0, 200)}`);
+            const j = JSON.parse(text) as { detail?: string; title?: string }
+            throw new Error(j.detail ?? j.title ?? `HTTP ${res.status}: ${text.slice(0, 200)}`)
           } catch (parseErr) {
-            if (parseErr instanceof SyntaxError) throw new Error(`HTTP ${res.status}: ${text.slice(0, 200)}`);
-            throw parseErr;
+            if (parseErr instanceof SyntaxError) throw new Error(`HTTP ${res.status}: ${text.slice(0, 200)}`)
+            throw parseErr
           }
         }
-        return parseJson<ReintegrationResult>(res);
+        return parseJson<ReintegrationResult>(res)
       })
       .then((data) => {
         if (!controller.signal.aborted) {
-          setResult(data);
-          setLastFetch(new Date());
+          setResult(data)
+          setLastFetch(new Date())
         }
       })
       .catch((err: Error) => {
-        if (!controller.signal.aborted) setError(err.message);
+        if (!controller.signal.aborted) setError(err.message)
       })
       .finally(() => {
-        if (!controller.signal.aborted) setLoading(false);
-      });
-  }, [residentId]);
+        if (!controller.signal.aborted) setLoading(false)
+      })
+  }, [residentId])
 
   useEffect(() => {
-    fetchResult();
-    return () => abortRef.current?.abort();
-  }, [fetchResult]);
+    fetchResult()
+    return () => abortRef.current?.abort()
+  }, [fetchResult])
 
-  if (loading) return <SkeletonCard />;
+  if (loading) return <SkeletonCard />
 
   if (error) {
     return (
@@ -205,19 +169,19 @@ export function ReintegrationReadiness({ residentId }: { residentId: number }) {
           </button>
         </div>
       </div>
-    );
+    )
   }
 
-  if (!result) return null;
+  if (!result) return null
 
-  const tier    = result.risk_tier;
-  const config  = TIER_CONFIG[tier];
-  const isReady = result.prediction === "Ready";
+  const tier = result.risk_tier
+  const config = TIER_CONFIG[tier]
+  const isReady = result.prediction === 'Ready'
 
   return (
     <div className={`rounded-2xl border shadow-sm overflow-hidden ${isReady ? "border-emerald-200" : "border-gray-200"} bg-white`}>
       {/* ── Header ── */}
-      <div className={`px-5 py-4 border-b flex items-center justify-between ${isReady ? "border-emerald-100 bg-emerald-50/40" : "border-gray-100"}`}>
+      <div className={`px-5 py-4 border-b flex items-center justify-between ${isReady ? 'border-emerald-100 bg-emerald-50/40' : 'border-gray-100'}`}>
         <div>
           <h2 className="text-base font-semibold text-gray-800 flex items-center gap-2">
             <span className="text-lg">{config.icon}</span>
@@ -244,20 +208,16 @@ export function ReintegrationReadiness({ residentId }: { residentId: number }) {
 
       {/* ── Body ── */}
       <div className="px-5 py-4 space-y-4">
-        <ReadinessGauge
-          probability={result.reintegration_probability}
-          thresholdUsed={result.threshold_used}
-          tier={tier}
-        />
+        <ReadinessGauge probability={result.reintegration_probability} thresholdUsed={result.threshold_used} tier={tier} />
 
         <div className={`rounded-xl px-4 py-3 ${config.bg} border ${config.border}`}>
           <p className={`text-xs font-semibold uppercase tracking-wide ${config.text}`}>
             {tier}
           </p>
           <p className="text-xs text-gray-600 mt-0.5">
-            {tier === "High Readiness"     && "This resident shows strong indicators for successful reintegration."}
-            {tier === "Moderate Readiness" && "Some readiness indicators present — continued support recommended before transition."}
-            {tier === "Low Readiness"      && "Key readiness factors are below threshold. Focused intervention advised before planning reintegration."}
+            {tier === 'High Readiness' && 'This resident shows strong indicators for successful reintegration.'}
+            {tier === 'Moderate Readiness' && 'Some readiness indicators present — continued support recommended before transition.'}
+            {tier === 'Low Readiness' && 'Key readiness factors are below threshold. Focused intervention advised before planning reintegration.'}
           </p>
         </div>
 
@@ -287,7 +247,7 @@ export function ReintegrationReadiness({ residentId }: { residentId: number }) {
         </div>
       )}
     </div>
-  );
+  )
 }
 
-export default ReintegrationReadiness;
+export default ReintegrationReadiness
