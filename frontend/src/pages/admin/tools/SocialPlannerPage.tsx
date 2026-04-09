@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import ReactMarkdown from 'react-markdown'
 import {
   Bot,
   CalendarClock,
   CheckCheck,
   ChevronDown,
   ChevronUp,
-  ExternalLink,
   Image,
   LoaderCircle,
   MessageCircle,
@@ -66,8 +66,6 @@ type EditDraft = {
 }
 
 // ── Constants ──────────────────────────────────────────────────────────────────
-
-const PEXELS_KEY = (import.meta.env.VITE_PEXELS_API_KEY as string | undefined) ?? ''
 
 const starterPrompts = [
   {
@@ -130,10 +128,10 @@ function normalizeHashtag(tag: string) {
 
 async function fetchPexelsImages(query: string): Promise<PexelsPhoto[]> {
   const res = await fetch(
-    `https://api.pexels.com/v1/search?query=${encodeURIComponent(query)}&per_page=9&orientation=landscape`,
-    { headers: { Authorization: PEXELS_KEY } },
+    `/api/admin/social-planner/image-search?query=${encodeURIComponent(query)}`,
+    { credentials: 'include' },
   )
-  if (!res.ok) throw new Error('Pexels search failed')
+  if (!res.ok) throw new Error('Image search failed')
   const data = (await res.json()) as { photos: PexelsPhoto[] }
   return data.photos ?? []
 }
@@ -902,7 +900,24 @@ export function SocialPlannerPage() {
                         : 'border border-border bg-muted/40 text-foreground'
                     }`}
                   >
-                    <p className="whitespace-pre-wrap text-sm leading-relaxed">{msg.content}</p>
+                    {msg.role === 'user' ? (
+                      <p className="whitespace-pre-wrap text-sm leading-relaxed">{msg.content}</p>
+                    ) : (
+                      <div className="prose prose-sm max-w-none text-sm leading-relaxed text-foreground
+                        [&_strong]:font-semibold [&_strong]:text-foreground
+                        [&_em]:italic
+                        [&_ul]:mt-2 [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:space-y-1
+                        [&_ol]:mt-2 [&_ol]:list-decimal [&_ol]:pl-5 [&_ol]:space-y-1
+                        [&_li]:text-sm [&_li]:leading-relaxed
+                        [&_p]:mb-2 last:[&_p]:mb-0
+                        [&_h1]:text-base [&_h1]:font-semibold [&_h1]:mt-3 [&_h1]:mb-1
+                        [&_h2]:text-sm [&_h2]:font-semibold [&_h2]:mt-3 [&_h2]:mb-1
+                        [&_h3]:text-sm [&_h3]:font-semibold [&_h3]:mt-2 [&_h3]:mb-1
+                        [&_blockquote]:border-l-2 [&_blockquote]:border-border [&_blockquote]:pl-3 [&_blockquote]:text-muted-foreground
+                        [&_code]:rounded [&_code]:bg-muted [&_code]:px-1 [&_code]:py-0.5 [&_code]:text-xs">
+                        <ReactMarkdown>{msg.content}</ReactMarkdown>
+                      </div>
+                    )}
 
                     {msg.role === 'assistant' && msg.response && (
                       <div className="mt-4 space-y-4 border-t border-border/70 pt-4">
@@ -915,14 +930,6 @@ export function SocialPlannerPage() {
                                 <li key={q} className="rounded-lg border border-border/70 bg-background p-3">{q}</li>
                               ))}
                             </ul>
-                          </section>
-                        )}
-
-                        {/* Planning summary */}
-                        {msg.response.structured.planningSummary && (
-                          <section className="rounded-xl border border-border/70 bg-background p-4">
-                            <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Plan summary</h4>
-                            <p className="mt-2 text-sm text-muted-foreground">{msg.response.structured.planningSummary}</p>
                           </section>
                         )}
 
@@ -962,8 +969,7 @@ export function SocialPlannerPage() {
                                     {idea.imageIdea && (
                                       <div className="mt-2 flex items-center gap-2">
                                         <p className="text-xs text-muted-foreground">📷 {idea.imageIdea}</p>
-                                        {PEXELS_KEY ? (
-                                          <button
+                                        <button
                                             type="button"
                                             onClick={() => setImageSearchKey(imageSearchKey === ideaKey ? null : ideaKey)}
                                             className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-0.5 text-[10px] font-medium text-muted-foreground hover:bg-muted/50 hover:text-foreground"
@@ -971,17 +977,6 @@ export function SocialPlannerPage() {
                                             <Image className="h-3 w-3" />
                                             {imageSearchKey === ideaKey ? 'Hide images' : 'Find images'}
                                           </button>
-                                        ) : (
-                                          <a
-                                            href={`https://www.pexels.com/search/${encodeURIComponent(idea.imageIdea)}`}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-0.5 text-[10px] font-medium text-muted-foreground hover:bg-muted/50 hover:text-foreground"
-                                          >
-                                            <ExternalLink className="h-3 w-3" />
-                                            Search Pexels
-                                          </a>
-                                        )}
                                       </div>
                                     )}
                                     {imageSearchKey === ideaKey && (
@@ -1221,8 +1216,7 @@ export function SocialPlannerPage() {
                     {post.imageIdea && (
                       <div className="mt-2 flex items-center gap-2">
                         <p className="text-xs text-muted-foreground/70">📷 {post.imageIdea}</p>
-                        {PEXELS_KEY ? (
-                          <button
+                        <button
                             type="button"
                             onClick={() => {
                               const k = `queue-${post.id}`
@@ -1231,19 +1225,8 @@ export function SocialPlannerPage() {
                             className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-0.5 text-[10px] font-medium text-muted-foreground hover:bg-muted/50 hover:text-foreground"
                           >
                             <Image className="h-3 w-3" />
-                            Images
+                            {imageSearchKey === `queue-${post.id}` ? 'Hide images' : 'Find images'}
                           </button>
-                        ) : (
-                          <a
-                            href={`https://www.pexels.com/search/${encodeURIComponent(post.imageIdea)}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-0.5 text-[10px] font-medium text-muted-foreground hover:bg-muted/50 hover:text-foreground"
-                          >
-                            <ExternalLink className="h-3 w-3" />
-                            Unsplash
-                          </a>
-                        )}
                       </div>
                     )}
 
