@@ -1,19 +1,28 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { GraduationCap, Heart, Home, UserCheck, Users } from 'lucide-react'
+import { ArrowRight, Heart, Quote } from 'lucide-react'
 import { getImpactSnapshots, getImpactSummary, type PublicImpactSnapshot, type PublicImpactSummary } from '../../api/impact'
 import { IMAGES, SITE_DISPLAY_NAME } from '../../site'
 
+/**
+ * Public impact page — layout and narrative aligned with the reference flow at
+ * https://haven-hope-flow.base44.app/impact while using live Eban Haven API data.
+ *
+ * Optional snapshot metrics (published `public_impact_snapshots.metrics`):
+ * - Keys prefixed `who_` with numeric values → “Who we serve” bars (e.g. who_abandoned → 38).
+ * - Keys prefixed `outcome_` with numeric values → “Post-rehab outcomes” bars.
+ */
+
 const fade = {
-  hidden: { opacity: 0, y: 20 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.5 } },
+  hidden: { opacity: 0, y: 18 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.45 } },
 }
 
 const crisisStats = [
   { value: '1 in 3', label: 'girls in Ghana experiences physical or sexual violence before age 18' },
   { value: '40%', label: 'of trafficking victims in West Africa are children under 18' },
-  { value: '600,000+', label: 'children estimated in situations of child labor in Ghana (global estimates context)' },
+  { value: '600K+', label: 'children estimated in situations of child labor in Ghana (regional context)' },
   { value: '72%', label: 'of survivors lack consistent access to formal rehabilitation services' },
 ] as const
 
@@ -35,125 +44,132 @@ const allocation = [
   },
 ] as const
 
+const lifeBullets = [
+  'Individual and group counseling sessions',
+  'Bridge and secondary education programs',
+  'Vocational and livelihood training',
+  'Monthly health and nutrition monitoring',
+] as const
+
 const btnPrimary =
-  'inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-primary px-8 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90'
-const btnOutline =
-  'inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-primary bg-transparent px-8 text-sm font-medium text-primary transition-colors hover:bg-primary/10'
+  'inline-flex h-11 items-center justify-center gap-2 rounded-full bg-primary px-7 text-sm font-semibold text-primary-foreground shadow-sm transition-opacity hover:opacity-92'
+const btnSecondary =
+  'inline-flex h-11 items-center justify-center gap-2 rounded-full border-2 border-primary bg-transparent px-7 text-sm font-semibold text-primary transition-colors hover:bg-primary/8'
 
-type GrowthPoint = {
-  month: string
-  label: string
-  value: number
+function formatMetricKey(key: string) {
+  return key
+    .replace(/^who_/i, '')
+    .replace(/^outcome_/i, '')
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, (c) => c.toUpperCase())
 }
 
-function metricNumber(value: string) {
-  return value === '—' ? value : value
-}
-
-function buildStats(summary: PublicImpactSummary | null) {
-  const base = [
-    { icon: Home, color: 'text-accent' as const, tone: 'bg-accent/10' },
-    { icon: GraduationCap, color: 'text-primary' as const, tone: 'bg-primary/10' },
-    { icon: Heart, color: 'text-accent' as const, tone: 'bg-accent/10' },
-    { icon: UserCheck, color: 'text-primary' as const, tone: 'bg-primary/10' },
-    { icon: Users, color: 'text-accent' as const, tone: 'bg-accent/10' },
-  ]
-  const labels = [
-    'Active safehouses',
-    'School progress average',
-    'Health score average',
-    'Family reintegration rate',
-    'Community partners',
-  ]
-  const descriptions = [
-    'Safe spaces currently operating for girls in recovery.',
-    'Average educational progress across active care plans.',
-    'Wellbeing trend across active support records.',
-    'Girls successfully transitioned into supported family settings.',
-    'Supporters, advocates, and organizational partners in the network.',
-  ]
-  if (!summary) {
-    return base.map((b, i) => ({ ...b, value: '—', label: labels[i] ?? '', description: descriptions[i] ?? '' }))
+function parseMetricBars(metrics: Record<string, string | undefined>, prefix: 'who_' | 'outcome_') {
+  const rows: { key: string; label: string; value: number }[] = []
+  for (const [k, raw] of Object.entries(metrics)) {
+    if (!k.toLowerCase().startsWith(prefix) || raw == null) continue
+    const n = Number(String(raw).replace(/%/g, '').trim())
+    if (!Number.isFinite(n) || n < 0) continue
+    rows.push({ key: k, label: formatMetricKey(k), value: n > 1 && n <= 100 ? n : Math.min(100, n) })
   }
-  return [
-    { ...base[0], value: String(summary.safehouseCount), label: labels[0], description: descriptions[0] },
-    {
-      ...base[1],
-      value: `${summary.avgEducationProgressPercent.toFixed(0)}%`,
-      label: labels[1],
-      description: descriptions[1],
-    },
-    { ...base[2], value: summary.avgHealthScore.toFixed(2), label: labels[2], description: descriptions[2] },
-    {
-      ...base[3],
-      value: `${summary.reintegrationSuccessRatePercent.toFixed(0)}%`,
-      label: labels[3],
-      description: descriptions[3],
-    },
-    { ...base[4], value: String(summary.supporterCount), label: labels[4], description: descriptions[4] },
-  ]
+  return rows.sort((a, b) => b.value - a.value)
 }
+
+type GrowthPoint = { month: string; label: string; value: number }
 
 function parseGrowthPoints(snapshots: PublicImpactSnapshot[]) {
   return snapshots
     .map((snapshot) => {
-      const month = snapshot.metrics.month ?? snapshot.snapshotDate
+      const month = snapshot.metrics.month ?? snapshot.snapshotDate.slice(0, 7)
       const raw = snapshot.metrics.total_residents
       const value = raw ? Number(raw) : Number.NaN
       if (!Number.isFinite(value)) return null
       const date = new Date(`${month}-01`)
-      const label = date.toLocaleDateString(undefined, { month: 'short', year: '2-digit' })
+      const label = date.toLocaleDateString(undefined, { month: 'short', year: 'numeric' })
       return { month, label, value }
     })
     .filter((point): point is GrowthPoint => point != null)
     .sort((a, b) => a.month.localeCompare(b.month))
 }
 
-function buildChart(points: GrowthPoint[]) {
-  const width = 640
-  const height = 220
-  const paddingX = 28
-  const paddingTop = 16
-  const paddingBottom = 36
-
+function buildTrendChart(points: GrowthPoint[]) {
+  const width = 720
+  const height = 240
+  const padX = 36
+  const padTop = 20
+  const padBot = 44
   if (points.length === 0) {
-    return { path: '', areaPath: '', points: [], gridLines: [], min: 0, max: 0, width, height, paddingBottom }
+    return { path: '', areaPath: '', pts: [] as { x: number; y: number; label: string }[], width, height, padBot }
   }
-
-  const values = points.map((point) => point.value)
-  const min = Math.min(...values)
-  const max = Math.max(...values)
-  const paddedMin = min === max ? Math.max(0, min - 1) : min
-  const paddedMax = min === max ? max + 1 : max
-  const range = Math.max(paddedMax - paddedMin, 1)
-  const chartHeight = height - paddingTop - paddingBottom
-  const chartWidth = width - paddingX * 2
-
-  const plotted = points.map((point, index) => {
-    const x = paddingX + (points.length === 1 ? chartWidth / 2 : (index / (points.length - 1)) * chartWidth)
-    const y = paddingTop + (1 - (point.value - paddedMin) / range) * chartHeight
-    return { ...point, x, y }
+  const vals = points.map((p) => p.value)
+  const min = Math.min(...vals)
+  const max = Math.max(...vals)
+  const lo = min === max ? Math.max(0, min - 1) : min
+  const hi = min === max ? max + 1 : max
+  const span = Math.max(hi - lo, 1)
+  const innerH = height - padTop - padBot
+  const innerW = width - padX * 2
+  const pts = points.map((p, i) => {
+    const x = padX + (points.length === 1 ? innerW / 2 : (i / (points.length - 1)) * innerW)
+    const y = padTop + (1 - (p.value - lo) / span) * innerH
+    return { x, y, label: p.label }
   })
+  const path = pts.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ')
+  const last = pts[pts.length - 1]
+  const first = pts[0]
+  const areaPath = `${path} L ${last?.x ?? padX} ${height - padBot} L ${first?.x ?? padX} ${height - padBot} Z`
+  return { path, areaPath, pts, width, height, padBot }
+}
 
-  const path = plotted.map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x} ${point.y}`).join(' ')
-  const areaPath = `${path} L ${plotted[plotted.length - 1]?.x ?? paddingX} ${height - paddingBottom} L ${plotted[0]?.x ?? paddingX} ${height - paddingBottom} Z`
-  const gridLines = [0, 0.5, 1].map((ratio) => paddingTop + ratio * chartHeight)
-
-  return { path, areaPath, points: plotted, gridLines, min: paddedMin, max: paddedMax, width, height, paddingBottom }
+function HorizontalBars({
+  rows,
+  ariaLabel,
+  unitSuffix = '%',
+}: {
+  rows: { label: string; value: number }[]
+  ariaLabel: string
+  unitSuffix?: string
+}) {
+  if (rows.length === 0) {
+    return <p className="text-sm text-muted-foreground">No breakdown available for this period.</p>
+  }
+  const max = Math.max(...rows.map((r) => r.value), 1)
+  return (
+    <ul className="space-y-4" role="list" aria-label={ariaLabel}>
+      {rows.map((r) => (
+        <li key={r.label}>
+          <div className="mb-1 flex justify-between text-sm">
+            <span className="font-medium text-foreground">{r.label}</span>
+            <span className="tabular-nums text-muted-foreground">
+              {r.value.toFixed(0)}
+              {unitSuffix}
+            </span>
+          </div>
+          <div className="h-2.5 overflow-hidden rounded-full bg-muted">
+            <div
+              className="h-full rounded-full bg-gradient-to-r from-primary to-accent"
+              style={{ width: `${Math.max(6, (r.value / max) * 100)}%` }}
+            />
+          </div>
+        </li>
+      ))}
+    </ul>
+  )
 }
 
 export function ImpactPage() {
   const [summary, setSummary] = useState<PublicImpactSummary | null>(null)
   const [snapshots, setSnapshots] = useState<PublicImpactSnapshot[]>([])
   const [loadError, setLoadError] = useState<string | null>(null)
+  const exploreRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     let cancelled = false
     void Promise.all([getImpactSummary(), getImpactSnapshots()])
-      .then(([summaryResponse, snapshotResponse]) => {
+      .then(([s, sn]) => {
         if (!cancelled) {
-          setSummary(summaryResponse)
-          setSnapshots(snapshotResponse)
+          setSummary(s)
+          setSnapshots(sn)
           setLoadError(null)
         }
       })
@@ -165,62 +181,166 @@ export function ImpactPage() {
     }
   }, [])
 
-  const stats = buildStats(summary)
-  const growthPoints = useMemo(() => parseGrowthPoints(snapshots).slice(-12), [snapshots])
-  const chart = useMemo(() => buildChart(growthPoints), [growthPoints])
-  const growthDelta =
-    growthPoints.length > 1 ? growthPoints[growthPoints.length - 1].value - growthPoints[0].value : null
+  const latestSnapshot = useMemo(
+    () =>
+      [...snapshots].sort((a, b) => b.snapshotDate.localeCompare(a.snapshotDate)).find((s) => s.isPublished) ??
+      [...snapshots].sort((a, b) => b.snapshotDate.localeCompare(a.snapshotDate))[0],
+    [snapshots],
+  )
+
+  const whoRows = useMemo(
+    () => (latestSnapshot ? parseMetricBars(latestSnapshot.metrics, 'who_') : []),
+    [latestSnapshot],
+  )
+  const outcomeRows = useMemo(
+    () => (latestSnapshot ? parseMetricBars(latestSnapshot.metrics, 'outcome_') : []),
+    [latestSnapshot],
+  )
+
+  const growthPoints = useMemo(() => parseGrowthPoints(snapshots).slice(-14), [snapshots])
+  const chart = useMemo(() => buildTrendChart(growthPoints), [growthPoints])
+
+  const growthNarrative = useMemo(() => {
+    if (growthPoints.length < 2) return null
+    const first = growthPoints[0].value
+    const last = growthPoints[growthPoints.length - 1].value
+    if (first <= 0) return null
+    const pct = Math.round(((last - first) / first) * 100)
+    return {
+      first,
+      last,
+      pct,
+      fromLabel: growthPoints[0].label,
+      toLabel: growthPoints[growthPoints.length - 1].label,
+    }
+  }, [growthPoints])
+
+  const healthDisplay = summary
+    ? `${Math.min(100, Math.round((summary.avgHealthScore / 5) * 100))}%`
+    : '—'
+
+  const kpi = summary
+    ? [
+        { value: String(summary.activeResidents), label: 'Girls currently in our care' },
+        { value: String(summary.safehouseCount), label: 'Active safehouses' },
+        { value: `${summary.avgEducationProgressPercent.toFixed(0)}%`, label: 'School progress average' },
+        { value: healthDisplay, label: 'Wellbeing score (scaled to 100%)' },
+        { value: `${summary.reintegrationSuccessRatePercent.toFixed(0)}%`, label: 'Successful reintegration' },
+        { value: `${summary.supporterCount}+`, label: 'Supporters in our community' },
+      ]
+    : [
+        { value: '—', label: 'Girls currently in our care' },
+        { value: '—', label: 'Active safehouses' },
+        { value: '—', label: 'School progress average' },
+        { value: '—', label: 'Wellbeing score (scaled to 100%)' },
+        { value: '—', label: 'Successful reintegration' },
+        { value: '—', label: 'Supporters in our community' },
+      ]
+
+  const fallbackOutcomeRows = summary
+    ? [{ label: 'Reintegration success (program)', value: summary.reintegrationSuccessRatePercent }]
+    : []
+
+  const outcomeBars = outcomeRows.length > 0 ? outcomeRows.map((r) => ({ label: r.label, value: r.value })) : fallbackOutcomeRows
 
   return (
-    <div>
-      <section className="relative overflow-hidden py-20 lg:py-28">
-        <div className="absolute inset-0 bg-gradient-to-b from-primary/5 to-transparent" />
-        <div className="relative mx-auto max-w-4xl px-6 text-center lg:px-8">
-          <motion.div initial="hidden" animate="visible" variants={{ visible: { transition: { staggerChildren: 0.1 } } }}>
-            <motion.p variants={fade} className="text-xs font-semibold uppercase tracking-widest text-accent">
+    <div className="bg-background">
+      {/* Hero — reference: "Every girl deserves to be counted." */}
+      <section className="relative overflow-hidden border-b border-border">
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_120%_80%_at_50%_-20%,hsl(var(--primary)/0.12),transparent)]" />
+        <div className="relative mx-auto max-w-4xl px-6 py-20 text-center lg:py-28 lg:px-8">
+          <motion.div initial="hidden" animate="visible" variants={{ visible: { transition: { staggerChildren: 0.08 } } }}>
+            <motion.p variants={fade} className="text-xs font-semibold uppercase tracking-[0.28em] text-primary">
               Our impact
             </motion.p>
-            <motion.h1 variants={fade} className="mt-3 font-heading text-4xl font-bold text-foreground lg:text-5xl">
-              Restoring hope, one life at a time.
+            <motion.h1
+              variants={fade}
+              className="mt-5 font-heading text-4xl font-bold leading-[1.08] tracking-tight text-foreground sm:text-5xl lg:text-[3.25rem]"
+            >
+              Every girl deserves
+              <br />
+              <span className="text-primary">to be counted.</span>
             </motion.h1>
-            <motion.p variants={fade} className="mx-auto mt-4 max-w-2xl text-muted-foreground">
-              Every number on this page represents a girl who deserved safety, love, and a future — and found it
-              through {SITE_DISPLAY_NAME}. Your generosity makes this possible.
+            <motion.p variants={fade} className="mx-auto mt-6 max-w-2xl text-base leading-relaxed text-muted-foreground sm:text-lg">
+              Every chart on this page represents real outcomes from {SITE_DISPLAY_NAME} — transparent numbers from our own
+              systems, not placeholders. When you give, you can see what your support helps sustain.
             </motion.p>
-            <motion.div variants={fade} className="mt-8 flex flex-wrap justify-center gap-3">
+            <motion.div variants={fade} className="mt-10 flex flex-wrap items-center justify-center gap-3">
               <Link to="/login" className={btnPrimary}>
                 Donate today
               </Link>
+              <button
+                type="button"
+                className={btnSecondary}
+                onClick={() => exploreRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+              >
+                Explore the data
+                <ArrowRight className="h-4 w-4" aria-hidden />
+              </button>
             </motion.div>
-            {loadError && (
-              <motion.p variants={fade} className="mt-4 text-sm text-destructive">
+            {loadError ? (
+              <motion.p variants={fade} className="mt-6 text-sm text-destructive">
                 {loadError}
               </motion.p>
-            )}
+            ) : null}
           </motion.div>
         </div>
       </section>
 
-      <section className="border-t border-border bg-muted/40 py-20 lg:py-28">
-        <div className="mx-auto max-w-7xl px-6 lg:px-8">
-          <div className="mx-auto mb-14 max-w-3xl text-center">
-            <p className="text-xs font-semibold uppercase tracking-widest text-accent">Why this matters</p>
-            <h2 className="mt-3 font-heading text-3xl font-bold text-foreground lg:text-4xl">
-              The crisis facing girls in Ghana
-            </h2>
-            <p className="mt-4 text-muted-foreground">
-              Ghana faces serious risks of child abuse, exploitation, and trafficking. Behind every statistic is a
-              child who needed someone to step in. We are that someone — and so are you.
-            </p>
-          </div>
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-            {crisisStats.map((c, i) => (
+      {/* KPI grid — reference six headline stats */}
+      <section ref={exploreRef} id="impact-by-numbers" className="scroll-mt-20 border-b border-border bg-muted/30 py-14 lg:py-20">
+        <div className="mx-auto max-w-6xl px-6 lg:px-8">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {kpi.map((item, i) => (
               <motion.div
-                key={c.label}
-                initial={{ opacity: 0, y: 16 }}
+                key={item.label}
+                initial={{ opacity: 0, y: 14 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: i * 0.05 }}
+                className="rounded-2xl border border-border bg-card p-8 text-center shadow-sm"
+              >
+                <p className="font-heading text-4xl font-bold text-primary sm:text-5xl">{item.value}</p>
+                <p className="mt-3 text-sm font-medium leading-snug text-foreground">{item.label}</p>
+              </motion.div>
+            ))}
+          </div>
+          <p className="mx-auto mt-10 max-w-2xl text-center text-xs text-muted-foreground">
+            Live figures from <code className="rounded bg-muted px-1 py-0.5">/api/impact/summary</code>. Wellbeing uses average
+            health score on a 1–5 scale, shown as an equivalent percentage for easier reading.
+          </p>
+        </div>
+      </section>
+
+      {/* Problem */}
+      <section className="border-b border-border py-16 lg:py-24">
+        <div className="mx-auto max-w-7xl px-6 lg:px-8">
+          <div className="mx-auto max-w-3xl text-center">
+            <p className="text-xs font-semibold uppercase tracking-[0.28em] text-primary">The problem we&apos;re solving</p>
+            <h2 className="mt-4 font-heading text-3xl font-bold text-foreground lg:text-4xl">
+              A silent crisis facing girls in Ghana
+            </h2>
+            <p className="mt-4 text-muted-foreground">
+              Behind every statistic is a child who needed someone to step in. Poverty, abuse, and neglect trap girls in
+              cycles that are hard to break alone — but intervention works. {SITE_DISPLAY_NAME} exists to make that
+              intervention real.
+            </p>
+            <p className="mt-4 text-sm text-muted-foreground">
+              Research shows girls who receive holistic rehabilitation are far more likely to break the cycle of abuse and
+              lead healthy, independent lives.
+            </p>
+            <Link to="/login" className={`${btnPrimary} mt-8`}>
+              Make a difference
+            </Link>
+          </div>
+          <div className="mt-14 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {crisisStats.map((c, i) => (
+              <motion.div
+                key={c.label}
+                initial={{ opacity: 0, y: 12 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: i * 0.04 }}
                 className="rounded-2xl border border-border bg-card p-6 text-center"
               >
                 <p className="font-heading text-3xl font-bold text-primary">{c.value}</p>
@@ -228,224 +348,247 @@ export function ImpactPage() {
               </motion.div>
             ))}
           </div>
-          <p className="mx-auto mt-10 max-w-3xl text-center text-sm text-muted-foreground">
-            The cycle of poverty and abuse is not inevitable. Girls who receive holistic rehabilitation — safe
-            housing, counseling, education, and family support — are far more likely to heal and thrive.{' '}
-            {SITE_DISPLAY_NAME} exists to make that real.
-          </p>
-          <div className="mt-10 text-center">
-            <Link to="/login" className={btnOutline}>
-              Be part of the solution
-            </Link>
-          </div>
         </div>
       </section>
 
-      <section className="py-20 lg:py-28">
+      {/* Quote */}
+      <section className="border-b border-border bg-primary py-14 text-primary-foreground lg:py-20">
+        <div className="mx-auto max-w-3xl px-6 text-center lg:px-8">
+          <Quote className="mx-auto h-10 w-10 opacity-80" aria-hidden />
+          <blockquote className="mt-6 font-heading text-xl font-semibold leading-relaxed sm:text-2xl">
+            &ldquo;Every girl who walks through our doors deserves to know she is worth saving.&rdquo;
+          </blockquote>
+          <p className="mt-4 text-sm text-primary-foreground/80">— {SITE_DISPLAY_NAME} care team</p>
+        </div>
+      </section>
+
+      {/* YoY / growth */}
+      <section className="border-b border-border py-16 lg:py-24">
         <div className="mx-auto max-w-6xl px-6 lg:px-8">
           <div className="mx-auto max-w-3xl text-center">
-            <p className="text-xs font-semibold uppercase tracking-widest text-accent">Our growth</p>
-            <h2 className="mt-3 font-heading text-3xl font-bold text-foreground lg:text-4xl">
-              Growth you can actually follow
-            </h2>
-            <p className="mt-4 text-muted-foreground">
-              The headline number stays visible here, but it now sits beside the trend line and current operating
-              metrics so the section reads like one story instead of separate boxes.
-            </p>
-          </div>
-
-          <div className="mt-12 grid gap-6 xl:grid-cols-[0.95fr_1.45fr]">
-            <motion.div
-              initial={{ opacity: 0, y: 16 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              className="rounded-[1.75rem] border border-border bg-card p-8 shadow-sm"
-            >
-              <p className="text-xs font-semibold uppercase tracking-[0.26em] text-accent">Girls helped today</p>
-              <p className="mt-4 font-heading text-5xl font-bold text-primary lg:text-6xl">
-                {summary ? summary.activeResidents : '—'}
-              </p>
-              <p className="mt-3 text-sm text-muted-foreground">
-                Girls currently reached through safe care, education, and reintegration support across our program
-                network.
-              </p>
-
-              <div className="mt-8 grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
-                <div className="rounded-2xl bg-primary/6 p-4">
-                  <p className="text-xs font-semibold uppercase tracking-[0.22em] text-primary">Current network</p>
-                  <p className="mt-2 text-sm text-muted-foreground">
-                    {summary ? `${summary.safehouseCount} safehouses and ${summary.supporterCount} active supporters.` : 'Loading live network data.'}
-                  </p>
-                </div>
-                <div className="rounded-2xl bg-accent/8 p-4">
-                  <p className="text-xs font-semibold uppercase tracking-[0.22em] text-accent">Trend view</p>
-                  <p className="mt-2 text-sm text-muted-foreground">
-                    {growthDelta != null
-                      ? `${growthDelta >= 0 ? '+' : ''}${growthDelta} girls across the latest ${growthPoints.length} published monthly snapshots.`
-                      : 'Published snapshots will populate the chart as they become available.'}
-                  </p>
-                </div>
-              </div>
-            </motion.div>
-
-            <motion.div
-              initial={{ opacity: 0, y: 16 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              className="rounded-[1.75rem] border border-border bg-card p-6 shadow-sm lg:p-8"
-            >
-              <div className="flex flex-wrap items-end justify-between gap-3">
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.26em] text-accent">Girls helped over time</p>
-                  <h3 className="mt-2 font-heading text-2xl font-semibold text-foreground">Published monthly trend</h3>
-                </div>
-                {growthPoints.length > 0 && (
-                  <p className="text-sm text-muted-foreground">
-                    {growthPoints[0].label} to {growthPoints[growthPoints.length - 1].label}
-                  </p>
+            <p className="text-xs font-semibold uppercase tracking-[0.28em] text-primary">Year-over-year growth</p>
+            <h2 className="mt-4 font-heading text-3xl font-bold text-foreground lg:text-4xl">Girls reached over time</h2>
+            {growthNarrative ? (
+              <p className="mt-4 text-muted-foreground">
+                From <span className="font-semibold text-foreground">{growthNarrative.first}</span> in{' '}
+                {growthNarrative.fromLabel} to <span className="font-semibold text-foreground">{growthNarrative.last}</span>{' '}
+                in {growthNarrative.toLabel}
+                {growthNarrative.pct > 0 ? (
+                  <>
+                    {' '}
+                    — a <span className="font-semibold text-primary">{growthNarrative.pct}%</span> increase in lives
+                    touched (published snapshots).
+                  </>
+                ) : (
+                  '.'
                 )}
-              </div>
-
-              {growthPoints.length > 0 ? (
-                <div className="mt-6 overflow-hidden rounded-2xl border border-border bg-[linear-gradient(180deg,hsl(174_55%_28%/_0.08),transparent_55%),linear-gradient(180deg,hsl(0_0%_100%),hsl(40_20%_96%))] px-3 py-4 sm:px-5">
-                  <svg viewBox={`0 0 ${chart.width} ${chart.height}`} className="h-64 w-full" aria-label="Girls helped line chart">
-                    {chart.gridLines.map((line) => (
-                      <line key={line} x1="28" x2={chart.width - 28} y1={line} y2={line} stroke="currentColor" className="text-border" strokeDasharray="4 6" />
-                    ))}
-                    <path d={chart.areaPath} fill="hsl(174 55% 28% / 0.14)" />
-                    <path d={chart.path} fill="none" stroke="hsl(174 55% 28%)" strokeWidth="4" strokeLinecap="round" />
-                    {chart.points.map((point) => (
-                      <g key={point.month}>
-                        <circle cx={point.x} cy={point.y} r="5" fill="hsl(32 80% 55%)" />
-                        <text x={point.x} y={chart.height - 12} textAnchor="middle" className="fill-current text-[12px] text-muted-foreground">
-                          {point.label}
-                        </text>
-                      </g>
-                    ))}
-                  </svg>
-                </div>
-              ) : (
-                <div className="mt-6 rounded-2xl border border-dashed border-border bg-muted/30 px-6 py-10 text-center text-sm text-muted-foreground">
-                  Growth snapshots will appear here once published data is available.
-                </div>
-              )}
-            </motion.div>
-          </div>
-
-          <div className="mt-14 overflow-hidden rounded-[2rem] border border-border bg-[linear-gradient(135deg,hsl(174_55%_28%),hsl(32_80%_55%))]">
-            <div className="grid lg:grid-cols-[1.1fr_0.9fr]">
-              <div className="p-8 text-primary-foreground sm:p-10 lg:p-12">
-                <p className="text-xs font-semibold uppercase tracking-[0.28em] text-white/75">Inside the journey</p>
-                <h3 className="mt-3 font-heading text-3xl font-bold lg:text-4xl">
-                  Progress is built in ordinary, beautiful moments
-                </h3>
-                <p className="mt-4 max-w-2xl text-sm leading-relaxed text-white/82 sm:text-base">
-                  A warm meal, a quiet place to sleep, tutoring after school, counseling, and trusted adults who stay.
-                  Recovery is not only measured in reports. It is also visible in routines, friendships, and the return
-                  of confidence.
-                </p>
-                <div className="mt-6 grid gap-3 sm:grid-cols-3">
-                  <div className="rounded-2xl border border-white/18 bg-white/12 p-4 backdrop-blur-sm">
-                    <p className="text-2xl font-bold">Safe</p>
-                    <p className="mt-1 text-xs text-white/75">Stable homes that reduce crisis and create room for healing.</p>
-                  </div>
-                  <div className="rounded-2xl border border-white/18 bg-white/12 p-4 backdrop-blur-sm">
-                    <p className="text-2xl font-bold">Seen</p>
-                    <p className="mt-1 text-xs text-white/75">Care teams who know each girl by story, not only by statistic.</p>
-                  </div>
-                  <div className="rounded-2xl border border-white/18 bg-white/12 p-4 backdrop-blur-sm">
-                    <p className="text-2xl font-bold">Supported</p>
-                    <p className="mt-1 text-xs text-white/75">Education, health, and reintegration planning moving together.</p>
-                  </div>
-                </div>
-              </div>
-              <div className="relative min-h-[20rem]">
-                <img
-                  src={IMAGES.mission}
-                  alt="Girls and caregivers sharing a hopeful moment together"
-                  className="h-full w-full object-cover"
-                />
-                <div className="absolute inset-0 bg-gradient-to-l from-transparent via-transparent to-foreground/25" />
-              </div>
-            </div>
-          </div>
-
-          <div className="mt-14">
-            <div className="mb-6 flex items-center justify-between gap-3">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-accent">By the numbers</p>
-                <h3 className="mt-2 font-heading text-2xl font-semibold text-foreground">A cleaner operational snapshot</h3>
-              </div>
-              <p className="max-w-xl text-right text-sm text-muted-foreground">
-                These indicators now use a more editorial card layout so the values are easier to scan and compare.
               </p>
-            </div>
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-              {stats.map((s, t) => (
-                <motion.div
-                  key={s.label}
-                  initial={{ opacity: 0, y: 20 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ delay: t * 0.06 }}
-                  className="rounded-[1.5rem] border border-border bg-card p-6 text-left"
-                >
-                  <div className={`mb-5 flex h-12 w-12 items-center justify-center rounded-2xl ${s.tone}`}>
-                    <s.icon className={`h-6 w-6 ${s.color}`} />
-                  </div>
-                  <p className="font-heading text-3xl font-bold text-foreground">{metricNumber(String(s.value))}</p>
-                  <p className="mt-2 text-base font-medium text-foreground">{s.label}</p>
-                  <p className="mt-2 text-sm text-muted-foreground">{s.description}</p>
-                </motion.div>
-              ))}
-            </div>
+            ) : (
+              <p className="mt-4 text-muted-foreground">
+                When published monthly snapshots include <code className="rounded bg-muted px-1">total_residents</code>, we
+                chart growth here automatically.
+              </p>
+            )}
           </div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="mt-12 overflow-hidden rounded-3xl border border-border bg-card p-6 shadow-sm sm:p-10"
+          >
+            {growthPoints.length > 0 ? (
+              <svg viewBox={`0 0 ${chart.width} ${chart.height}`} className="h-72 w-full" aria-label="Girls reached over time">
+                <title>Girls reached over time</title>
+                <path d={chart.areaPath} fill="hsl(var(--primary) / 0.12)" />
+                <path
+                  d={chart.path}
+                  fill="none"
+                  stroke="hsl(var(--primary))"
+                  strokeWidth="3.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+                {chart.pts.map((p) => (
+                  <g key={p.label}>
+                    <circle cx={p.x} cy={p.y} r="5" className="fill-accent" />
+                    <text
+                      x={p.x}
+                      y={chart.height - 12}
+                      textAnchor="middle"
+                      className="fill-muted-foreground text-[11px]"
+                    >
+                      {p.label}
+                    </text>
+                  </g>
+                ))}
+              </svg>
+            ) : (
+              <div className="rounded-2xl border border-dashed border-border bg-muted/30 py-16 text-center text-sm text-muted-foreground">
+                No published growth snapshots yet. Add rows to <code className="rounded bg-muted px-1">public_impact_snapshots</code>{' '}
+                with <code className="rounded bg-muted px-1">total_residents</code> in metrics to populate this chart.
+              </div>
+            )}
+          </motion.div>
         </div>
       </section>
 
-      <section className="border-t border-border bg-muted py-20 lg:py-28">
-        <div className="mx-auto max-w-3xl px-6 text-center lg:px-8">
-          <p className="text-xs font-semibold uppercase tracking-widest text-accent">Life inside our homes</p>
-          <h2 className="mt-3 font-heading text-3xl font-bold text-foreground lg:text-4xl">
-            A safe place to heal, learn, and grow
+      {/* Anonymized outcomes */}
+      <section className="border-b border-border bg-muted/25 py-16 lg:py-24">
+        <div className="mx-auto max-w-3xl px-6 lg:px-8">
+          <p className="text-center text-xs font-semibold uppercase tracking-[0.28em] text-primary">Anonymized outcomes</p>
+          <h2 className="mt-4 text-center font-heading text-3xl font-bold text-foreground lg:text-4xl">
+            What happens after rehabilitation?
           </h2>
-          <p className="mt-4 text-muted-foreground">
-            Each safehouse is more than shelter — it is a community of healing. Girls receive trauma-informed support,
-            attend school, build skills, and are surrounded by caregivers who believe in their futures. Many arrive
-            frightened; with consistent care, they begin to laugh, dream, and plan again.
+          <p className="mt-4 text-center text-muted-foreground">
+            Outcome data from published snapshots — aggregated to protect privacy. Add{' '}
+            <code className="rounded bg-muted px-1">outcome_*</code> keys to snapshot metrics for a full breakdown.
           </p>
-          <div className="mt-8">
-            <Link to="/login" className={btnPrimary}>
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="mt-10 rounded-3xl border border-border bg-card p-8 shadow-sm"
+          >
+            <h3 className="text-sm font-semibold text-foreground">Post-rehabilitation outcomes</h3>
+            <p className="mt-1 text-xs text-muted-foreground">% of girls by outcome (where data exists)</p>
+            <div className="mt-8">
+              <HorizontalBars rows={outcomeBars} ariaLabel="Outcome distribution" />
+            </div>
+          </motion.div>
+        </div>
+      </section>
+
+      {/* Who we serve */}
+      <section className="border-b border-border py-16 lg:py-24">
+        <div className="mx-auto max-w-3xl px-6 lg:px-8">
+          <p className="text-center text-xs font-semibold uppercase tracking-[0.28em] text-primary">Who we serve</p>
+          <h2 className="mt-4 text-center font-heading text-3xl font-bold text-foreground lg:text-4xl">
+            The girls who come to us
+          </h2>
+          <p className="mt-4 text-center text-muted-foreground">
+            Understanding the types of harm girls have faced helps us provide the right care. Publish{' '}
+            <code className="rounded bg-muted px-1">who_*</code> percentage fields in snapshot metrics to replace static
+            examples.
+          </p>
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="mt-10 rounded-3xl border border-border bg-card p-8 shadow-sm"
+          >
+            {whoRows.length > 0 ? (
+              <HorizontalBars rows={whoRows.map((r) => ({ label: r.label, value: r.value }))} ariaLabel="Who we serve" />
+            ) : (
+              <div className="rounded-2xl border border-dashed border-border bg-muted/20 px-6 py-10 text-center text-sm text-muted-foreground">
+                <p>
+                  Publish percentage fields in snapshot <code className="rounded bg-muted px-1">metrics</code> using keys
+                  like <code className="rounded bg-muted px-1">who_abandoned</code>,{' '}
+                  <code className="rounded bg-muted px-1">who_trafficking</code>, etc., and they will appear here
+                  automatically — no code change required.
+                </p>
+              </div>
+            )}
+          </motion.div>
+        </div>
+      </section>
+
+      {/* Life inside */}
+      <section className="border-b border-border py-16 lg:py-24">
+        <div className="mx-auto grid max-w-6xl gap-10 px-6 lg:grid-cols-2 lg:items-center lg:gap-14 lg:px-8">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.28em] text-primary">Life inside our homes</p>
+            <h2 className="mt-4 font-heading text-3xl font-bold text-foreground lg:text-4xl">
+              A safe place to heal, learn, and grow
+            </h2>
+            <p className="mt-4 text-muted-foreground">
+              Each safehouse is more than shelter — it&apos;s a community of healing. Girls receive trauma-informed
+              support, attend school, build skills, and are surrounded by caregivers who believe in their futures.
+            </p>
+            <ul className="mt-8 space-y-3">
+              {lifeBullets.map((line) => (
+                <li key={line} className="flex gap-3 text-sm text-foreground">
+                  <Heart className="mt-0.5 h-4 w-4 shrink-0 text-accent" aria-hidden />
+                  <span>{line}</span>
+                </li>
+              ))}
+            </ul>
+            <Link to="/login" className={`${btnPrimary} mt-10`}>
               Help a girl today
             </Link>
           </div>
+          <motion.div
+            initial={{ opacity: 0, scale: 0.98 }}
+            whileInView={{ opacity: 1, scale: 1 }}
+            viewport={{ once: true }}
+            className="overflow-hidden rounded-3xl border border-border shadow-md"
+          >
+            <img
+              src={IMAGES.mission}
+              alt="Young people and caregivers in a supportive group setting"
+              className="aspect-[4/3] h-full w-full object-cover"
+            />
+          </motion.div>
         </div>
       </section>
 
-      <section className="border-t border-border bg-muted/40 py-20 lg:py-28">
+      {/* Transparency */}
+      <section className="bg-muted/40 py-16 lg:py-24">
         <div className="mx-auto max-w-7xl px-6 lg:px-8">
-          <div className="mb-12 text-center">
-            <p className="text-xs font-semibold uppercase tracking-widest text-accent">Transparency</p>
-            <h2 className="mt-3 font-heading text-3xl font-bold text-foreground lg:text-4xl">Every dollar counts</h2>
-            <p className="mx-auto mt-3 max-w-2xl text-sm text-muted-foreground">
-              We are committed to responsible stewardship. Here is how donations typically support our program areas.
+          <div className="mx-auto max-w-2xl text-center">
+            <p className="text-xs font-semibold uppercase tracking-[0.28em] text-primary">Financial transparency</p>
+            <h2 className="mt-4 font-heading text-3xl font-bold text-foreground lg:text-4xl">Where your donation goes</h2>
+            <p className="mt-3 text-sm text-muted-foreground">
+              We are committed to responsible stewardship. Every cedi and peso is accounted for. Typical allocation:
             </p>
           </div>
-          <div className="mx-auto grid max-w-4xl grid-cols-1 gap-6 md:grid-cols-3">
+          <div className="mx-auto mt-12 grid max-w-4xl grid-cols-1 gap-6 md:grid-cols-3">
             {allocation.map((a, t) => (
               <motion.div
                 key={a.area}
-                initial={{ opacity: 0, y: 16 }}
+                initial={{ opacity: 0, y: 12 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
-                transition={{ delay: t * 0.08 }}
-                className="rounded-2xl border border-border bg-card p-8 text-center"
+                transition={{ delay: t * 0.06 }}
+                className="rounded-2xl border border-border bg-card p-8 text-center shadow-sm"
               >
                 <p className="font-heading text-4xl font-bold text-primary">{a.pct}</p>
                 <p className="mt-2 font-heading text-lg font-semibold text-foreground">{a.area}</p>
                 <p className="mt-2 text-sm text-muted-foreground">{a.desc}</p>
               </motion.div>
             ))}
+          </div>
+          {summary != null && summary.donationsLastMonthPhp > 0 ? (
+            <p className="mt-10 text-center text-sm text-muted-foreground">
+              Last month, supporters gave approximately{' '}
+              <span className="font-semibold text-foreground">
+                ₱{summary.donationsLastMonthPhp.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+              </span>{' '}
+              in recorded monetary gifts (from impact summary).
+            </p>
+          ) : null}
+        </div>
+      </section>
+
+      {/* Final CTA */}
+      <section className="border-t border-border py-16 lg:py-20">
+        <div className="mx-auto max-w-3xl px-6 text-center lg:px-8">
+          <h2 className="font-heading text-3xl font-bold text-foreground lg:text-4xl">
+            The data is clear.
+            <br />
+            <span className="text-primary">Your gift changes lives.</span>
+          </h2>
+          <p className="mt-4 text-muted-foreground">
+            Behind every percentage is a girl who found safety, healing, and a future. Join our supporters making it
+            possible.
+          </p>
+          <div className="mt-10 flex flex-wrap justify-center gap-3">
+            <Link to="/login" className={btnPrimary}>
+              Donate now
+            </Link>
+            <Link to="/login" className={btnSecondary}>
+              Become a monthly supporter
+            </Link>
           </div>
         </div>
       </section>
