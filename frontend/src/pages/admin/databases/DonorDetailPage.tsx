@@ -214,8 +214,8 @@ export function DonorDetailPage() {
         <>
           {error ? <div className={alertError}>{error}</div> : null}
 
-          <div className="grid gap-4 lg:grid-cols-2 lg:items-stretch">
-            <div className="min-w-0 h-full lg:flex lg:flex-col">
+          <div className="grid gap-4 lg:grid-cols-[minmax(0,3fr)_minmax(0,1fr)] lg:items-stretch">
+            <div className="flex min-h-0 min-w-0 flex-col lg:h-full">
               <DonorProfileCard
                 supporter={supporter}
                 detailsOpen={detailsOpen}
@@ -223,7 +223,7 @@ export function DonorDetailPage() {
                 onEditClick={openEdit}
               />
             </div>
-            <div className="min-w-0 h-full lg:flex lg:flex-col">
+            <div className="flex min-h-0 min-w-0 flex-col lg:h-full">
               <DonorStatusCard
                 supporter={supporter}
                 donationCount={metrics.donationCount}
