@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { ChevronDown, LoaderCircle, MailPlus, RefreshCw, Sparkles } from 'lucide-react'
 import {
   generateDonorEmail,
@@ -95,6 +96,14 @@ async function copyText(value: string) {
 }
 
 export function EmailHubPage() {
+  const [searchParams] = useSearchParams()
+  const urlSupporterId = useMemo(() => {
+    const raw = searchParams.get('supporterId')
+    if (raw == null || raw === '') return null
+    const n = Number(raw)
+    return Number.isFinite(n) && n > 0 ? n : null
+  }, [searchParams])
+
   const [supporters, setSupporters] = useState<Supporter[]>([])
   const [selectedId, setSelectedId] = useState<number | null>(null)
   const [profile, setProfile] = useState<DonorEmailProfile | null>(null)
@@ -139,14 +148,18 @@ export function EmailHubPage() {
     try {
       const rows = await getSupporters()
       setSupporters(rows)
-      setSelectedId((current) => current ?? rows[0]?.id ?? null)
+      setSelectedId((current) => {
+        if (current != null) return current
+        if (urlSupporterId != null && rows.some((r) => r.id === urlSupporterId)) return urlSupporterId
+        return rows[0]?.id ?? null
+      })
       setError(null)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load donors.')
     } finally {
       setLoadingList(false)
     }
-  }, [])
+  }, [urlSupporterId])
 
   const loadProfile = useCallback(async (supporterId: number) => {
     setLoadingProfile(true)
@@ -167,6 +180,11 @@ export function EmailHubPage() {
   useEffect(() => {
     void loadSupporters()
   }, [loadSupporters])
+
+  useEffect(() => {
+    if (urlSupporterId == null || supporters.length === 0) return
+    if (supporters.some((r) => r.id === urlSupporterId)) setSelectedId(urlSupporterId)
+  }, [urlSupporterId, supporters])
 
   useEffect(() => {
     if (selectedId != null) void loadProfile(selectedId)

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type FormEvent } from 'react'
+import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { CircleHelp, Eye, EyeOff, Lock } from 'lucide-react'
@@ -52,7 +52,6 @@ declare global {
             parent: HTMLElement,
             options: Record<string, string | number | boolean>,
           ) => void
-          prompt: (momentListener?: (notification: unknown) => void) => void
         }
       }
     }
@@ -125,29 +124,6 @@ function PasswordField(props: {
   )
 }
 
-function GoogleMark() {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden="true" className="h-5 w-5">
-      <path
-        fill="#EA4335"
-        d="M12.24 10.285V14.4h5.88c-.255 1.35-1.53 3.96-5.88 3.96-3.54 0-6.42-2.925-6.42-6.535s2.88-6.535 6.42-6.535c2.01 0 3.36.855 4.14 1.59l2.82-2.73C17.4 2.475 15.045 1.5 12.24 1.5 6.945 1.5 2.64 5.805 2.64 11.1s4.305 9.6 9.6 9.6c5.535 0 9.21-3.885 9.21-9.36 0-.63-.075-1.11-.165-1.575H12.24Z"
-      />
-      <path
-        fill="#34A853"
-        d="M2.64 6.615 6.03 9.105c.915-1.815 2.79-3.075 5.115-3.075 2.01 0 3.36.855 4.14 1.59l2.82-2.73C17.4 2.475 15.045 1.5 12.24 1.5 8.55 1.5 5.355 3.615 3.765 6.69l-1.125-.075Z"
-      />
-      <path
-        fill="#FBBC05"
-        d="M2.64 17.385c1.545 3.09 4.755 5.205 9.6 5.205 2.67 0 4.92-.87 6.57-2.355l-3.03-2.475c-.99.705-2.235 1.14-3.54 1.14-4.275 0-5.535-2.595-5.88-3.885l-3.72 2.37Z"
-      />
-      <path
-        fill="#4285F4"
-        d="M21.45 11.34c0-.63-.075-1.11-.165-1.575H12.24V13.88h5.88c-.285 1.515-1.215 2.79-2.34 3.645l3.03 2.475c1.77-1.635 2.64-4.05 2.64-7.665Z"
-      />
-    </svg>
-  )
-}
-
 function FieldLabel({
   htmlFor,
   label,
@@ -181,15 +157,28 @@ function GoogleAuthBlock(props: {
   onCredential: (credential: string, mode: GoogleAuthMode) => Promise<void>
 }) {
   const { mode, disabled, onError, onCredential } = props
-  const [googleReady, setGoogleReady] = useState(false)
+  const buttonRef = useRef<HTMLDivElement | null>(null)
+  const [buttonWidth, setButtonWidth] = useState(320)
 
   useEffect(() => {
-    if (!googleClientId) return
+    const updateWidth = () => {
+      if (!buttonRef.current) return
+      setButtonWidth(Math.max(260, Math.floor(buttonRef.current.clientWidth)))
+    }
+
+    updateWidth()
+    window.addEventListener('resize', updateWidth)
+    return () => window.removeEventListener('resize', updateWidth)
+  }, [])
+
+  useEffect(() => {
+    if (!googleClientId || !buttonRef.current || disabled) return
 
     let cancelled = false
     void loadGoogleScript()
       .then(() => {
-        if (cancelled || !window.google) return
+        if (cancelled || !window.google || !buttonRef.current) return
+        buttonRef.current.innerHTML = ''
         window.google.accounts.id.initialize({
           client_id: googleClientId,
           callback: ({ credential }) => {
@@ -200,22 +189,22 @@ function GoogleAuthBlock(props: {
             void onCredential(credential, mode)
           },
         })
-        setGoogleReady(true)
+        window.google.accounts.id.renderButton(buttonRef.current, {
+          theme: 'outline',
+          size: 'large',
+          shape: 'pill',
+          width: buttonWidth,
+          text: mode === 'login' ? 'signin_with' : 'signup_with',
+        })
       })
       .catch((error: unknown) => {
         onError(error instanceof Error ? error.message : 'Google Sign-In failed to load.')
-        setGoogleReady(false)
       })
 
     return () => {
       cancelled = true
     }
-  }, [mode, onCredential, onError])
-
-  function handleGoogleClick() {
-    if (!window.google || !googleReady || disabled) return
-    window.google.accounts.id.prompt()
-  }
+  }, [mode, disabled, onCredential, onError, buttonWidth])
 
   if (!googleClientId) {
     return (
@@ -227,15 +216,9 @@ function GoogleAuthBlock(props: {
   }
 
   return (
-    <button
-      type="button"
-      onClick={handleGoogleClick}
-      disabled={disabled || !googleReady}
-      className="flex w-full items-center justify-center gap-3 rounded-lg border border-border bg-background px-4 py-3 text-sm font-medium text-foreground shadow-sm transition-all hover:-translate-y-0.5 hover:border-primary/25 hover:bg-muted/35 disabled:cursor-not-allowed disabled:opacity-60"
-    >
-      <GoogleMark />
-      <span>{mode === 'login' ? 'Continue with Google' : 'Sign up with Google'}</span>
-    </button>
+    <div className="rounded-lg border border-border/70 bg-background/70 px-2 py-2 shadow-sm">
+      <div ref={buttonRef} className="flex min-h-[44px] w-full justify-center overflow-hidden rounded-lg" />
+    </div>
   )
 }
 
