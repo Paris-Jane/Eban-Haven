@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { ArrowRight, Bot, LineChart, RefreshCw, TrendingUp, Users, Megaphone, Share2 } from 'lucide-react'
@@ -282,89 +282,53 @@ function CausalAnalysisPanel({
 // ── Campaign Revenue Bar Chart ────────────────────────────────────────────────
 
 function CampaignRevenueChart({ campaigns }: { campaigns: CampaignPerformance[] }) {
-  const [hovered, setHovered] = useState<string | null>(null)
-
-  const named    = campaigns.filter(c => c.campaignName !== 'No Campaign')
-                            .sort((a, b) => b.totalPhp - a.totalPhp)
-  const organic  = campaigns.find(c => c.campaignName === 'No Campaign')
+  const named   = campaigns
+    .filter(c => c.campaignName !== 'No Campaign')
+    .sort((a, b) => b.totalPhp - a.totalPhp)
+  const organic = campaigns.find(c => c.campaignName === 'No Campaign')
   const maxTotal = named[0]?.totalPhp ?? 1
 
-  const BAR_H    = 44
-  const LABEL_W  = 148
-  const BAR_AREA = 340
-  const VALUE_W  = 100
-  const WIDTH    = LABEL_W + BAR_AREA + VALUE_W
-  const HEIGHT   = named.length * BAR_H + 8
-
   return (
-    <div>
-      <div className="overflow-x-auto">
-        <svg width={WIDTH} height={HEIGHT} className="block">
-          {named.map((c, i) => {
-            const barW   = Math.max(4, (c.totalPhp / maxTotal) * BAR_AREA)
-            const cy     = i * BAR_H + BAR_H / 2
-            const isHov  = hovered === c.campaignName
+    <div className="space-y-2">
+      {named.map((c, i) => (
+        <div key={c.campaignName} className="group flex items-center gap-4">
+          {/* Label */}
+          <div className="w-36 shrink-0 text-right">
+            <span className="text-sm text-foreground">{c.campaignName}</span>
+            <span className="block text-xs text-muted-foreground">{c.donationCount} gifts</span>
+          </div>
 
-            return (
-              <g key={c.campaignName}
-                onMouseEnter={() => setHovered(c.campaignName)}
-                onMouseLeave={() => setHovered(null)}
-                style={{ cursor: 'default' }}>
-
-                {/* Row hover background */}
-                <rect x={0} y={i * BAR_H} width={WIDTH} height={BAR_H}
-                  fill={isHov ? 'hsl(var(--muted) / 0.4)' : 'transparent'} rx={4} />
-
-                {/* Campaign label */}
-                <text x={LABEL_W - 10} y={cy + 5} textAnchor="end"
-                  fontSize={13} fontWeight={isHov ? 600 : 400}
-                  fill={isHov ? 'hsl(var(--foreground))' : 'hsl(var(--foreground) / 0.8)'}>
-                  {c.campaignName}
-                </text>
-
-                {/* Bar track */}
-                <rect x={LABEL_W} y={cy - 10} width={BAR_AREA} height={20}
-                  rx={4} fill="hsl(var(--primary) / 0.08)" />
-
-                {/* Animated bar */}
-                <motion.rect
-                  x={LABEL_W} y={cy - 10} height={20} rx={4}
-                  fill={isHov ? 'hsl(var(--primary))' : 'hsl(var(--primary) / 0.75)'}
-                  initial={{ width: 0 }}
-                  animate={{ width: barW }}
-                  transition={{ duration: 0.55, delay: i * 0.07, ease: 'easeOut' }}
-                />
-
-                {/* Revenue label */}
-                <motion.text
-                  y={cy + 5} textAnchor="start" fontSize={13} fontWeight={600}
-                  fill="hsl(var(--foreground))"
-                  initial={{ opacity: 0, x: LABEL_W + 8 }}
-                  animate={{ opacity: 1, x: LABEL_W + barW + 10 }}
-                  transition={{ duration: 0.55, delay: i * 0.07 + 0.1, ease: 'easeOut' }}>
-                  {php(c.totalPhp)}
-                </motion.text>
-
-                {/* Donation count — shown on hover or always if bar is wide enough */}
-                {(isHov || barW > 80) && (
-                  <text x={LABEL_W + 8} y={cy + 5} fontSize={11}
-                    fill="hsl(var(--background))" opacity={0.85}>
-                    {c.donationCount} gifts
-                  </text>
-                )}
-              </g>
-            )
-          })}
-        </svg>
-      </div>
+          {/* Bar + value */}
+          <div className="relative flex flex-1 items-center gap-3">
+            <div className="relative h-9 flex-1 overflow-hidden rounded-md bg-primary/10">
+              <motion.div
+                className="h-full rounded-md bg-primary/80 group-hover:bg-primary"
+                style={{ originX: 0 }}
+                initial={{ scaleX: 0 }}
+                animate={{ scaleX: c.totalPhp / maxTotal }}
+                transition={{ duration: 0.6, delay: i * 0.08, ease: [0.25, 0.46, 0.45, 0.94] }}
+              />
+            </div>
+            <motion.span
+              className="w-20 shrink-0 text-right text-sm font-semibold tabular-nums text-foreground"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: i * 0.08 + 0.3 }}
+            >
+              {php(c.totalPhp)}
+            </motion.span>
+          </div>
+        </div>
+      ))}
 
       {/* Organic revenue note */}
       {organic && (
         <div className="mt-4 flex items-center gap-3 rounded-lg border border-dashed px-3 py-2.5">
           <div className="h-3 w-3 shrink-0 rounded-sm bg-muted-foreground/25" />
           <p className="text-xs text-muted-foreground">
-            <span className="font-medium text-foreground">{php(organic.totalPhp)}</span> raised organically
-            across {organic.donationCount} unattributed donations — not tied to any named campaign.
+            <span className="font-medium text-foreground">{php(organic.totalPhp)}</span> raised
+            organically across {organic.donationCount} unattributed donations — not tied to any
+            named campaign.
           </p>
         </div>
       )}
