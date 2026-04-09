@@ -149,7 +149,7 @@ export function DonationPanel({
                 aria-label="Search donations"
               />
             </div>
-            <div className="min-w-0 flex-1">
+            <div className="flex min-h-[2.5rem] gap-2 sm:shrink-0">
               <button
                 type="button"
                 aria-expanded={filterOpen}
@@ -157,7 +157,7 @@ export function DonationPanel({
                   setFilterOpen((o) => !o)
                   setAddOpen(false)
                 }}
-                className={`flex h-full min-h-[2.5rem] w-full items-center justify-center gap-2 rounded-lg border px-3 text-sm font-medium transition-colors ${
+                className={`flex h-full min-h-[2.5rem] min-w-[8.25rem] flex-1 items-center justify-center gap-2 rounded-lg border px-3 text-sm font-medium transition-colors sm:flex-none sm:min-w-[8.75rem] sm:max-w-[9.5rem] ${
                   filterDropdownActive
                     ? 'border-primary/50 bg-primary/10 text-foreground'
                     : 'border-border bg-background text-foreground hover:bg-muted/50'
@@ -166,9 +166,6 @@ export function DonationPanel({
                 <Filter className="h-4 w-4 shrink-0" aria-hidden />
                 Filters
               </button>
-            </div>
-
-            <div className="min-w-0 flex-1">
               <button
                 type="button"
                 aria-expanded={addOpen}
@@ -176,7 +173,7 @@ export function DonationPanel({
                   setAddOpen((o) => !o)
                   setFilterOpen(false)
                 }}
-                className={`${btnPrimary} flex h-full min-h-[2.5rem] w-full items-center justify-center gap-2`}
+                className={`${btnPrimary} flex h-full min-h-[2.5rem] min-w-[9rem] flex-1 items-center justify-center gap-2 sm:flex-none sm:min-w-[9.5rem] sm:max-w-[11rem]`}
               >
                 <Plus className="h-4 w-4 shrink-0" aria-hidden />
                 Add donation

@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
-import { AlertTriangle, LoaderCircle, TrendingUp } from 'lucide-react'
-import type { AtRiskDonorInfo, Supporter } from '../../../../api/adminTypes'
+import { LoaderCircle } from 'lucide-react'
+import type { AtRiskDonorInfo, DonorUpgradeInfo, Supporter } from '../../../../api/adminTypes'
 import { btnPrimary, card } from '../../shared/adminStyles'
 import { StatusBadge } from '../../shared/adminDataTable/AdminBadges'
 
@@ -11,6 +11,8 @@ type Props = {
   churnLoading: boolean
   /** API / ML error detail when churn prediction could not be loaded */
   churnError: string | null
+  /** Present when this donor appears in the upgrade-candidates batch (ML propensity). */
+  upgrade: DonorUpgradeInfo | null
 }
 
 function isLapseRisk(c: AtRiskDonorInfo) {
@@ -29,13 +31,26 @@ function isDonateMorePotential(c: AtRiskDonorInfo, donationCount: number) {
   )
 }
 
-export function DonorStatusCard({ supporter, donationCount, churn, churnLoading, churnError }: Props) {
+const chipBase =
+  'inline-flex max-w-full items-center rounded-full border px-2.5 py-1 text-xs font-medium leading-tight'
+
+export function DonorStatusCard({
+  supporter,
+  donationCount,
+  churn,
+  churnLoading,
+  churnError,
+  upgrade,
+}: Props) {
   const outreachHref = `/admin/email-hub?supporterId=${supporter.id}`
   const showLapse = churn != null && isLapseRisk(churn)
   const showPotential = churn != null && isDonateMorePotential(churn, donationCount)
+  const showUpgradeChip = upgrade != null && upgrade.prediction === 'Likely to Upgrade'
+
+  const hasInsightChips = showLapse || showUpgradeChip || showPotential
 
   return (
-    <div className={`${card} flex flex-col gap-4`}>
+    <div className={`${card} flex h-full min-h-0 flex-col gap-4`}>
       <div className="flex flex-wrap items-center gap-2 text-sm text-foreground">
         <span className="font-medium text-muted-foreground">Status:</span>
         <StatusBadge status={supporter.status} />
@@ -46,7 +61,7 @@ export function DonorStatusCard({ supporter, donationCount, churn, churnLoading,
         {churnLoading ? (
           <p className="mt-2 flex items-center gap-2 text-sm text-muted-foreground">
             <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden />
-            Running churn model…
+            Loading insights…
           </p>
         ) : churn == null ? (
           <div className="mt-2 space-y-2 text-sm text-muted-foreground">
@@ -56,40 +71,52 @@ export function DonorStatusCard({ supporter, donationCount, churn, churnLoading,
                 {churnError}
               </p>
             ) : null}
+            {upgrade && showUpgradeChip ? (
+              <div className="flex flex-wrap gap-2 pt-1">
+                <span
+                  className={`${chipBase} border-emerald-200/90 bg-emerald-50 text-emerald-950 dark:border-emerald-800/80 dark:bg-emerald-950/40 dark:text-emerald-100`}
+                >
+                  Upgrade propensity · {Math.round(upgrade.upgrade_probability * 100)}%
+                  {upgrade.propensity_tier ? ` · ${upgrade.propensity_tier}` : ''}
+                </span>
+              </div>
+            ) : null}
             <p className="text-xs leading-relaxed">
-              Churn scores are produced by the ML prediction service. If you are running locally, start the ML API and
-              ensure the backend can reach it (for example the <code className="rounded bg-muted px-1">MlService</code>{' '}
-              HTTP client). A 502 from the API usually means the model service is down or misconfigured.
+              Churn scores come from the ML prediction service. If you are running locally, start the ML API and ensure
+              the backend can reach it. A 502 usually means the model service is down or misconfigured.
             </p>
           </div>
         ) : (
-          <ul className="mt-2 space-y-3 text-sm">
-            {showLapse ? (
-              <li className="flex gap-2 rounded-lg border border-amber-200/80 bg-amber-50/80 p-3">
-                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-700" aria-hidden />
-                <div>
-                  <p className="font-medium text-amber-950">Lapse risk</p>
-                  <p className="mt-0.5 text-amber-900/90">
-                    ~{Math.round(churn.churn_probability * 100)}% churn probability · {churn.risk_tier}
-                  </p>
-                </div>
-              </li>
+          <div className="mt-2 space-y-3">
+            <div className="flex flex-wrap gap-2">
+              {showLapse ? (
+                <span
+                  className={`${chipBase} border-amber-200/90 bg-amber-50 text-amber-950 dark:border-amber-800/80 dark:bg-amber-950/40 dark:text-amber-100`}
+                  title={churn.top_risk_signals?.length ? churn.top_risk_signals.join(' · ') : undefined}
+                >
+                  Lapse risk · {Math.round(churn.churn_probability * 100)}% · {churn.risk_tier}
+                </span>
+              ) : null}
+              {showUpgradeChip && upgrade ? (
+                <span
+                  className={`${chipBase} border-emerald-200/90 bg-emerald-50 text-emerald-950 dark:border-emerald-800/80 dark:bg-emerald-950/40 dark:text-emerald-100`}
+                >
+                  Upgrade propensity · {Math.round(upgrade.upgrade_probability * 100)}%
+                  {upgrade.propensity_tier ? ` · ${upgrade.propensity_tier}` : ''}
+                </span>
+              ) : null}
+              {showPotential ? (
+                <span
+                  className={`${chipBase} border-sky-200/90 bg-sky-50 text-sky-950 dark:border-sky-800/80 dark:bg-sky-950/40 dark:text-sky-100`}
+                >
+                  Stable engagement · growth opportunity
+                </span>
+              ) : null}
+            </div>
+            {!hasInsightChips ? (
+              <p className="text-sm text-muted-foreground">No standout pipeline flags for this donor right now.</p>
             ) : null}
-            {showPotential ? (
-              <li className="flex gap-2 rounded-lg border border-emerald-200/80 bg-emerald-50/80 p-3">
-                <TrendingUp className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700" aria-hidden />
-                <div>
-                  <p className="font-medium text-emerald-950">Donate-more potential</p>
-                  <p className="mt-0.5 text-emerald-900/90">
-                    Model shows stable engagement — a timely ask may increase giving.
-                  </p>
-                </div>
-              </li>
-            ) : null}
-            {!showLapse && !showPotential ? (
-              <li className="text-muted-foreground">No standout pipeline flags for this donor right now.</li>
-            ) : null}
-          </ul>
+          </div>
         )}
       </div>
 

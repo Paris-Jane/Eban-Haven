@@ -21,25 +21,29 @@ function contactSummary(s: Supporter) {
 
 export function DonorProfileCard({ supporter, detailsOpen, onToggleDetails, onEditClick }: Props) {
   return (
-    <div className={`${card} space-y-3`}>
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <h1 className="font-heading text-2xl font-bold text-foreground">{supporter.displayName}</h1>
-            <CategoryBadge>{supporter.supporterType}</CategoryBadge>
+    <div className={`${card} flex h-full min-h-0 flex-col space-y-3`}>
+      <div className="flex min-h-0 flex-1 flex-col justify-center gap-3 sm:min-h-[7.5rem]">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="font-heading text-3xl font-bold leading-tight tracking-tight text-foreground sm:text-4xl">
+                {supporter.displayName}
+              </h1>
+              <CategoryBadge>{supporter.supporterType}</CategoryBadge>
+            </div>
+            <p className="mt-2 text-sm text-muted-foreground sm:text-base">{contactSummary(supporter)}</p>
           </div>
-          <p className="mt-2 text-sm text-muted-foreground">{contactSummary(supporter)}</p>
+          <button
+            type="button"
+            onClick={onToggleDetails}
+            className="inline-flex shrink-0 items-center gap-1.5 self-start rounded-lg border border-border bg-muted/40 px-2.5 py-2 text-xs font-medium text-foreground hover:bg-muted/60"
+            aria-expanded={detailsOpen}
+            title={detailsOpen ? 'Hide details' : 'Show more profile details'}
+          >
+            <span className="hidden sm:inline">{detailsOpen ? 'Less' : 'More'}</span>
+            <ChevronDown className={`h-4 w-4 transition-transform ${detailsOpen ? 'rotate-180' : ''}`} />
+          </button>
         </div>
-        <button
-          type="button"
-          onClick={onToggleDetails}
-          className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-border bg-muted/40 px-2.5 py-2 text-xs font-medium text-foreground hover:bg-muted/60"
-          aria-expanded={detailsOpen}
-          title={detailsOpen ? 'Hide details' : 'Show more profile details'}
-        >
-          <span className="hidden sm:inline">{detailsOpen ? 'Less' : 'More'}</span>
-          <ChevronDown className={`h-4 w-4 transition-transform ${detailsOpen ? 'rotate-180' : ''}`} />
-        </button>
       </div>
 
       {detailsOpen ? (

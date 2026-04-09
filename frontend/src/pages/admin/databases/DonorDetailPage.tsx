@@ -6,9 +6,11 @@ import {
   getDonations,
   getDonorChurnRisk,
   getSupporters,
+  getUpgradeCandidates,
   patchSupporterFields,
   type AtRiskDonorInfo,
   type Donation,
+  type DonorUpgradeInfo,
   type Supporter,
 } from '../../../api/admin'
 import { DonationPanel } from './donorDetail/DonationPanel'
@@ -32,6 +34,7 @@ export function DonorDetailPage() {
   const [churn, setChurn] = useState<AtRiskDonorInfo | null>(null)
   const [churnError, setChurnError] = useState<string | null>(null)
   const [churnLoading, setChurnLoading] = useState(false)
+  const [upgradeInfo, setUpgradeInfo] = useState<DonorUpgradeInfo | null>(null)
 
   const [dType, setDType] = useState('Monetary')
   const [dAmount, setDAmount] = useState('')
@@ -69,20 +72,31 @@ export function DonorDetailPage() {
     if (supporterId == null) {
       setChurn(null)
       setChurnError(null)
+      setUpgradeInfo(null)
       setChurnLoading(false)
       return
     }
     let cancelled = false
     setChurn(null)
     setChurnError(null)
+    setUpgradeInfo(null)
     setChurnLoading(true)
-    void getDonorChurnRisk(supporterId).then(({ prediction, errorMessage }) => {
+    void (async () => {
+      const churnRes = await getDonorChurnRisk(supporterId)
+      let upgrade: DonorUpgradeInfo | null = null
+      try {
+        const upgrades = await getUpgradeCandidates(0.4, 400)
+        upgrade = upgrades.find((u) => u.supporter_id === supporterId) ?? null
+      } catch {
+        /* upgrade batch is optional */
+      }
       if (!cancelled) {
-        setChurn(prediction)
-        setChurnError(errorMessage)
+        setChurn(churnRes.prediction)
+        setChurnError(churnRes.errorMessage)
+        setUpgradeInfo(upgrade)
         setChurnLoading(false)
       }
-    })
+    })()
     return () => {
       cancelled = true
     }
@@ -200,8 +214,8 @@ export function DonorDetailPage() {
         <>
           {error ? <div className={alertError}>{error}</div> : null}
 
-          <div className="grid gap-4 lg:grid-cols-[minmax(0,3fr)_minmax(0,1fr)] lg:items-start">
-            <div className="min-w-0">
+          <div className="grid gap-4 lg:grid-cols-2 lg:items-stretch">
+            <div className="min-w-0 h-full lg:flex lg:flex-col">
               <DonorProfileCard
                 supporter={supporter}
                 detailsOpen={detailsOpen}
@@ -209,13 +223,14 @@ export function DonorDetailPage() {
                 onEditClick={openEdit}
               />
             </div>
-            <div className="min-w-0">
+            <div className="min-w-0 h-full lg:flex lg:flex-col">
               <DonorStatusCard
                 supporter={supporter}
                 donationCount={metrics.donationCount}
                 churn={churn}
                 churnLoading={churnLoading}
                 churnError={churnError}
+                upgrade={upgradeInfo}
               />
             </div>
           </div>
