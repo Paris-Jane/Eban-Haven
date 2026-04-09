@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { motion } from 'framer-motion'
-import { Heart } from 'lucide-react'
+import { ChevronDown, ChevronUp, Heart } from 'lucide-react'
 import { createMyDonation, getDonorDashboard } from '../../api/donor'
 import type { Donation, DonationAllocation, Supporter } from '../../api/adminTypes'
 import { SITE_DISPLAY_NAME } from '../../site'
@@ -33,6 +33,7 @@ export function DonorDashboardPage() {
   const [designate, setDesignate] = useState('General Fund')
   const [message, setMessage] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [impactOpen, setImpactOpen] = useState(false)
 
   const amounts = [500, 1000, 2500, 5000] as const
 
@@ -65,10 +66,6 @@ export function DonorDashboardPage() {
   }, [donations])
 
   const mostRecent = donations[0]
-  const totalAllocated = useMemo(
-    () => allocations.reduce((sum, allocation) => sum + (allocation.amountAllocated ?? 0), 0),
-    [allocations],
-  )
   const allocationsByProgram = useMemo(() => {
     const grouped = new Map<string, { programArea: string; total: number; safehouses: Set<string>; count: number }>()
     for (const allocation of allocations) {
@@ -182,53 +179,62 @@ export function DonorDashboardPage() {
 
               {allocations.length > 0 && (
                 <section className="rounded-xl border border-border bg-background p-6">
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                  <div className="flex items-start justify-between gap-3">
                     <div>
                       <h2 className="font-heading text-lg font-semibold text-foreground">Your impact</h2>
                       <p className="mt-2 text-sm text-muted-foreground">
                         Here is how your recorded donations have been directed so far based on the allocations entered by the team.
                       </p>
                     </div>
-                    <div className="rounded-xl border border-border bg-card px-4 py-3">
-                      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Allocated so far</p>
-                      <p className="mt-1 font-heading text-2xl font-bold text-primary">{moneyPhp.format(totalAllocated)}</p>
-                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setImpactOpen((open) => !open)}
+                      className="inline-flex shrink-0 items-center gap-2 rounded-full border border-border bg-card px-3 py-2 text-sm font-medium text-foreground transition-colors hover:border-primary/30 hover:bg-muted/40 hover:text-primary"
+                      aria-expanded={impactOpen}
+                    >
+                      {impactOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                      {impactOpen ? 'Hide details' : 'Show details'}
+                    </button>
                   </div>
 
-                  <div className="mt-5 rounded-xl border border-border bg-card p-4">
-                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Latest recorded allocation</p>
-                    <p className="mt-2 text-sm font-medium text-foreground">
-                      {mostRecentAllocation
-                        ? `${moneyPhp.format(mostRecentAllocation.amountAllocated)} to ${mostRecentAllocation.programArea}${
-                            mostRecentAllocation.safehouseName ? ` at ${mostRecentAllocation.safehouseName}` : ''
-                          }`
-                        : 'No allocations recorded yet.'}
-                    </p>
-                    {mostRecentAllocation && (
-                      <p className="mt-2 text-sm text-muted-foreground">
-                        This allocation {describeImpact(mostRecentAllocation.programArea)}
-                      </p>
-                    )}
-                  </div>
-
-                  <div className="mt-4 space-y-3">
-                    {allocationsByProgram.slice(0, 3).map((entry) => (
-                      <div key={entry.programArea} className="rounded-xl border border-border bg-card p-4">
-                        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                          <div>
-                            <p className="text-sm font-semibold text-foreground">{entry.programArea}</p>
-                            <p className="mt-1 text-sm text-muted-foreground">{describeImpact(entry.programArea)}</p>
-                          </div>
-                          <p className="text-sm font-semibold text-primary">{moneyPhp.format(entry.total)}</p>
-                        </div>
-                        <p className="mt-3 text-sm text-muted-foreground">
-                          {entry.safehouses.size > 0
-                            ? `Recorded support reached ${[...entry.safehouses].join(', ')} through ${entry.count} allocation${entry.count === 1 ? '' : 's'}.`
-                            : `Recorded across ${entry.count} allocation${entry.count === 1 ? '' : 's'} in this area.`}
+                  {impactOpen && (
+                    <>
+                      <div className="mt-5 rounded-xl border border-border bg-card p-4">
+                        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Latest recorded allocation</p>
+                        <p className="mt-2 text-sm font-medium text-foreground">
+                          {mostRecentAllocation
+                            ? `${moneyPhp.format(mostRecentAllocation.amountAllocated)} to ${mostRecentAllocation.programArea}${
+                                mostRecentAllocation.safehouseName ? ` at ${mostRecentAllocation.safehouseName}` : ''
+                              }`
+                            : 'No allocations recorded yet.'}
                         </p>
+                        {mostRecentAllocation && (
+                          <p className="mt-2 text-sm text-muted-foreground">
+                            This allocation {describeImpact(mostRecentAllocation.programArea)}
+                          </p>
+                        )}
                       </div>
-                    ))}
-                  </div>
+
+                      <div className="mt-4 space-y-3">
+                        {allocationsByProgram.slice(0, 3).map((entry) => (
+                          <div key={entry.programArea} className="rounded-xl border border-border bg-card p-4">
+                            <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                              <div>
+                                <p className="text-sm font-semibold text-foreground">{entry.programArea}</p>
+                                <p className="mt-1 text-sm text-muted-foreground">{describeImpact(entry.programArea)}</p>
+                              </div>
+                              <p className="text-sm font-semibold text-primary">{moneyPhp.format(entry.total)}</p>
+                            </div>
+                            <p className="mt-3 text-sm text-muted-foreground">
+                              {entry.safehouses.size > 0
+                                ? `Recorded support reached ${[...entry.safehouses].join(', ')} through ${entry.count} allocation${entry.count === 1 ? '' : 's'}.`
+                                : `Recorded across ${entry.count} allocation${entry.count === 1 ? '' : 's'} in this area.`}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    </>
+                  )}
                 </section>
               )}
 

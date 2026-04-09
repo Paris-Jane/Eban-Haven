@@ -155,7 +155,7 @@ function GoogleAuthBlock(props: {
           theme: 'outline',
           size: 'large',
           shape: 'pill',
-          width: 360,
+          width: 320,
           text: props.mode === 'login' ? 'signin_with' : 'signup_with',
         })
       })
@@ -178,8 +178,8 @@ function GoogleAuthBlock(props: {
   }
 
   return (
-    <div className="rounded-xl border border-border bg-muted/30 px-4 py-4">
-      <div id={buttonId} ref={buttonRef} className="flex justify-center" />
+    <div className="rounded-xl border border-border/70 bg-background px-3 py-3 shadow-sm">
+      <div id={buttonId} ref={buttonRef} className="flex min-h-[40px] justify-center" />
     </div>
   )
 }
@@ -341,10 +341,6 @@ export function LoginPage() {
 
           {tab === 'login' ? (
             <form onSubmit={onSubmit} className="space-y-5" noValidate>
-              <div className="relative py-1 text-center text-xs uppercase tracking-[0.24em] text-muted-foreground">
-                <span className="relative z-10 bg-card px-3">sign in with email</span>
-                <div className="absolute inset-x-0 top-1/2 h-px -translate-y-1/2 bg-border" />
-              </div>
               <div>
                 <label htmlFor="staff-user" className="text-sm font-medium text-foreground">
                   Username
