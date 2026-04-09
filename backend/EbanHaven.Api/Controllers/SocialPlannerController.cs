@@ -1,7 +1,9 @@
 using EbanHaven.Api.Auth;
+using EbanHaven.Api.Configuration;
 using EbanHaven.Api.SocialChat;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 
 namespace EbanHaven.Api.Controllers;
 
@@ -10,7 +12,9 @@ namespace EbanHaven.Api.Controllers;
 [Authorize(Policy = AdminOnlyPolicy.Name)]
 public sealed class SocialPlannerController(
     IPlannedSocialPostStore store,
-    IMetaSchedulingService metaSchedulingService) : ControllerBase
+    IMetaSchedulingService metaSchedulingService,
+    IOptions<OpenAIOptions> openAiOptions,
+    IHttpClientFactory httpFactory) : ControllerBase
 {
     [HttpGet("posts")]
     [ProducesResponseType(typeof(IReadOnlyList<PlannedSocialPostDto>), StatusCodes.Status200OK)]
@@ -98,6 +102,31 @@ public sealed class SocialPlannerController(
     {
         var deleted = await store.DeleteAsync(id, cancellationToken);
         return deleted ? NoContent() : NotFound();
+    }
+
+    [HttpGet("image-search")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public async Task<IActionResult> ImageSearch([FromQuery] string query, CancellationToken cancellationToken)
+    {
+        var key = openAiOptions.Value.PexelsApiKey;
+        if (string.IsNullOrWhiteSpace(key))
+            return Ok(new { photos = Array.Empty<object>() });
+
+        if (string.IsNullOrWhiteSpace(query))
+            return BadRequest(new { error = "query is required." });
+
+        var client = httpFactory.CreateClient();
+        using var req = new HttpRequestMessage(
+            HttpMethod.Get,
+            $"https://api.pexels.com/v1/search?query={Uri.EscapeDataString(query)}&per_page=9&orientation=landscape");
+        req.Headers.Add("Authorization", key);
+
+        var resp = await client.SendAsync(req, cancellationToken);
+        if (!resp.IsSuccessStatusCode)
+            return StatusCode((int)resp.StatusCode, new { error = "Pexels API error." });
+
+        var json = await resp.Content.ReadAsStringAsync(cancellationToken);
+        return Content(json, "application/json");
     }
 
     public sealed record CreatePlannedSocialPostsRequest(

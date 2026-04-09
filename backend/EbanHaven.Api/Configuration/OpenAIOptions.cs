@@ -7,4 +7,6 @@ public sealed class OpenAIOptions
     public string ApiKey { get; set; } = string.Empty;
 
     public string Model { get; set; } = "gpt-5.1";
+
+    public string PexelsApiKey { get; set; } = string.Empty;
 }
