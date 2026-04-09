@@ -381,7 +381,8 @@ export type MarketingAnalyticsSummary = {
     platforms: EffectivenessRanking[]
     daysOfWeek: EffectivenessRanking[]
     contentTopics: EffectivenessRanking[]
-    hashtags: EffectivenessRanking[]
+    recurringHashtags: EffectivenessRanking[]
+    campaignHashtags: EffectivenessRanking[]
   }
   causalEstimates: {
     pipeline_version: string

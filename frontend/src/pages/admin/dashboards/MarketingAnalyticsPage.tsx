@@ -360,9 +360,15 @@ export function MarketingAnalyticsPage() {
                 icon={<Megaphone className="h-4 w-4 text-primary" />}
               />
               <EffectivenessCard
-                title="Top Hashtags"
-                subtitle="minimum 20 posts"
-                rows={data.effectiveness.hashtags}
+                title="Best Recurring Hashtags"
+                subtitle="non-campaign posts, min 20"
+                rows={data.effectiveness.recurringHashtags}
+                icon={<Hash className="h-4 w-4 text-primary" />}
+              />
+              <EffectivenessCard
+                title="Best Campaign Hashtags"
+                subtitle="campaign-tagged posts, min 15"
+                rows={data.effectiveness.campaignHashtags}
                 icon={<Hash className="h-4 w-4 text-primary" />}
               />
             </div>

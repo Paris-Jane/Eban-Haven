@@ -58,7 +58,8 @@ record MarketingEffectivenessSummary(
     [property: JsonPropertyName("platforms")]     IEnumerable<EffectivenessRankingRow> Platforms,
     [property: JsonPropertyName("daysOfWeek")]    IEnumerable<EffectivenessRankingRow> DaysOfWeek,
     [property: JsonPropertyName("contentTopics")] IEnumerable<EffectivenessRankingRow> ContentTopics,
-    [property: JsonPropertyName("hashtags")]      IEnumerable<EffectivenessRankingRow> Hashtags
+    [property: JsonPropertyName("recurringHashtags")] IEnumerable<EffectivenessRankingRow> RecurringHashtags,
+    [property: JsonPropertyName("campaignHashtags")]  IEnumerable<EffectivenessRankingRow> CampaignHashtags
 );
 
 file record MarketingAnalyticsSummary(
@@ -229,7 +230,7 @@ public sealed class MarketingAnalyticsController(
         ORDER BY median_revenue_per_post_php DESC, post_count DESC
         """;
 
-    private const string HashtagEffectivenessSql = """
+    private const string RecurringHashtagEffectivenessSql = """
         WITH exploded AS (
             SELECT
                 LOWER(TRIM(tag)) AS label,
@@ -240,6 +241,7 @@ public sealed class MarketingAnalyticsController(
             FROM social_media_posts
             CROSS JOIN LATERAL regexp_split_to_table(COALESCE(hashtags, ''), '\s*,\s*') AS tag
             WHERE NULLIF(TRIM(tag), '') IS NOT NULL
+              AND NULLIF(TRIM(COALESCE(campaign_name, '')), '') IS NULL
         )
         SELECT
             label,
@@ -255,6 +257,37 @@ public sealed class MarketingAnalyticsController(
         FROM exploded
         GROUP BY label
         HAVING COUNT(*) >= 20
+        ORDER BY median_revenue_per_post_php DESC, post_count DESC
+        LIMIT 12
+        """;
+
+    private const string CampaignHashtagEffectivenessSql = """
+        WITH exploded AS (
+            SELECT
+                LOWER(TRIM(tag)) AS label,
+                COALESCE(estimated_donation_value_php, 0) AS estimated_donation_value_php,
+                COALESCE(donation_referrals, 0) AS donation_referrals,
+                COALESCE(reach, 0) AS reach,
+                COALESCE(click_throughs, 0) AS click_throughs
+            FROM social_media_posts
+            CROSS JOIN LATERAL regexp_split_to_table(COALESCE(hashtags, ''), '\s*,\s*') AS tag
+            WHERE NULLIF(TRIM(tag), '') IS NOT NULL
+              AND NULLIF(TRIM(COALESCE(campaign_name, '')), '') IS NOT NULL
+        )
+        SELECT
+            label,
+            COUNT(*)::int AS post_count,
+            ROUND(percentile_cont(0.5) WITHIN GROUP (ORDER BY estimated_donation_value_php)::numeric, 2) AS median_revenue_per_post_php,
+            ROUND(percentile_cont(0.5) WITHIN GROUP (ORDER BY donation_referrals)::numeric, 2) AS median_donation_referrals,
+            ROUND(percentile_cont(0.5) WITHIN GROUP (ORDER BY CASE WHEN reach > 0
+                THEN 1000.0 * estimated_donation_value_php / reach
+                ELSE 0 END)::numeric, 2) AS median_revenue_per_thousand_reach_php,
+            ROUND(percentile_cont(0.5) WITHIN GROUP (ORDER BY CASE WHEN reach > 0
+                THEN 100.0 * click_throughs / reach
+                ELSE 0 END)::numeric, 2) AS median_click_through_rate_pct
+        FROM exploded
+        GROUP BY label
+        HAVING COUNT(*) >= 15
         ORDER BY median_revenue_per_post_php DESC, post_count DESC
         LIMIT 12
         """;
@@ -363,13 +396,15 @@ public sealed class MarketingAnalyticsController(
         IReadOnlyList<EffectivenessRankingRow> platforms = [];
         IReadOnlyList<EffectivenessRankingRow> daysOfWeek = [];
         IReadOnlyList<EffectivenessRankingRow> contentTopics = [];
-        IReadOnlyList<EffectivenessRankingRow> hashtags = [];
+        IReadOnlyList<EffectivenessRankingRow> recurringHashtags = [];
+        IReadOnlyList<EffectivenessRankingRow> campaignHashtags = [];
         try
         {
             platforms = BuildEffectivenessRows(await conn.QueryAsync<dynamic>(PlatformEffectivenessSql), take: 7);
             daysOfWeek = BuildEffectivenessRows(await conn.QueryAsync<dynamic>(DayOfWeekEffectivenessSql), take: 7);
             contentTopics = BuildEffectivenessRows(await conn.QueryAsync<dynamic>(ContentTopicEffectivenessSql), take: 8);
-            hashtags = BuildEffectivenessRows(await conn.QueryAsync<dynamic>(HashtagEffectivenessSql), take: 8);
+            recurringHashtags = BuildEffectivenessRows(await conn.QueryAsync<dynamic>(RecurringHashtagEffectivenessSql), take: 8);
+            campaignHashtags = BuildEffectivenessRows(await conn.QueryAsync<dynamic>(CampaignHashtagEffectivenessSql), take: 8);
         }
         catch
         {
@@ -406,7 +441,8 @@ public sealed class MarketingAnalyticsController(
                 Platforms: platforms,
                 DaysOfWeek: daysOfWeek,
                 ContentTopics: contentTopics,
-                Hashtags: hashtags
+                RecurringHashtags: recurringHashtags,
+                CampaignHashtags: campaignHashtags
             ),
             CausalEstimates:      causalEstimates,
             LastAnalysisRun:      lastAnalysisRun
