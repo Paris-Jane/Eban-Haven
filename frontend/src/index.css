@@ -49,6 +49,27 @@
 }
 
 @layer base {
+  /* shadcn-style HSL tokens (space-separated) for hsl(var(--token)) in charts / third-party CSS */
+  :root {
+    --background: 40 33% 98%;
+    --foreground: 200 25% 12%;
+    --card: 0 0% 100%;
+    --card-foreground: 200 25% 12%;
+    --primary: 174 55% 28%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 37 65% 90%;
+    --secondary-foreground: 200 25% 12%;
+    --muted: 40 20% 94%;
+    --muted-foreground: 200 10% 45%;
+    --accent: 32 80% 55%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 72% 51%;
+    --border: 40 15% 88%;
+    --ring: 174 55% 28%;
+    --chart-3: 197 37% 24%;
+    --chart-5: 27 87% 67%;
+  }
+
   html {
     @apply antialiased;
   }
