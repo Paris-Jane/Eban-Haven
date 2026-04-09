@@ -6,6 +6,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <RootNamespace>EbanHaven.Api</RootNamespace>
     <AssemblyName>EbanHaven.Api</AssemblyName>
+    <UserSecretsId>EbanHaven.Api-9c4e2f1a-8b7d-4e6c-a5f3-2d1b0c9e8a7f</UserSecretsId>
   </PropertyGroup>
 
   <ItemGroup>
