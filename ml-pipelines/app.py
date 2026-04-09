@@ -30,10 +30,34 @@ def _load(model_file: str, meta_file: str):
 
 _reint_model, _reint_meta   = _load("reintegration_model.joblib",  "reintegration_model_metadata.json")
 
-# Build feature-importance lookup from the trained model (index matches feature_columns order)
-_reint_feature_importance: dict[str, float] = dict(
-    zip(_reint_meta["feature_columns"], _reint_model.feature_importances_.tolist())
-)
+# Build feature-importance lookup.
+# The model may be a raw estimator or a Pipeline; importances live on the
+# final estimator in either case.  If the importance vector length doesn't
+# match feature_columns (e.g. after OHE expansion), fall back to equal weights
+# so the service always starts and gap analysis degrades gracefully.
+def _extract_importances(model) -> list[float]:
+    # Raw estimator
+    if hasattr(model, "feature_importances_"):
+        return model.feature_importances_.tolist()
+    # sklearn Pipeline — try last step
+    if hasattr(model, "steps"):
+        for _, step in reversed(model.steps):
+            if hasattr(step, "feature_importances_"):
+                return step.feature_importances_.tolist()
+    # Named attribute fallback (e.g. model[-1])
+    try:
+        return model[-1].feature_importances_.tolist()
+    except Exception:
+        pass
+    return []
+
+_raw_importances = _extract_importances(_reint_model)
+_feature_cols    = _reint_meta["feature_columns"]
+if len(_raw_importances) == len(_feature_cols):
+    _reint_feature_importance: dict[str, float] = dict(zip(_feature_cols, _raw_importances))
+else:
+    # Lengths differ (OHE or unknown structure) — equal weight so gaps still rank
+    _reint_feature_importance = {f: 1.0 for f in _feature_cols}
 
 # Features where a higher resident value is better — gap = benchmark - resident
 # Features NOT in this list are "lower is better" — gap = resident - benchmark
