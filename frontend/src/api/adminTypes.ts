@@ -357,10 +357,10 @@ export type SocialMediaSpotlight = {
 export type EffectivenessRanking = {
   label: string
   postCount: number
-  avgRevenuePerPostPhp: number
-  avgDonationReferrals: number
-  revenuePerThousandReachPhp: number
-  clickThroughRatePct: number
+  medianRevenuePerPostPhp: number
+  medianDonationReferrals: number
+  medianRevenuePerThousandReachPhp: number
+  medianClickThroughRatePct: number
   effectivenessScore: number
 }
 

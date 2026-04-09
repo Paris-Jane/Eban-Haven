@@ -232,9 +232,9 @@ function EffectivenessCard({
       {leader && (
         <p className="mt-4 text-xs text-muted-foreground">
           <span className="font-medium text-foreground">{leader.label}</span> currently leads with score{' '}
-          <span className="font-medium text-foreground">{fmtScore(leader.effectivenessScore)}</span>, averaging{' '}
-          <span className="font-medium text-foreground">{php(leader.avgRevenuePerPostPhp)}</span> per post and{' '}
-          <span className="font-medium text-foreground">{leader.avgDonationReferrals.toFixed(1)}</span> donation referrals.
+          <span className="font-medium text-foreground">{fmtScore(leader.effectivenessScore)}</span>, with a typical post generating{' '}
+          <span className="font-medium text-foreground">{php(leader.medianRevenuePerPostPhp)}</span> and{' '}
+          <span className="font-medium text-foreground">{leader.medianDonationReferrals.toFixed(1)}</span> donation referrals.
         </p>
       )}
     </div>
@@ -330,8 +330,8 @@ export function MarketingAnalyticsPage() {
             </div>
             <SocialSpotlight data={data.socialMediaSpotlight} />
             <p className="mt-4 text-xs text-muted-foreground">
-              Effectiveness rankings below use the live `social_media_posts` table and blend revenue, referrals,
-              revenue efficiency, and click-through rate into a single score for comparison.
+              Effectiveness rankings below use the live `social_media_posts` table and blend median revenue,
+              median referrals, median revenue efficiency, and median click-through rate into a single score to reduce outlier distortion.
             </p>
           </div>
 

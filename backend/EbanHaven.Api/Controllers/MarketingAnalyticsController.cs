@@ -47,10 +47,10 @@ file record SocialMediaSpotlight(
 record EffectivenessRankingRow(
     [property: JsonPropertyName("label")]                     string  Label,
     [property: JsonPropertyName("postCount")]                 int     PostCount,
-    [property: JsonPropertyName("avgRevenuePerPostPhp")]      decimal AvgRevenuePerPostPhp,
-    [property: JsonPropertyName("avgDonationReferrals")]      decimal AvgDonationReferrals,
-    [property: JsonPropertyName("revenuePerThousandReachPhp")] decimal RevenuePerThousandReachPhp,
-    [property: JsonPropertyName("clickThroughRatePct")]       decimal ClickThroughRatePct,
+    [property: JsonPropertyName("medianRevenuePerPostPhp")]   decimal MedianRevenuePerPostPhp,
+    [property: JsonPropertyName("medianDonationReferrals")]   decimal MedianDonationReferrals,
+    [property: JsonPropertyName("medianRevenuePerThousandReachPhp")] decimal MedianRevenuePerThousandReachPhp,
+    [property: JsonPropertyName("medianClickThroughRatePct")] decimal MedianClickThroughRatePct,
     [property: JsonPropertyName("effectivenessScore")]        double  EffectivenessScore
 );
 
@@ -182,51 +182,51 @@ public sealed class MarketingAnalyticsController(
         SELECT
             COALESCE(platform, 'Unknown') AS label,
             COUNT(*)::int AS post_count,
-            ROUND(AVG(COALESCE(estimated_donation_value_php, 0))::numeric, 2) AS avg_revenue_per_post_php,
-            ROUND(AVG(COALESCE(donation_referrals, 0))::numeric, 2) AS avg_donation_referrals,
-            ROUND(AVG(CASE WHEN COALESCE(reach, 0) > 0
+            ROUND(percentile_cont(0.5) WITHIN GROUP (ORDER BY COALESCE(estimated_donation_value_php, 0))::numeric, 2) AS median_revenue_per_post_php,
+            ROUND(percentile_cont(0.5) WITHIN GROUP (ORDER BY COALESCE(donation_referrals, 0))::numeric, 2) AS median_donation_referrals,
+            ROUND(percentile_cont(0.5) WITHIN GROUP (ORDER BY CASE WHEN COALESCE(reach, 0) > 0
                 THEN 1000.0 * COALESCE(estimated_donation_value_php, 0) / reach
-                ELSE 0 END)::numeric, 2) AS revenue_per_thousand_reach_php,
-            ROUND(AVG(CASE WHEN COALESCE(reach, 0) > 0
+                ELSE 0 END)::numeric, 2) AS median_revenue_per_thousand_reach_php,
+            ROUND(percentile_cont(0.5) WITHIN GROUP (ORDER BY CASE WHEN COALESCE(reach, 0) > 0
                 THEN 100.0 * COALESCE(click_throughs, 0) / reach
-                ELSE 0 END)::numeric, 2) AS click_through_rate_pct
+                ELSE 0 END)::numeric, 2) AS median_click_through_rate_pct
         FROM social_media_posts
         GROUP BY COALESCE(platform, 'Unknown')
-        ORDER BY avg_revenue_per_post_php DESC, post_count DESC
+        ORDER BY median_revenue_per_post_php DESC, post_count DESC
         """;
 
     private const string DayOfWeekEffectivenessSql = """
         SELECT
             COALESCE(day_of_week, 'Unknown') AS label,
             COUNT(*)::int AS post_count,
-            ROUND(AVG(COALESCE(estimated_donation_value_php, 0))::numeric, 2) AS avg_revenue_per_post_php,
-            ROUND(AVG(COALESCE(donation_referrals, 0))::numeric, 2) AS avg_donation_referrals,
-            ROUND(AVG(CASE WHEN COALESCE(reach, 0) > 0
+            ROUND(percentile_cont(0.5) WITHIN GROUP (ORDER BY COALESCE(estimated_donation_value_php, 0))::numeric, 2) AS median_revenue_per_post_php,
+            ROUND(percentile_cont(0.5) WITHIN GROUP (ORDER BY COALESCE(donation_referrals, 0))::numeric, 2) AS median_donation_referrals,
+            ROUND(percentile_cont(0.5) WITHIN GROUP (ORDER BY CASE WHEN COALESCE(reach, 0) > 0
                 THEN 1000.0 * COALESCE(estimated_donation_value_php, 0) / reach
-                ELSE 0 END)::numeric, 2) AS revenue_per_thousand_reach_php,
-            ROUND(AVG(CASE WHEN COALESCE(reach, 0) > 0
+                ELSE 0 END)::numeric, 2) AS median_revenue_per_thousand_reach_php,
+            ROUND(percentile_cont(0.5) WITHIN GROUP (ORDER BY CASE WHEN COALESCE(reach, 0) > 0
                 THEN 100.0 * COALESCE(click_throughs, 0) / reach
-                ELSE 0 END)::numeric, 2) AS click_through_rate_pct
+                ELSE 0 END)::numeric, 2) AS median_click_through_rate_pct
         FROM social_media_posts
         GROUP BY COALESCE(day_of_week, 'Unknown')
-        ORDER BY avg_revenue_per_post_php DESC, post_count DESC
+        ORDER BY median_revenue_per_post_php DESC, post_count DESC
         """;
 
     private const string ContentTopicEffectivenessSql = """
         SELECT
             COALESCE(content_topic, 'Unknown') AS label,
             COUNT(*)::int AS post_count,
-            ROUND(AVG(COALESCE(estimated_donation_value_php, 0))::numeric, 2) AS avg_revenue_per_post_php,
-            ROUND(AVG(COALESCE(donation_referrals, 0))::numeric, 2) AS avg_donation_referrals,
-            ROUND(AVG(CASE WHEN COALESCE(reach, 0) > 0
+            ROUND(percentile_cont(0.5) WITHIN GROUP (ORDER BY COALESCE(estimated_donation_value_php, 0))::numeric, 2) AS median_revenue_per_post_php,
+            ROUND(percentile_cont(0.5) WITHIN GROUP (ORDER BY COALESCE(donation_referrals, 0))::numeric, 2) AS median_donation_referrals,
+            ROUND(percentile_cont(0.5) WITHIN GROUP (ORDER BY CASE WHEN COALESCE(reach, 0) > 0
                 THEN 1000.0 * COALESCE(estimated_donation_value_php, 0) / reach
-                ELSE 0 END)::numeric, 2) AS revenue_per_thousand_reach_php,
-            ROUND(AVG(CASE WHEN COALESCE(reach, 0) > 0
+                ELSE 0 END)::numeric, 2) AS median_revenue_per_thousand_reach_php,
+            ROUND(percentile_cont(0.5) WITHIN GROUP (ORDER BY CASE WHEN COALESCE(reach, 0) > 0
                 THEN 100.0 * COALESCE(click_throughs, 0) / reach
-                ELSE 0 END)::numeric, 2) AS click_through_rate_pct
+                ELSE 0 END)::numeric, 2) AS median_click_through_rate_pct
         FROM social_media_posts
         GROUP BY COALESCE(content_topic, 'Unknown')
-        ORDER BY avg_revenue_per_post_php DESC, post_count DESC
+        ORDER BY median_revenue_per_post_php DESC, post_count DESC
         """;
 
     private const string HashtagEffectivenessSql = """
@@ -244,18 +244,18 @@ public sealed class MarketingAnalyticsController(
         SELECT
             label,
             COUNT(*)::int AS post_count,
-            ROUND(AVG(estimated_donation_value_php)::numeric, 2) AS avg_revenue_per_post_php,
-            ROUND(AVG(donation_referrals)::numeric, 2) AS avg_donation_referrals,
-            ROUND(AVG(CASE WHEN reach > 0
+            ROUND(percentile_cont(0.5) WITHIN GROUP (ORDER BY estimated_donation_value_php)::numeric, 2) AS median_revenue_per_post_php,
+            ROUND(percentile_cont(0.5) WITHIN GROUP (ORDER BY donation_referrals)::numeric, 2) AS median_donation_referrals,
+            ROUND(percentile_cont(0.5) WITHIN GROUP (ORDER BY CASE WHEN reach > 0
                 THEN 1000.0 * estimated_donation_value_php / reach
-                ELSE 0 END)::numeric, 2) AS revenue_per_thousand_reach_php,
-            ROUND(AVG(CASE WHEN reach > 0
+                ELSE 0 END)::numeric, 2) AS median_revenue_per_thousand_reach_php,
+            ROUND(percentile_cont(0.5) WITHIN GROUP (ORDER BY CASE WHEN reach > 0
                 THEN 100.0 * click_throughs / reach
-                ELSE 0 END)::numeric, 2) AS click_through_rate_pct
+                ELSE 0 END)::numeric, 2) AS median_click_through_rate_pct
         FROM exploded
         GROUP BY label
         HAVING COUNT(*) >= 3
-        ORDER BY avg_revenue_per_post_php DESC, post_count DESC
+        ORDER BY median_revenue_per_post_php DESC, post_count DESC
         LIMIT 12
         """;
 
@@ -265,27 +265,27 @@ public sealed class MarketingAnalyticsController(
         {
             Label = (string)(r.label ?? "Unknown"),
             PostCount = (int)(r.post_count ?? 0),
-            AvgRevenuePerPostPhp = (decimal)(r.avg_revenue_per_post_php ?? 0m),
-            AvgDonationReferrals = (decimal)(r.avg_donation_referrals ?? 0m),
-            RevenuePerThousandReachPhp = (decimal)(r.revenue_per_thousand_reach_php ?? 0m),
-            ClickThroughRatePct = (decimal)(r.click_through_rate_pct ?? 0m),
+            MedianRevenuePerPostPhp = (decimal)(r.median_revenue_per_post_php ?? 0m),
+            MedianDonationReferrals = (decimal)(r.median_donation_referrals ?? 0m),
+            MedianRevenuePerThousandReachPhp = (decimal)(r.median_revenue_per_thousand_reach_php ?? 0m),
+            MedianClickThroughRatePct = (decimal)(r.median_click_through_rate_pct ?? 0m),
         }).ToList();
 
         if (raw.Count == 0)
             return [];
 
-        var maxRevenue = Math.Max(raw.Max(x => ToDouble(x.AvgRevenuePerPostPhp)), 1d);
-        var maxReferrals = Math.Max(raw.Max(x => ToDouble(x.AvgDonationReferrals)), 1d);
-        var maxRevenueEfficiency = Math.Max(raw.Max(x => ToDouble(x.RevenuePerThousandReachPhp)), 1d);
-        var maxCtr = Math.Max(raw.Max(x => ToDouble(x.ClickThroughRatePct)), 1d);
+        var maxRevenue = Math.Max(raw.Max(x => ToDouble(x.MedianRevenuePerPostPhp)), 1d);
+        var maxReferrals = Math.Max(raw.Max(x => ToDouble(x.MedianDonationReferrals)), 1d);
+        var maxRevenueEfficiency = Math.Max(raw.Max(x => ToDouble(x.MedianRevenuePerThousandReachPhp)), 1d);
+        var maxCtr = Math.Max(raw.Max(x => ToDouble(x.MedianClickThroughRatePct)), 1d);
 
         return raw
             .Select(x =>
             {
-                var revenueScore = ToDouble(x.AvgRevenuePerPostPhp) / maxRevenue;
-                var referralScore = ToDouble(x.AvgDonationReferrals) / maxReferrals;
-                var revenueEfficiencyScore = ToDouble(x.RevenuePerThousandReachPhp) / maxRevenueEfficiency;
-                var ctrScore = ToDouble(x.ClickThroughRatePct) / maxCtr;
+                var revenueScore = ToDouble(x.MedianRevenuePerPostPhp) / maxRevenue;
+                var referralScore = ToDouble(x.MedianDonationReferrals) / maxReferrals;
+                var revenueEfficiencyScore = ToDouble(x.MedianRevenuePerThousandReachPhp) / maxRevenueEfficiency;
+                var ctrScore = ToDouble(x.MedianClickThroughRatePct) / maxCtr;
                 var effectivenessScore = Math.Round(
                     100 * (
                         0.45 * revenueScore +
@@ -299,15 +299,15 @@ public sealed class MarketingAnalyticsController(
                 return new EffectivenessRankingRow(
                     Label: x.Label,
                     PostCount: x.PostCount,
-                    AvgRevenuePerPostPhp: x.AvgRevenuePerPostPhp,
-                    AvgDonationReferrals: x.AvgDonationReferrals,
-                    RevenuePerThousandReachPhp: x.RevenuePerThousandReachPhp,
-                    ClickThroughRatePct: x.ClickThroughRatePct,
+                    MedianRevenuePerPostPhp: x.MedianRevenuePerPostPhp,
+                    MedianDonationReferrals: x.MedianDonationReferrals,
+                    MedianRevenuePerThousandReachPhp: x.MedianRevenuePerThousandReachPhp,
+                    MedianClickThroughRatePct: x.MedianClickThroughRatePct,
                     EffectivenessScore: effectivenessScore
                 );
             })
             .OrderByDescending(x => x.EffectivenessScore)
-            .ThenByDescending(x => x.AvgRevenuePerPostPhp)
+            .ThenByDescending(x => x.MedianRevenuePerPostPhp)
             .ThenByDescending(x => x.PostCount)
             .Take(take)
             .ToArray();
