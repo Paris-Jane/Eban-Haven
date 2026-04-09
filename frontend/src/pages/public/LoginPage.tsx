@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Eye, EyeOff, Lock } from 'lucide-react'
@@ -52,6 +52,7 @@ declare global {
             parent: HTMLElement,
             options: Record<string, string | number | boolean>,
           ) => void
+          prompt: (momentListener?: (notification: unknown) => void) => void
         }
       }
     }
@@ -124,23 +125,44 @@ function PasswordField(props: {
   )
 }
 
+function GoogleMark() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" className="h-5 w-5">
+      <path
+        fill="#EA4335"
+        d="M12.24 10.285V14.4h5.88c-.255 1.35-1.53 3.96-5.88 3.96-3.54 0-6.42-2.925-6.42-6.535s2.88-6.535 6.42-6.535c2.01 0 3.36.855 4.14 1.59l2.82-2.73C17.4 2.475 15.045 1.5 12.24 1.5 6.945 1.5 2.64 5.805 2.64 11.1s4.305 9.6 9.6 9.6c5.535 0 9.21-3.885 9.21-9.36 0-.63-.075-1.11-.165-1.575H12.24Z"
+      />
+      <path
+        fill="#34A853"
+        d="M2.64 6.615 6.03 9.105c.915-1.815 2.79-3.075 5.115-3.075 2.01 0 3.36.855 4.14 1.59l2.82-2.73C17.4 2.475 15.045 1.5 12.24 1.5 8.55 1.5 5.355 3.615 3.765 6.69l-1.125-.075Z"
+      />
+      <path
+        fill="#FBBC05"
+        d="M2.64 17.385c1.545 3.09 4.755 5.205 9.6 5.205 2.67 0 4.92-.87 6.57-2.355l-3.03-2.475c-.99.705-2.235 1.14-3.54 1.14-4.275 0-5.535-2.595-5.88-3.885l-3.72 2.37Z"
+      />
+      <path
+        fill="#4285F4"
+        d="M21.45 11.34c0-.63-.075-1.11-.165-1.575H12.24V13.88h5.88c-.285 1.515-1.215 2.79-2.34 3.645l3.03 2.475c1.77-1.635 2.64-4.05 2.64-7.665Z"
+      />
+    </svg>
+  )
+}
+
 function GoogleAuthBlock(props: {
   mode: GoogleAuthMode
   disabled: boolean
   onError: (message: string) => void
   onCredential: (credential: string, mode: GoogleAuthMode) => Promise<void>
 }) {
-  const buttonRef = useRef<HTMLDivElement | null>(null)
-  const buttonId = useId()
+  const [googleReady, setGoogleReady] = useState(false)
 
   useEffect(() => {
-    if (!googleClientId || props.disabled || !buttonRef.current) return
+    if (!googleClientId) return
 
     let cancelled = false
     void loadGoogleScript()
       .then(() => {
-        if (cancelled || !buttonRef.current || !window.google) return
-        buttonRef.current.innerHTML = ''
+        if (cancelled || !window.google) return
         window.google.accounts.id.initialize({
           client_id: googleClientId,
           callback: ({ credential }) => {
@@ -151,22 +173,23 @@ function GoogleAuthBlock(props: {
             void props.onCredential(credential, props.mode)
           },
         })
-        window.google.accounts.id.renderButton(buttonRef.current, {
-          theme: 'outline',
-          size: 'large',
-          shape: 'pill',
-          width: 320,
-          text: props.mode === 'login' ? 'signin_with' : 'signup_with',
-        })
+        setGoogleReady(true)
       })
       .catch((error: unknown) => {
         props.onError(error instanceof Error ? error.message : 'Google Sign-In failed to load.')
+        setGoogleReady(false)
       })
 
     return () => {
       cancelled = true
     }
-  }, [props])
+  }, [props.mode, props.onCredential, props.onError])
+
+  function handleGoogleClick() {
+    if (!window.google || !googleReady || props.disabled) return
+    props.onError('')
+    window.google.accounts.id.prompt()
+  }
 
   if (!googleClientId) {
     return (
@@ -178,9 +201,15 @@ function GoogleAuthBlock(props: {
   }
 
   return (
-    <div className="rounded-xl border border-border/70 bg-background px-3 py-3 shadow-sm">
-      <div id={buttonId} ref={buttonRef} className="flex min-h-[40px] justify-center" />
-    </div>
+    <button
+      type="button"
+      onClick={handleGoogleClick}
+      disabled={props.disabled || !googleReady}
+      className="flex w-full items-center justify-center gap-3 rounded-lg border border-border bg-background px-4 py-3 text-sm font-medium text-foreground shadow-sm transition-colors hover:border-primary/25 hover:bg-muted/35 disabled:cursor-not-allowed disabled:opacity-60"
+    >
+      <GoogleMark />
+      <span>{props.mode === 'login' ? 'Continue with Google' : 'Create account with Google'}</span>
+    </button>
   )
 }
 
@@ -390,125 +419,155 @@ export function LoginPage() {
             </form>
           ) : (
             <form onSubmit={onRegister} className="space-y-6">
-              <div className="relative py-1 text-center text-xs uppercase tracking-[0.24em] text-muted-foreground">
-                <span className="relative z-10 bg-card px-3">create account with details</span>
-                <div className="absolute inset-x-0 top-1/2 h-px -translate-y-1/2 bg-border" />
-              </div>
-
-              <div className="grid gap-5 lg:grid-cols-[1.15fr_0.85fr]">
-                <section className={cardClass}>
-                  <div className="mb-4">
-                    <p className="text-xs font-semibold uppercase tracking-[0.24em] text-accent">Account access</p>
-                    <h2 className="mt-2 font-heading text-xl font-semibold text-foreground">Sign-in essentials</h2>
-                  </div>
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <label className="text-sm sm:col-span-2">
-                      <span className="text-muted-foreground">Display name *</span>
-                      <input
-                        required
-                        className={inputClass}
-                        value={rDisplayName}
-                        onChange={(e) => setRDisplayName(e.target.value)}
-                      />
-                    </label>
-                    <label className="text-sm">
-                      <span className="text-muted-foreground">Email *</span>
-                      <input
-                        type="email"
-                        required
-                        className={inputClass}
-                        value={rEmail}
-                        onChange={(e) => setREmail(e.target.value)}
-                      />
-                    </label>
-                    <div className="text-sm">
-                      <PasswordField
-                        id="register-pass"
-                        label="Password *"
-                        autoComplete="new-password"
-                        value={rPassword}
-                        onChange={setRPassword}
-                        hint="Passwords must be at least 14 characters long."
+              <section className="rounded-2xl border border-border bg-muted/20 p-5 sm:p-6">
+                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-accent">Choose a sign-up method</p>
+                <div className="mt-3 grid gap-4 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
+                  <div className="rounded-2xl border border-border bg-background p-5">
+                    <h2 className="font-heading text-xl font-semibold text-foreground">Quick sign up with Google</h2>
+                    <p className="mt-2 text-sm text-muted-foreground">
+                      Use your Google account for the fastest setup. We will create your donor login and bring you straight into your dashboard.
+                    </p>
+                    <div className="mt-4">
+                      <GoogleAuthBlock
+                        mode="register"
+                        disabled={submitting}
+                        onError={setError}
+                        onCredential={completeGoogleAuth}
                       />
                     </div>
-                    <label className="text-sm">
-                      <span className="text-muted-foreground">Supporter type *</span>
-                      <select
-                        className={inputClass}
-                        value={rSupporterType}
-                        onChange={(e) => setRSupporterType(e.target.value)}
-                      >
-                        {supporterTypeOptions.map((t) => (
-                          <option key={t.value} value={t.value}>
-                            {t.label}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    <label className="text-sm">
-                      <span className="text-muted-foreground">How did you hear about us?</span>
-                      <select
-                        className={inputClass}
-                        value={rChannel}
-                        onChange={(e) => setRChannel(e.target.value)}
-                      >
-                        {acquisitionChannels.map((c) => (
-                          <option key={c} value={c}>
-                            {c}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
                   </div>
-                </section>
 
-                <section className={cardClass}>
-                  <div className="mb-4">
-                    <p className="text-xs font-semibold uppercase tracking-[0.24em] text-accent">Supporter profile</p>
-                    <h2 className="mt-2 font-heading text-xl font-semibold text-foreground">Personal details</h2>
+                  <div className="rounded-2xl border border-dashed border-border bg-background/70 p-5">
+                    <h2 className="font-heading text-xl font-semibold text-foreground">Or create your account manually</h2>
+                    <p className="mt-2 text-sm text-muted-foreground">
+                      Complete the required account fields below, then add any extra donor profile details you want us to keep on file.
+                    </p>
+                    <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                      <div className="rounded-xl border border-border bg-muted/25 p-3">
+                        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-foreground">Required</p>
+                        <p className="mt-1 text-sm text-muted-foreground">Display name, email, password, and supporter type.</p>
+                      </div>
+                      <div className="rounded-xl border border-border bg-muted/25 p-3">
+                        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-foreground">Optional</p>
+                        <p className="mt-1 text-sm text-muted-foreground">Personal details, organization, region, phone, and referral info.</p>
+                      </div>
+                    </div>
                   </div>
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <label className="text-sm">
-                      <span className="text-muted-foreground">First name</span>
-                      <input className={inputClass} value={rFirst} onChange={(e) => setRFirst(e.target.value)} />
-                    </label>
-                    <label className="text-sm">
-                      <span className="text-muted-foreground">Last name</span>
-                      <input className={inputClass} value={rLast} onChange={(e) => setRLast(e.target.value)} />
-                    </label>
-                    <label className="text-sm sm:col-span-2">
-                      <span className="text-muted-foreground">Organization name</span>
-                      <input className={inputClass} value={rOrg} onChange={(e) => setROrg(e.target.value)} />
-                    </label>
-                    <label className="text-sm">
-                      <span className="text-muted-foreground">Relationship to our work</span>
-                      <select
-                        className={inputClass}
-                        value={rRel}
-                        onChange={(e) => setRRel(e.target.value as RelationshipValue)}
-                      >
-                        {relationshipOptions.map((t) => (
-                          <option key={t.value} value={t.value}>
-                            {t.label}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    <label className="text-sm">
-                      <span className="text-muted-foreground">Phone</span>
-                      <input className={inputClass} value={rPhone} onChange={(e) => setRPhone(e.target.value)} />
-                    </label>
-                    <label className="text-sm">
-                      <span className="text-muted-foreground">Region</span>
-                      <input className={inputClass} value={rRegion} onChange={(e) => setRRegion(e.target.value)} />
-                    </label>
-                    <label className="text-sm">
-                      <span className="text-muted-foreground">Country</span>
-                      <input className={inputClass} value={rCountry} onChange={(e) => setRCountry(e.target.value)} />
-                    </label>
+                </div>
+              </section>
+
+              <section className={cardClass}>
+                <div className="mb-4">
+                  <p className="text-xs font-semibold uppercase tracking-[0.24em] text-accent">Required account details</p>
+                  <h2 className="mt-2 font-heading text-xl font-semibold text-foreground">Create your login</h2>
+                </div>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <label className="text-sm sm:col-span-2">
+                    <span className="text-muted-foreground">Display name *</span>
+                    <input
+                      required
+                      className={inputClass}
+                      value={rDisplayName}
+                      onChange={(e) => setRDisplayName(e.target.value)}
+                    />
+                  </label>
+                  <label className="text-sm">
+                    <span className="text-muted-foreground">Email *</span>
+                    <input
+                      type="email"
+                      required
+                      className={inputClass}
+                      value={rEmail}
+                      onChange={(e) => setREmail(e.target.value)}
+                    />
+                  </label>
+                  <div className="text-sm">
+                    <PasswordField
+                      id="register-pass"
+                      label="Password *"
+                      autoComplete="new-password"
+                      value={rPassword}
+                      onChange={setRPassword}
+                      hint="Passwords must be at least 14 characters long."
+                    />
                   </div>
-                </section>
-              </div>
+                  <label className="text-sm">
+                    <span className="text-muted-foreground">Supporter type *</span>
+                    <select
+                      className={inputClass}
+                      value={rSupporterType}
+                      onChange={(e) => setRSupporterType(e.target.value)}
+                    >
+                      {supporterTypeOptions.map((t) => (
+                        <option key={t.value} value={t.value}>
+                          {t.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="text-sm">
+                    <span className="text-muted-foreground">How did you hear about us?</span>
+                    <select
+                      className={inputClass}
+                      value={rChannel}
+                      onChange={(e) => setRChannel(e.target.value)}
+                    >
+                      {acquisitionChannels.map((c) => (
+                        <option key={c} value={c}>
+                          {c}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+              </section>
+
+              <section className={cardClass}>
+                <div className="mb-4">
+                  <p className="text-xs font-semibold uppercase tracking-[0.24em] text-accent">Optional donor profile</p>
+                  <h2 className="mt-2 font-heading text-xl font-semibold text-foreground">Add a little more about yourself</h2>
+                </div>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <label className="text-sm">
+                    <span className="text-muted-foreground">First name</span>
+                    <input className={inputClass} value={rFirst} onChange={(e) => setRFirst(e.target.value)} />
+                  </label>
+                  <label className="text-sm">
+                    <span className="text-muted-foreground">Last name</span>
+                    <input className={inputClass} value={rLast} onChange={(e) => setRLast(e.target.value)} />
+                  </label>
+                  <label className="text-sm sm:col-span-2">
+                    <span className="text-muted-foreground">Organization name</span>
+                    <input className={inputClass} value={rOrg} onChange={(e) => setROrg(e.target.value)} />
+                  </label>
+                  <label className="text-sm">
+                    <span className="text-muted-foreground">Relationship to our work</span>
+                    <select
+                      className={inputClass}
+                      value={rRel}
+                      onChange={(e) => setRRel(e.target.value as RelationshipValue)}
+                    >
+                      {relationshipOptions.map((t) => (
+                        <option key={t.value} value={t.value}>
+                          {t.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="text-sm">
+                    <span className="text-muted-foreground">Phone</span>
+                    <input className={inputClass} value={rPhone} onChange={(e) => setRPhone(e.target.value)} />
+                  </label>
+                  <label className="text-sm">
+                    <span className="text-muted-foreground">Region</span>
+                    <input className={inputClass} value={rRegion} onChange={(e) => setRRegion(e.target.value)} />
+                  </label>
+                  <label className="text-sm">
+                    <span className="text-muted-foreground">Country</span>
+                    <input className={inputClass} value={rCountry} onChange={(e) => setRCountry(e.target.value)} />
+                  </label>
+                </div>
+              </section>
 
               <button
                 type="submit"
@@ -517,12 +576,6 @@ export function LoginPage() {
               >
                 {submitting ? 'Creating account…' : 'Create account'}
               </button>
-              <GoogleAuthBlock
-                mode="register"
-                disabled={submitting}
-                onError={setError}
-                onCredential={completeGoogleAuth}
-              />
             </form>
           )}
         </motion.div>
