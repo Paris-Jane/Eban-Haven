@@ -257,6 +257,14 @@ export function MarketingAnalyticsPage() {
 
   useEffect(() => { load() }, [load])
 
+  const effectiveness = data?.effectiveness ?? {
+    platforms: [],
+    daysOfWeek: [],
+    contentTopics: [],
+    recurringHashtags: [],
+    campaignHashtags: [],
+  }
+
   return (
     <div className="space-y-8">
       {/* Header */}
@@ -339,34 +347,39 @@ export function MarketingAnalyticsPage() {
               <EffectivenessCard
                 title="Top Platforms"
                 subtitle="ranked by median revenue/post"
-                rows={data.effectiveness.platforms}
+                rows={effectiveness.platforms}
                 icon={<TrendingUp className="h-4 w-4 text-primary" />}
               />
               <EffectivenessCard
                 title="Best Days To Post"
                 subtitle="ranked by median revenue/post"
-                rows={data.effectiveness.daysOfWeek}
+                rows={effectiveness.daysOfWeek}
                 icon={<CalendarDays className="h-4 w-4 text-primary" />}
               />
               <EffectivenessCard
                 title="Top Content Topics"
                 subtitle="ranked by median revenue/post"
-                rows={data.effectiveness.contentTopics}
+                rows={effectiveness.contentTopics}
                 icon={<Megaphone className="h-4 w-4 text-primary" />}
               />
               <EffectivenessCard
                 title="Best Recurring Hashtags"
                 subtitle="non-campaign posts, min 20"
-                rows={data.effectiveness.recurringHashtags}
+                rows={effectiveness.recurringHashtags}
                 icon={<Hash className="h-4 w-4 text-primary" />}
               />
               <EffectivenessCard
                 title="Best Campaign Hashtags"
                 subtitle="campaign-tagged posts, min 15"
-                rows={data.effectiveness.campaignHashtags}
+                rows={effectiveness.campaignHashtags}
                 icon={<Hash className="h-4 w-4 text-primary" />}
               />
             </div>
+            {!data.effectiveness && (
+              <p className="mt-3 text-xs text-muted-foreground">
+                Detailed post rankings are temporarily unavailable while the backend catches up with the latest analytics schema.
+              </p>
+            )}
           </div>
 
         </>
