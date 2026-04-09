@@ -17,6 +17,7 @@ import {
 } from 'lucide-react'
 import { logoutAndReload } from '../api/auth'
 import type { LucideIcon } from 'lucide-react'
+import { GoogleTranslate } from '../components/GoogleTranslate'
 import { SiteLogoMark } from '../components/SiteLogoMark'
 import { SITE_DISPLAY_NAME } from '../site'
 
@@ -227,6 +228,9 @@ export function AdminLayout() {
           >
             <Menu className="h-5 w-5" />
           </button>
+          <div className="ml-auto w-full max-w-xs">
+            <GoogleTranslate variant="admin" />
+          </div>
         </header>
         <main className="flex-1 bg-background p-4 lg:p-8">
           <Outlet />

@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import { PUBLIC_CONTACT, SITE_DISPLAY_NAME, SOCIAL_LINKS } from '../site'
 import { SiteLogoMark } from './SiteLogoMark'
+import { GoogleTranslate } from './GoogleTranslate'
 
 function IconFacebook({ className }: { className?: string }) {
   return (
@@ -125,6 +126,9 @@ export function Footer() {
           >
             Privacy Policy
           </Link>
+        </div>
+        <div className="mt-8 border-t border-border pt-8">
+          <GoogleTranslate />
         </div>
       </div>
     </footer>
