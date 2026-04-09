@@ -6,6 +6,19 @@ import type { Donation, DonationAllocation, Supporter } from '../../api/adminTyp
 import { SITE_DISPLAY_NAME } from '../../site'
 
 const moneyPhp = new Intl.NumberFormat(undefined, { style: 'currency', currency: 'PHP' })
+const impactDescriptions: Record<string, string> = {
+  general: 'helped cover urgent day-to-day needs across the program, giving the team flexibility to respond where support was most needed.',
+  education: 'supported learning needs such as school access, supplies, tutoring, and educational stability.',
+  health: 'helped fund healthcare, checkups, medicines, and other health-related support for residents.',
+  counseling: 'supported counseling, case management, and emotional recovery services for girls in care.',
+  shelter: 'helped provide safe shelter, daily care, and a stable living environment for residents.',
+  nutrition: 'contributed to meals, nutritional support, and everyday wellbeing.',
+  reintegration: 'supported reintegration planning, family preparation, and transition support toward long-term stability.',
+}
+
+function describeImpact(programArea: string) {
+  return impactDescriptions[programArea.trim().toLowerCase()] ?? 'supported direct care and practical program needs for residents.'
+}
 
 export function DonorDashboardPage() {
   const [email, setEmail] = useState<string | null>(null)
@@ -52,15 +65,27 @@ export function DonorDashboardPage() {
   }, [donations])
 
   const mostRecent = donations[0]
-  const impactedPrograms = useMemo(() => {
-    return Array.from(
-      new Set(allocations.map((allocation) => allocation.programArea?.trim()).filter(Boolean)),
-    ) as string[]
-  }, [allocations])
   const totalAllocated = useMemo(
     () => allocations.reduce((sum, allocation) => sum + (allocation.amountAllocated ?? 0), 0),
     [allocations],
   )
+  const allocationsByProgram = useMemo(() => {
+    const grouped = new Map<string, { programArea: string; total: number; safehouses: Set<string>; count: number }>()
+    for (const allocation of allocations) {
+      const key = allocation.programArea?.trim() || 'General'
+      const entry = grouped.get(key) ?? {
+        programArea: key,
+        total: 0,
+        safehouses: new Set<string>(),
+        count: 0,
+      }
+      entry.total += allocation.amountAllocated ?? 0
+      entry.count += 1
+      if (allocation.safehouseName?.trim()) entry.safehouses.add(allocation.safehouseName.trim())
+      grouped.set(key, entry)
+    }
+    return [...grouped.values()].sort((a, b) => b.total - a.total)
+  }, [allocations])
   const mostRecentAllocation = allocations[0]
 
   async function onDonate(e: React.FormEvent) {
@@ -155,53 +180,57 @@ export function DonorDashboardPage() {
                 </p>
               )}
 
-              <section className="rounded-xl border border-border bg-background p-6">
-                <h2 className="font-heading text-lg font-semibold text-foreground">Your impact</h2>
-                <p className="mt-2 text-sm text-muted-foreground">
-                  Here is where your giving has been directed so far, based on the allocations currently recorded by the team.
-                </p>
-                <div className="mt-4 grid gap-4 sm:grid-cols-3">
-                  <div className="rounded-xl border border-border bg-card p-4">
-                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                      Total allocated
-                    </p>
-                    <p className="mt-2 font-heading text-2xl font-bold text-primary">
-                      {allocations.length > 0 ? moneyPhp.format(totalAllocated) : '—'}
-                    </p>
-                    <p className="mt-2 text-sm text-muted-foreground">
-                      {allocations.length > 0
-                        ? 'Amount linked to specific program allocations in your record.'
-                        : 'No allocation details have been recorded yet.'}
-                    </p>
+              {allocations.length > 0 && (
+                <section className="rounded-xl border border-border bg-background p-6">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                    <div>
+                      <h2 className="font-heading text-lg font-semibold text-foreground">Your impact</h2>
+                      <p className="mt-2 text-sm text-muted-foreground">
+                        Here is how your recorded donations have been directed so far based on the allocations entered by the team.
+                      </p>
+                    </div>
+                    <div className="rounded-xl border border-border bg-card px-4 py-3">
+                      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Allocated so far</p>
+                      <p className="mt-1 font-heading text-2xl font-bold text-primary">{moneyPhp.format(totalAllocated)}</p>
+                    </div>
                   </div>
-                  <div className="rounded-xl border border-border bg-card p-4">
-                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                      Supported program areas
-                    </p>
-                    <p className="mt-2 text-sm font-medium text-foreground">
-                      {impactedPrograms.length > 0 ? impactedPrograms.join(', ') : 'Awaiting allocation details'}
-                    </p>
-                    <p className="mt-2 text-sm text-muted-foreground">
-                      {impactedPrograms.length > 0
-                        ? `${impactedPrograms.length} program area${impactedPrograms.length === 1 ? '' : 's'} represented so far.`
-                        : 'Once staff assigns your donations, those areas will appear here.'}
-                    </p>
-                  </div>
-                  <div className="rounded-xl border border-border bg-card p-4">
-                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                      Latest allocation activity
-                    </p>
+
+                  <div className="mt-5 rounded-xl border border-border bg-card p-4">
+                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Latest recorded allocation</p>
                     <p className="mt-2 text-sm font-medium text-foreground">
                       {mostRecentAllocation
-                        ? `${mostRecentAllocation.programArea} · ${new Date(mostRecentAllocation.allocationDate).toLocaleDateString()}`
+                        ? `${moneyPhp.format(mostRecentAllocation.amountAllocated)} to ${mostRecentAllocation.programArea}${
+                            mostRecentAllocation.safehouseName ? ` at ${mostRecentAllocation.safehouseName}` : ''
+                          }`
                         : 'No allocations recorded yet.'}
                     </p>
-                    <p className="mt-2 text-sm text-muted-foreground">
-                      {allocations.length > 0 ? `${allocations.length} recorded allocation(s)` : 'Your donation history is available below.'}
-                    </p>
+                    {mostRecentAllocation && (
+                      <p className="mt-2 text-sm text-muted-foreground">
+                        This allocation {describeImpact(mostRecentAllocation.programArea)}
+                      </p>
+                    )}
                   </div>
-                </div>
-              </section>
+
+                  <div className="mt-4 space-y-3">
+                    {allocationsByProgram.slice(0, 3).map((entry) => (
+                      <div key={entry.programArea} className="rounded-xl border border-border bg-card p-4">
+                        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                          <div>
+                            <p className="text-sm font-semibold text-foreground">{entry.programArea}</p>
+                            <p className="mt-1 text-sm text-muted-foreground">{describeImpact(entry.programArea)}</p>
+                          </div>
+                          <p className="text-sm font-semibold text-primary">{moneyPhp.format(entry.total)}</p>
+                        </div>
+                        <p className="mt-3 text-sm text-muted-foreground">
+                          {entry.safehouses.size > 0
+                            ? `Recorded support reached ${[...entry.safehouses].join(', ')} through ${entry.count} allocation${entry.count === 1 ? '' : 's'}.`
+                            : `Recorded across ${entry.count} allocation${entry.count === 1 ? '' : 's'} in this area.`}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              )}
 
               <h2 className="mb-4 mt-10 font-heading text-lg font-semibold text-foreground">Make a donation</h2>
               <form onSubmit={onDonate} className="space-y-4 rounded-xl border border-border bg-background p-6">

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
+import { ChevronDown, ChevronUp } from 'lucide-react'
 import { Link, useNavigate } from 'react-router-dom'
 import {
   alertError,
@@ -38,6 +39,7 @@ import {
 import { formatAdminDate, inDateRange, matchesIdMulti, matchesStringMulti, uniqSortedStrings } from '../shared/adminDataTable/adminFormatters'
 
 const PLAN_STATUSES = ['Open', 'In Progress', 'Achieved', 'On Hold', 'Closed'] as const
+const UPCOMING_CONFERENCE_LIMIT = 8
 
 function emptyFilters() {
   return {
@@ -188,7 +190,7 @@ export function CaseConferencesAdminPage() {
         const hay = `${p.residentInternalCode} ${p.planCategory} ${p.status} ${p.planDescription ?? ''}`.toLowerCase()
         return hay.includes(query)
       })
-      .slice(0, 24)
+      .slice(0, UPCOMING_CONFERENCE_LIMIT)
   }, [plans, upcomingSearch])
 
   function onSort(key: string) {
@@ -296,9 +298,23 @@ export function CaseConferencesAdminPage() {
       {error && <div className={alertError}>{error}</div>}
 
       <div className={card}>
-        <button type="button" className="text-sm font-medium text-primary hover:underline" onClick={() => setShowUpcoming((s) => !s)}>
-          {showUpcoming ? 'Hide Upcoming Conferences' : 'Show Upcoming Conferences'}
-        </button>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p className="text-sm font-semibold text-foreground">Conference Preview</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Showing up to {UPCOMING_CONFERENCE_LIMIT} scheduled or recent conferences for quick review.
+            </p>
+          </div>
+          <button
+            type="button"
+            className="inline-flex items-center gap-2 rounded-full border border-border bg-background px-3 py-2 text-sm font-medium text-foreground transition-colors hover:border-primary/30 hover:bg-muted/50 hover:text-primary"
+            onClick={() => setShowUpcoming((s) => !s)}
+            aria-expanded={showUpcoming}
+          >
+            {showUpcoming ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+            {showUpcoming ? 'Collapse Preview' : 'Show Preview'}
+          </button>
+        </div>
         {showUpcoming && (
           <div className="mt-4 space-y-4">
             <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
