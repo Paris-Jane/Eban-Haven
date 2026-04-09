@@ -9,6 +9,8 @@ type Props = {
   donationCount: number
   churn: AtRiskDonorInfo | null
   churnLoading: boolean
+  /** API / ML error detail when churn prediction could not be loaded */
+  churnError: string | null
 }
 
 function isLapseRisk(c: AtRiskDonorInfo) {
@@ -27,7 +29,7 @@ function isDonateMorePotential(c: AtRiskDonorInfo, donationCount: number) {
   )
 }
 
-export function DonorStatusCard({ supporter, donationCount, churn, churnLoading }: Props) {
+export function DonorStatusCard({ supporter, donationCount, churn, churnLoading, churnError }: Props) {
   const outreachHref = `/admin/email-hub?supporterId=${supporter.id}`
   const showLapse = churn != null && isLapseRisk(churn)
   const showPotential = churn != null && isDonateMorePotential(churn, donationCount)
@@ -50,7 +52,19 @@ export function DonorStatusCard({ supporter, donationCount, churn, churnLoading 
             Running churn model…
           </p>
         ) : churn == null ? (
-          <p className="mt-2 text-sm text-muted-foreground">Insights unavailable (model or service not reachable).</p>
+          <div className="mt-2 space-y-2 text-sm text-muted-foreground">
+            <p className="font-medium text-foreground">Insights unavailable</p>
+            {churnError ? (
+              <p className="rounded-md border border-border bg-muted/40 px-2 py-1.5 text-xs leading-relaxed text-foreground">
+                {churnError}
+              </p>
+            ) : null}
+            <p className="text-xs leading-relaxed">
+              Churn scores are produced by the ML prediction service. If you are running locally, start the ML API and
+              ensure the backend can reach it (for example the <code className="rounded bg-muted px-1">MlService</code>{' '}
+              HTTP client). A 502 from the API usually means the model service is down or misconfigured.
+            </p>
+          </div>
         ) : (
           <ul className="mt-2 space-y-3 text-sm">
             {showLapse ? (

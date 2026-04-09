@@ -83,14 +83,37 @@ export async function getUpgradeCandidates(threshold = 0.4, limit = 100): Promis
   )
 }
 
-/** Single-donor churn pipeline (ML service). Returns null if unavailable or error. */
-export async function getDonorChurnRisk(supporterId: number): Promise<T.AtRiskDonorInfo | null> {
+export type DonorChurnRiskResult = {
+  prediction: T.AtRiskDonorInfo | null
+  /** Set when the API or network fails so the UI can explain why insights are missing. */
+  errorMessage: string | null
+}
+
+/** Single-donor churn pipeline (ML service). `errorMessage` is set when the call fails or ML is unreachable. */
+export async function getDonorChurnRisk(supporterId: number): Promise<DonorChurnRiskResult> {
   try {
     const res = await apiFetch(`/api/donors/${supporterId}/churn-risk`)
-    if (!res.ok) return null
-    return parseJson<T.AtRiskDonorInfo>(res)
-  } catch {
-    return null
+    if (!res.ok) {
+      let detail = `Request failed (${res.status}).`
+      try {
+        const text = await res.text()
+        if (text) {
+          const j = JSON.parse(text) as { detail?: string; message?: string; title?: string }
+          if (typeof j.detail === 'string' && j.detail.trim()) detail = j.detail.trim()
+          else if (typeof j.message === 'string' && j.message.trim()) detail = j.message.trim()
+          else if (typeof j.title === 'string' && j.title.trim()) detail = j.title.trim()
+        }
+      } catch {
+        /* keep detail */
+      }
+      return { prediction: null, errorMessage: detail }
+    }
+    return { prediction: await parseJson<T.AtRiskDonorInfo>(res), errorMessage: null }
+  } catch (e) {
+    return {
+      prediction: null,
+      errorMessage: e instanceof Error ? e.message : 'Network error while loading churn risk.',
+    }
   }
 }
 

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { RefObject } from 'react'
-import { Filter, Plus } from 'lucide-react'
+import { Filter, Plus, Search } from 'lucide-react'
 import type { Donation } from '../../../../api/adminTypes'
 import { btnPrimary, card, input, label, sectionFormTitle, tableBody, tableHead, tableWrap } from '../../shared/adminStyles'
 import { donationTypeOptions } from './donorDetailConstants'
@@ -122,24 +122,40 @@ export function DonationPanel({
   }, [donations, search, typeFilter, channelFilter, campaignFilter, sortKey])
 
   const selectClass = `${input} bg-background`
-  const activeFilters =
-    search.trim() !== '' ||
+  const filterDropdownActive =
     typeFilter !== '__all__' ||
     channelFilter !== '__all__' ||
     campaignFilter !== '__all__' ||
     sortKey !== 'date-desc'
+  const anyTableFilters = search.trim() !== '' || filterDropdownActive
 
   return (
     <section className="space-y-4">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h2 className="font-heading text-lg font-semibold text-foreground">Donations</h2>
-          <p className="text-sm text-muted-foreground">
-            {filteredSorted.length} of {donations.length} shown
-            {activeFilters ? ' · filters active' : ''}
-          </p>
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <h2 className="font-heading text-lg font-semibold text-foreground">Donations</h2>
+            <p className="text-sm text-muted-foreground">
+              {filteredSorted.length} of {donations.length} shown
+              {anyTableFilters ? ' · filters active' : ''}
+            </p>
+          </div>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <div className="relative min-w-0 flex-1 sm:max-w-md">
+            <Search
+              className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
+              aria-hidden
+            />
+            <input
+              className={`${input} pl-9`}
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search donations (amount, type, campaign, notes…)"
+              aria-label="Search donations"
+            />
+          </div>
+          <div className="flex shrink-0 flex-wrap items-center gap-2">
           <div className="relative" ref={filterRef}>
             <button
               type="button"
@@ -148,7 +164,7 @@ export function DonationPanel({
                 setAddOpen(false)
               }}
               className={`inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
-                activeFilters
+                filterDropdownActive
                   ? 'border-primary/50 bg-primary/10 text-foreground'
                   : 'border-border bg-background text-foreground hover:bg-muted/50'
               }`}
@@ -160,15 +176,6 @@ export function DonationPanel({
               <div className="absolute right-0 z-30 mt-1 w-[min(100vw-2rem,22rem)] rounded-xl border border-border bg-card p-4 shadow-lg sm:left-0 sm:right-auto sm:w-96">
                 <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Filter & sort</p>
                 <div className="mt-3 grid gap-3">
-                  <label className={label}>
-                    Search
-                    <input
-                      className={input}
-                      value={search}
-                      onChange={(e) => setSearch(e.target.value)}
-                      placeholder="Type, campaign, notes…"
-                    />
-                  </label>
                   <label className={label}>
                     Type
                     <select className={selectClass} value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}>
@@ -228,14 +235,13 @@ export function DonationPanel({
                   type="button"
                   className="mt-3 w-full rounded-lg border border-border py-2 text-sm text-muted-foreground hover:bg-muted/40"
                   onClick={() => {
-                    setSearch('')
                     setTypeFilter('__all__')
                     setChannelFilter('__all__')
                     setCampaignFilter('__all__')
                     setSortKey('date-desc')
                   }}
                 >
-                  Reset filters
+                  Reset type, channel, campaign & sort
                 </button>
               </div>
             ) : null}
@@ -318,6 +324,7 @@ export function DonationPanel({
                 </form>
               </div>
             ) : null}
+          </div>
           </div>
         </div>
       </div>

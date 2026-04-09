@@ -21,7 +21,7 @@ function contactSummary(s: Supporter) {
 
 export function DonorProfileCard({ supporter, detailsOpen, onToggleDetails, onEditClick }: Props) {
   return (
-    <div className={`${card} space-y-3`}>
+    <div className={`${card} flex h-full min-h-0 flex-col space-y-3`}>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">

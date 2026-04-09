@@ -30,6 +30,7 @@ export function DonorDetailPage() {
   const [editOpen, setEditOpen] = useState(false)
   const [edit, setEdit] = useState<Supporter | null>(null)
   const [churn, setChurn] = useState<AtRiskDonorInfo | null>(null)
+  const [churnError, setChurnError] = useState<string | null>(null)
   const [churnLoading, setChurnLoading] = useState(false)
 
   const [dType, setDType] = useState('Monetary')
@@ -67,15 +68,18 @@ export function DonorDetailPage() {
   useEffect(() => {
     if (supporterId == null) {
       setChurn(null)
+      setChurnError(null)
       setChurnLoading(false)
       return
     }
     let cancelled = false
     setChurn(null)
+    setChurnError(null)
     setChurnLoading(true)
-    void getDonorChurnRisk(supporterId).then((c) => {
+    void getDonorChurnRisk(supporterId).then(({ prediction, errorMessage }) => {
       if (!cancelled) {
-        setChurn(c)
+        setChurn(prediction)
+        setChurnError(errorMessage)
         setChurnLoading(false)
       }
     })
@@ -196,19 +200,24 @@ export function DonorDetailPage() {
         <>
           {error ? <div className={alertError}>{error}</div> : null}
 
-          <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(17rem,20rem)] lg:items-start">
-            <DonorProfileCard
-              supporter={supporter}
-              detailsOpen={detailsOpen}
-              onToggleDetails={() => setDetailsOpen((o) => !o)}
-              onEditClick={openEdit}
-            />
-            <DonorStatusCard
-              supporter={supporter}
-              donationCount={metrics.donationCount}
-              churn={churn}
-              churnLoading={churnLoading}
-            />
+          <div className="grid gap-4 lg:grid-cols-2 lg:items-stretch">
+            <div className="min-w-0">
+              <DonorProfileCard
+                supporter={supporter}
+                detailsOpen={detailsOpen}
+                onToggleDetails={() => setDetailsOpen((o) => !o)}
+                onEditClick={openEdit}
+              />
+            </div>
+            <div className="min-w-0">
+              <DonorStatusCard
+                supporter={supporter}
+                donationCount={metrics.donationCount}
+                churn={churn}
+                churnLoading={churnLoading}
+                churnError={churnError}
+              />
+            </div>
           </div>
 
           <DonorMetricsRow
