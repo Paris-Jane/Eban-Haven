@@ -483,19 +483,10 @@ export function EmailHubPage() {
                         </div>
                       </div>
                       <p className="mt-1 text-xs text-muted-foreground">{supporter.email ?? 'No email on file'}</p>
-                      <div className="mt-1 flex items-center justify-between gap-2">
-                        <p className="text-xs text-muted-foreground">
-                          {supporter.supporterType}
-                          {supporter.region ? ` · ${supporter.region}` : ''}
-                        </p>
-                        <Link
-                          to={`/admin/donors/${supporter.id}`}
-                          onClick={(e) => e.stopPropagation()}
-                          className="flex items-center gap-1 text-[10px] text-primary hover:underline"
-                        >
-                          Profile <ExternalLink className="h-2.5 w-2.5" />
-                        </Link>
-                      </div>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {supporter.supporterType}
+                        {supporter.region ? ` · ${supporter.region}` : ''}
+                      </p>
                       <p className="mt-2 text-[11px] text-muted-foreground">
                         Last emailed:{' '}
                         <span className="font-medium text-foreground">

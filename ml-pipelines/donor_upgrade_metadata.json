@@ -25,14 +25,14 @@
     "acquisition_channel",
     "relationship_type"
   ],
-  "roc_auc_loo": null,
-  "f1_loo": null,
-  "best_threshold": 0.5,
-  "n_training_samples": null,
-  "n_positive": null,
-  "n_negative": null,
+  "roc_auc_loo": 0.7164,
+  "f1_loo": 0.6667,
+  "best_threshold": 0.6241,
+  "n_training_samples": 37,
+  "n_positive": 18,
+  "n_negative": 19,
   "cv_strategy": "LeaveOneOut",
-  "trained_on": null,
+  "trained_on": "2026-04-09",
   "currency": "PHP",
-  "data_warning": "Placeholder — run donor-upgrade-propensity.ipynb top-to-bottom to train the model and populate this file."
+  "data_warning": "Trained on 37 labeled donors. Retrain with GradientBoostingClassifier when N > 100."
 }
