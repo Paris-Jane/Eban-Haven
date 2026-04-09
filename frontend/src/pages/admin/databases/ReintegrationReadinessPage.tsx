@@ -156,6 +156,7 @@ export function ReintegrationReadinessPage() {
   const [safehouseFilter, setSafehouseFilter] = useState('all')
   const [tierFilter, setTierFilter] = useState<TierFilter>('all')
   const [workerFilter, setWorkerFilter] = useState('all')
+  const [rankingOrder, setRankingOrder] = useState<'desc' | 'asc'>('desc')
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -223,8 +224,15 @@ export function ReintegrationReadinessPage() {
         }
         return true
       })
-      .sort((a, b) => b.readiness.reintegration_probability - a.readiness.reintegration_probability)
   }, [rows, safehouseFilter, tierFilter, workerFilter, search])
+
+  const rankingsRows = useMemo(() => {
+    return [...filteredRows].sort((a, b) =>
+      rankingOrder === 'desc'
+        ? b.readiness.reintegration_probability - a.readiness.reintegration_probability
+        : a.readiness.reintegration_probability - b.readiness.reintegration_probability,
+    )
+  }, [filteredRows, rankingOrder])
 
   const tierCounts = useMemo(() => {
     return filteredRows.reduce<Record<ReintegrationResult['risk_tier'], number>>(
@@ -246,6 +254,7 @@ export function ReintegrationReadinessPage() {
         .filter(
           (row) => deriveReadinessPrediction(row.readiness.reintegration_probability) === 'Ready',
         )
+        .sort((a, b) => b.readiness.reintegration_probability - a.readiness.reintegration_probability)
         .slice(0, 5),
     [filteredRows],
   )
@@ -318,14 +327,35 @@ export function ReintegrationReadinessPage() {
       </div>
 
       {loading ? (
-        <div className="grid gap-4 lg:grid-cols-3">
-          {Array.from({ length: 3 }).map((_, index) => (
-            <div key={index} className={`${card} animate-pulse space-y-3`}>
-              <div className="h-4 w-28 rounded bg-muted" />
-              <div className="h-8 w-20 rounded bg-muted" />
-              <div className="h-3 w-36 rounded bg-muted" />
+        <div className="space-y-6">
+          <div className="grid gap-4 lg:grid-cols-3">
+            {Array.from({ length: 3 }).map((_, index) => (
+              <div key={index} className={`${card} animate-pulse space-y-3`}>
+                <div className="h-4 w-28 rounded bg-muted" />
+                <div className="h-8 w-20 rounded bg-muted" />
+                <div className="h-3 w-36 rounded bg-muted" />
+              </div>
+            ))}
+          </div>
+          <div className={`${card} animate-pulse space-y-4`}>
+            <div className="h-4 w-40 rounded bg-muted" />
+            <div className="h-4 w-full rounded bg-muted" />
+            <div className="grid gap-3 md:grid-cols-3">
+              {Array.from({ length: 3 }).map((_, index) => (
+                <div key={index} className="h-20 rounded-xl bg-muted" />
+              ))}
             </div>
-          ))}
+          </div>
+          <div className={`${card} animate-pulse space-y-4`}>
+            <div className="flex items-center justify-between gap-4">
+              <div className="space-y-2">
+                <div className="h-4 w-40 rounded bg-muted" />
+                <div className="h-3 w-64 rounded bg-muted" />
+              </div>
+              <div className="h-10 w-44 rounded bg-muted" />
+            </div>
+            <div className="h-48 rounded-xl bg-muted" />
+          </div>
         </div>
       ) : (
         <>
@@ -337,28 +367,28 @@ export function ReintegrationReadinessPage() {
 
           <ReadinessDistributionBar counts={tierCounts} total={filteredRows.length} />
 
-          <div className="grid gap-6 xl:grid-cols-2">
-            <PriorityCard
-              title="Ready to transition"
-              emptyMessage="No residents in the current filtered cohort are over the readiness threshold yet."
-              residents={readyToTransition}
-            />
-            <PriorityCard
-              title="Needs attention"
-              emptyMessage="No low-readiness residents matched the current filters."
-              residents={needsAttention}
-            />
-          </div>
-
           <div className="space-y-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div>
-                <h3 className="text-base font-semibold text-foreground">Readiness leaderboard</h3>
+                <h3 className="text-base font-semibold text-foreground">Readiness Rankings</h3>
                 <p className="mt-1 text-sm text-muted-foreground">
                   Ranked active residents using these thresholds: high readiness at {Math.round(READINESS_READY_THRESHOLD * 100)}%+, medium at 50% to under 70%, and low below 50%.
                 </p>
               </div>
-              {lastUpdated && <p className="text-xs text-muted-foreground">Updated {lastUpdated.toLocaleTimeString()}</p>}
+              <div className="flex flex-wrap items-center gap-3">
+                <label className={`${label} min-w-[11rem]`}>
+                  Ranking order
+                  <select
+                    className={input}
+                    value={rankingOrder}
+                    onChange={(event) => setRankingOrder(event.target.value as 'desc' | 'asc')}
+                  >
+                    <option value="desc">Highest readiness first</option>
+                    <option value="asc">Lowest readiness first</option>
+                  </select>
+                </label>
+                {lastUpdated && <p className="text-xs text-muted-foreground">Updated {lastUpdated.toLocaleTimeString()}</p>}
+              </div>
             </div>
 
             <div className={tableWrap}>
@@ -373,14 +403,14 @@ export function ReintegrationReadinessPage() {
                   </tr>
                 </thead>
                 <tbody className={tableBody}>
-                  {filteredRows.length === 0 ? (
+                  {rankingsRows.length === 0 ? (
                     <tr>
                       <td colSpan={5} className={emptyCell}>
                         No residents matched the current readiness filters.
                       </td>
                     </tr>
                   ) : (
-                    filteredRows.map((row) => {
+                    rankingsRows.map((row) => {
                       const tier = deriveReadinessTier(row.readiness.reintegration_probability)
                       const prediction = deriveReadinessPrediction(row.readiness.reintegration_probability)
                       const tierConfig = TIER_CONFIG[tier]
@@ -424,6 +454,19 @@ export function ReintegrationReadinessPage() {
                 </tbody>
               </table>
             </div>
+          </div>
+
+          <div className="grid gap-6 xl:grid-cols-2">
+            <PriorityCard
+              title="Ready to transition"
+              emptyMessage="No residents in the current filtered cohort are over the readiness threshold yet."
+              residents={readyToTransition}
+            />
+            <PriorityCard
+              title="Needs attention"
+              emptyMessage="No low-readiness residents matched the current filters."
+              residents={needsAttention}
+            />
           </div>
         </>
       )}
