@@ -49,11 +49,21 @@ public interface ILighthouseRepository
     bool DeleteProcessRecording(int id);
     bool DeleteHomeVisitation(int id);
     IReadOnlyList<EducationRecordDto> ListEducationRecords(int? residentId);
-    EducationRecordDto CreateEducationRecord(int residentId, DateOnly recordDate, double? progressPercent, string? extendedJson = null);
-    EducationRecordDto? PatchEducationRecord(int id, double? progressPercent, DateOnly? recordDate, string? extendedJson = null);
+    EducationRecordDto CreateEducationRecord(int residentId, DateOnly recordDate, string? educationLevel, string? schoolName,
+        string? enrollmentStatus, double? attendanceRate, double? progressPercent, string? completionStatus, string? notes,
+        string? extendedJson = null);
+    EducationRecordDto? PatchEducationRecord(int id, string? educationLevel, string? schoolName, string? enrollmentStatus,
+        double? attendanceRate, double? progressPercent, string? completionStatus, string? notes, DateOnly? recordDate,
+        string? extendedJson = null);
     IReadOnlyList<HealthRecordDto> ListHealthRecords(int? residentId);
-    HealthRecordDto CreateHealthRecord(int residentId, DateOnly recordDate, double? healthScore, string? extendedJson = null);
-    HealthRecordDto? PatchHealthRecord(int id, double? healthScore, DateOnly? recordDate, string? extendedJson = null);
+    HealthRecordDto CreateHealthRecord(int residentId, DateOnly recordDate, double? healthScore, double? nutritionScore,
+        double? sleepQualityScore, double? energyLevelScore, double? heightCm, double? weightKg, double? bmi,
+        bool? medicalCheckupDone, bool? dentalCheckupDone, bool? psychologicalCheckupDone, string? notes,
+        string? extendedJson = null);
+    HealthRecordDto? PatchHealthRecord(int id, double? healthScore, double? nutritionScore, double? sleepQualityScore,
+        double? energyLevelScore, double? heightCm, double? weightKg, double? bmi, bool? medicalCheckupDone,
+        bool? dentalCheckupDone, bool? psychologicalCheckupDone, string? notes, DateOnly? recordDate,
+        string? extendedJson = null);
 
     IReadOnlyList<IncidentReportDto> ListIncidentReports(int? residentId);
     IncidentReportDto CreateIncidentReport(int residentId, int? safehouseId, DateOnly incidentDate, string incidentType,

@@ -11,6 +11,7 @@ namespace EbanHaven.Api.Lighthouse;
 public sealed class SupabaseLighthouseRepository(HavenDbContext db) : ILighthouseRepository
 {
     private static readonly ConcurrentDictionary<string, HashSet<string>> ColumnCache = new(StringComparer.OrdinalIgnoreCase);
+    private static readonly Regex CamelBoundaryRegex = new("(?<!^)([A-Z])", RegexOptions.Compiled);
 
     /// <summary>Coerce incoming instants to UTC before persisting (JSON often uses <see cref="DateTimeKind.Unspecified"/>).</summary>
     private static DateTime NormalizeDonationUtc(DateTime value) =>
@@ -301,10 +302,10 @@ public sealed class SupabaseLighthouseRepository(HavenDbContext db) : ILighthous
         var pairs = new List<(string Col, string? Val)>();
         foreach (var (k, v) in patch)
         {
-            if (v is null) continue;
-            if (string.Equals(k, "resident_id", StringComparison.OrdinalIgnoreCase)) continue;
-            if (!columns.Contains(k)) continue;
-            pairs.Add((k, v));
+            var column = NormalizeFieldKey(k);
+            if (string.Equals(column, "resident_id", StringComparison.OrdinalIgnoreCase)) continue;
+            if (!columns.Contains(column)) continue;
+            pairs.Add((column, v));
         }
 
         if (pairs.Count == 0) return true;
@@ -320,7 +321,7 @@ public sealed class SupabaseLighthouseRepository(HavenDbContext db) : ILighthous
         {
             var p = cmd.CreateParameter();
             p.ParameterName = $"p{i}";
-            p.Value = pairs[i].Val ?? "";
+            p.Value = pairs[i].Val is null ? DBNull.Value : pairs[i].Val;
             cmd.Parameters.Add(p);
         }
 
@@ -729,21 +730,25 @@ public sealed class SupabaseLighthouseRepository(HavenDbContext db) : ILighthous
         if (row is null) return null;
         foreach (var (k, v) in fields)
         {
-            if (v is null) continue;
-            switch (k.ToLowerInvariant())
+            switch (NormalizeFieldKey(k))
             {
-                case "display_name": row.DisplayName = v; break;
-                case "email": row.Email = v; break;
-                case "region": row.Region = v; break;
-                case "status": row.Status = v; break;
-                case "supporter_type": row.SupporterType = v; break;
-                case "country": row.Country = v; break;
-                case "organization_name": row.OrganizationName = v; break;
-                case "first_name": row.FirstName = v; break;
-                case "last_name": row.LastName = v; break;
-                case "phone": row.Phone = v; break;
-                case "acquisition_channel": row.AcquisitionChannel = v; break;
-                case "relationship_type": row.RelationshipType = v; break;
+                case "display_name" when v is not null: row.DisplayName = v; break;
+                case "email": row.Email = NullIfEmpty(v); break;
+                case "region": row.Region = NullIfEmpty(v); break;
+                case "status" when v is not null: row.Status = v; break;
+                case "supporter_type" when v is not null: row.SupporterType = v; break;
+                case "country": row.Country = NullIfEmpty(v); break;
+                case "organization_name": row.OrganizationName = NullIfEmpty(v); break;
+                case "first_name": row.FirstName = NullIfEmpty(v); break;
+                case "last_name": row.LastName = NullIfEmpty(v); break;
+                case "phone": row.Phone = NullIfEmpty(v); break;
+                case "acquisition_channel": row.AcquisitionChannel = NullIfEmpty(v); break;
+                case "relationship_type": row.RelationshipType = NullIfEmpty(v); break;
+                case "first_donation_date":
+                    row.FirstDonationDate = !string.IsNullOrWhiteSpace(v) && DateOnly.TryParse(v, out var firstDonationDate)
+                        ? firstDonationDate
+                        : null;
+                    break;
             }
         }
         db.SaveChanges();
@@ -765,15 +770,36 @@ public sealed class SupabaseLighthouseRepository(HavenDbContext db) : ILighthous
         if (row is null) return null;
         foreach (var (k, v) in fields)
         {
-            if (v is null) continue;
-            switch (k.ToLowerInvariant())
+            switch (NormalizeFieldKey(k))
             {
-                case "donation_type": row.DonationType = v; break;
-                case "campaign_name": row.CampaignName = v; break;
-                case "currency_code": row.CurrencyCode = v; break;
-                case "notes": row.Notes = v; break;
+                case "supporter_id" when int.TryParse(v, NumberStyles.Integer, CultureInfo.InvariantCulture, out var supporterId):
+                    row.SupporterId = supporterId;
+                    break;
+                case "donation_type" when v is not null: row.DonationType = v; break;
+                case "donation_date" when DateTime.TryParse(v, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var donationDate):
+                    row.DonationDate = NormalizeDonationUtc(donationDate);
+                    break;
+                case "is_recurring" when v is not null:
+                    row.IsRecurring = IsTruthy(v);
+                    break;
+                case "campaign_name": row.CampaignName = NullIfEmpty(v); break;
+                case "channel_source": row.ChannelSource = NullIfEmpty(v); break;
+                case "currency_code": row.CurrencyCode = NullIfEmpty(v); break;
+                case "estimated_value":
+                    if (string.IsNullOrWhiteSpace(v)) row.EstimatedValue = null;
+                    else if (decimal.TryParse(v, NumberStyles.Any, CultureInfo.InvariantCulture, out var estimatedValue))
+                        row.EstimatedValue = estimatedValue;
+                    break;
+                case "impact_unit": row.ImpactUnit = NullIfEmpty(v); break;
+                case "notes": row.Notes = NullIfEmpty(v); break;
+                case "referral_post_id":
+                    if (string.IsNullOrWhiteSpace(v)) row.ReferralPostId = null;
+                    else if (int.TryParse(v, NumberStyles.Integer, CultureInfo.InvariantCulture, out var referralPostId))
+                        row.ReferralPostId = referralPostId;
+                    break;
                 case "amount":
-                    if (decimal.TryParse(v, System.Globalization.NumberStyles.Any, CultureInfo.InvariantCulture, out var amt))
+                    if (string.IsNullOrWhiteSpace(v)) row.Amount = null;
+                    else if (decimal.TryParse(v, NumberStyles.Any, CultureInfo.InvariantCulture, out var amt))
                         row.Amount = amt;
                     break;
             }
@@ -804,13 +830,21 @@ public sealed class SupabaseLighthouseRepository(HavenDbContext db) : ILighthous
         if (row is null) return null;
         foreach (var (k, v) in fields)
         {
-            if (v is null) continue;
-            switch (k.ToLowerInvariant())
+            switch (NormalizeFieldKey(k))
             {
-                case "program_area": row.ProgramArea = v; break;
-                case "allocation_notes": row.AllocationNotes = v; break;
+                case "donation_id" when int.TryParse(v, NumberStyles.Integer, CultureInfo.InvariantCulture, out var donationId):
+                    row.DonationId = donationId;
+                    break;
+                case "safehouse_id" when int.TryParse(v, NumberStyles.Integer, CultureInfo.InvariantCulture, out var safehouseId):
+                    row.SafehouseId = safehouseId;
+                    break;
+                case "program_area" when v is not null: row.ProgramArea = v; break;
+                case "allocation_notes": row.AllocationNotes = NullIfEmpty(v); break;
+                case "allocation_date" when DateOnly.TryParse(v, CultureInfo.InvariantCulture, out var allocationDate):
+                    row.AllocationDate = allocationDate;
+                    break;
                 case "amount_allocated":
-                    if (decimal.TryParse(v, System.Globalization.NumberStyles.Any, CultureInfo.InvariantCulture, out var amt))
+                    if (decimal.TryParse(v, NumberStyles.Any, CultureInfo.InvariantCulture, out var amt))
                         row.AmountAllocated = amt;
                     break;
             }
@@ -920,34 +954,78 @@ public sealed class SupabaseLighthouseRepository(HavenDbContext db) : ILighthous
                 e.EducationRecordId,
                 e.ResidentId,
                 e.RecordDate.ToString("yyyy-MM-dd"),
+                e.EducationLevel,
+                e.SchoolName,
+                e.EnrollmentStatus,
+                e.AttendanceRate,
                 e.ProgressPercent,
+                e.CompletionStatus,
+                e.Notes,
                 NullIfEmpty(e.ExtendedJson)))
             .ToList();
     }
 
-    public EducationRecordDto CreateEducationRecord(int residentId, DateOnly recordDate, double? progressPercent, string? extendedJson = null)
+    public EducationRecordDto CreateEducationRecord(int residentId, DateOnly recordDate, string? educationLevel, string? schoolName,
+        string? enrollmentStatus, double? attendanceRate, double? progressPercent, string? completionStatus, string? notes,
+        string? extendedJson = null)
     {
         var row = new EducationRecord
         {
             ResidentId = residentId,
             RecordDate = recordDate,
+            EducationLevel = NullIfEmpty(educationLevel),
+            SchoolName = NullIfEmpty(schoolName),
+            EnrollmentStatus = NullIfEmpty(enrollmentStatus),
+            AttendanceRate = attendanceRate,
             ProgressPercent = progressPercent,
+            CompletionStatus = NullIfEmpty(completionStatus),
+            Notes = NullIfEmpty(notes),
             ExtendedJson = string.IsNullOrWhiteSpace(extendedJson) ? null : extendedJson.Trim(),
         };
         db.EducationRecords.Add(row);
         db.SaveChanges();
-        return new EducationRecordDto(row.EducationRecordId, row.ResidentId, row.RecordDate.ToString("yyyy-MM-dd"), row.ProgressPercent, NullIfEmpty(row.ExtendedJson));
+        return new EducationRecordDto(
+            row.EducationRecordId,
+            row.ResidentId,
+            row.RecordDate.ToString("yyyy-MM-dd"),
+            row.EducationLevel,
+            row.SchoolName,
+            row.EnrollmentStatus,
+            row.AttendanceRate,
+            row.ProgressPercent,
+            row.CompletionStatus,
+            row.Notes,
+            NullIfEmpty(row.ExtendedJson));
     }
 
-    public EducationRecordDto? PatchEducationRecord(int id, double? progressPercent, DateOnly? recordDate, string? extendedJson = null)
+    public EducationRecordDto? PatchEducationRecord(int id, string? educationLevel, string? schoolName, string? enrollmentStatus,
+        double? attendanceRate, double? progressPercent, string? completionStatus, string? notes, DateOnly? recordDate,
+        string? extendedJson = null)
     {
         var row = db.EducationRecords.FirstOrDefault(x => x.EducationRecordId == id);
         if (row is null) return null;
+        if (educationLevel != null) row.EducationLevel = NullIfEmpty(educationLevel);
+        if (schoolName != null) row.SchoolName = NullIfEmpty(schoolName);
+        if (enrollmentStatus != null) row.EnrollmentStatus = NullIfEmpty(enrollmentStatus);
+        if (attendanceRate.HasValue) row.AttendanceRate = attendanceRate.Value;
         if (progressPercent.HasValue) row.ProgressPercent = progressPercent.Value;
+        if (completionStatus != null) row.CompletionStatus = NullIfEmpty(completionStatus);
+        if (notes != null) row.Notes = NullIfEmpty(notes);
         if (recordDate.HasValue) row.RecordDate = recordDate.Value;
         if (extendedJson != null) row.ExtendedJson = string.IsNullOrWhiteSpace(extendedJson) ? null : extendedJson.Trim();
         db.SaveChanges();
-        return new EducationRecordDto(row.EducationRecordId, row.ResidentId, row.RecordDate.ToString("yyyy-MM-dd"), row.ProgressPercent, NullIfEmpty(row.ExtendedJson));
+        return new EducationRecordDto(
+            row.EducationRecordId,
+            row.ResidentId,
+            row.RecordDate.ToString("yyyy-MM-dd"),
+            row.EducationLevel,
+            row.SchoolName,
+            row.EnrollmentStatus,
+            row.AttendanceRate,
+            row.ProgressPercent,
+            row.CompletionStatus,
+            row.Notes,
+            NullIfEmpty(row.ExtendedJson));
     }
 
     public IReadOnlyList<HealthRecordDto> ListHealthRecords(int? residentId)
@@ -961,33 +1039,99 @@ public sealed class SupabaseLighthouseRepository(HavenDbContext db) : ILighthous
                 h.ResidentId,
                 h.RecordDate.ToString("yyyy-MM-dd"),
                 h.GeneralHealthScore,
+                h.NutritionScore,
+                h.SleepQualityScore,
+                h.EnergyLevelScore,
+                h.HeightCm,
+                h.WeightKg,
+                h.Bmi,
+                h.MedicalCheckupDone,
+                h.DentalCheckupDone,
+                h.PsychologicalCheckupDone,
+                h.Notes,
                 NullIfEmpty(h.ExtendedJson)))
             .ToList();
     }
 
-    public HealthRecordDto CreateHealthRecord(int residentId, DateOnly recordDate, double? healthScore, string? extendedJson = null)
+    public HealthRecordDto CreateHealthRecord(int residentId, DateOnly recordDate, double? healthScore, double? nutritionScore,
+        double? sleepQualityScore, double? energyLevelScore, double? heightCm, double? weightKg, double? bmi,
+        bool? medicalCheckupDone, bool? dentalCheckupDone, bool? psychologicalCheckupDone, string? notes,
+        string? extendedJson = null)
     {
         var row = new HealthWellbeingRecord
         {
             ResidentId = residentId,
             RecordDate = recordDate,
             GeneralHealthScore = healthScore,
+            NutritionScore = nutritionScore,
+            SleepQualityScore = sleepQualityScore,
+            EnergyLevelScore = energyLevelScore,
+            HeightCm = heightCm,
+            WeightKg = weightKg,
+            Bmi = bmi,
+            MedicalCheckupDone = medicalCheckupDone,
+            DentalCheckupDone = dentalCheckupDone,
+            PsychologicalCheckupDone = psychologicalCheckupDone,
+            Notes = NullIfEmpty(notes),
             ExtendedJson = string.IsNullOrWhiteSpace(extendedJson) ? null : extendedJson.Trim(),
         };
         db.HealthWellbeingRecords.Add(row);
         db.SaveChanges();
-        return new HealthRecordDto(row.HealthRecordId, row.ResidentId, row.RecordDate.ToString("yyyy-MM-dd"), row.GeneralHealthScore, NullIfEmpty(row.ExtendedJson));
+        return new HealthRecordDto(
+            row.HealthRecordId,
+            row.ResidentId,
+            row.RecordDate.ToString("yyyy-MM-dd"),
+            row.GeneralHealthScore,
+            row.NutritionScore,
+            row.SleepQualityScore,
+            row.EnergyLevelScore,
+            row.HeightCm,
+            row.WeightKg,
+            row.Bmi,
+            row.MedicalCheckupDone,
+            row.DentalCheckupDone,
+            row.PsychologicalCheckupDone,
+            row.Notes,
+            NullIfEmpty(row.ExtendedJson));
     }
 
-    public HealthRecordDto? PatchHealthRecord(int id, double? healthScore, DateOnly? recordDate, string? extendedJson = null)
+    public HealthRecordDto? PatchHealthRecord(int id, double? healthScore, double? nutritionScore, double? sleepQualityScore,
+        double? energyLevelScore, double? heightCm, double? weightKg, double? bmi, bool? medicalCheckupDone,
+        bool? dentalCheckupDone, bool? psychologicalCheckupDone, string? notes, DateOnly? recordDate,
+        string? extendedJson = null)
     {
         var row = db.HealthWellbeingRecords.FirstOrDefault(x => x.HealthRecordId == id);
         if (row is null) return null;
         if (healthScore.HasValue) row.GeneralHealthScore = healthScore.Value;
+        if (nutritionScore.HasValue) row.NutritionScore = nutritionScore.Value;
+        if (sleepQualityScore.HasValue) row.SleepQualityScore = sleepQualityScore.Value;
+        if (energyLevelScore.HasValue) row.EnergyLevelScore = energyLevelScore.Value;
+        if (heightCm.HasValue) row.HeightCm = heightCm.Value;
+        if (weightKg.HasValue) row.WeightKg = weightKg.Value;
+        if (bmi.HasValue) row.Bmi = bmi.Value;
+        if (medicalCheckupDone.HasValue) row.MedicalCheckupDone = medicalCheckupDone.Value;
+        if (dentalCheckupDone.HasValue) row.DentalCheckupDone = dentalCheckupDone.Value;
+        if (psychologicalCheckupDone.HasValue) row.PsychologicalCheckupDone = psychologicalCheckupDone.Value;
+        if (notes != null) row.Notes = NullIfEmpty(notes);
         if (recordDate.HasValue) row.RecordDate = recordDate.Value;
         if (extendedJson != null) row.ExtendedJson = string.IsNullOrWhiteSpace(extendedJson) ? null : extendedJson.Trim();
         db.SaveChanges();
-        return new HealthRecordDto(row.HealthRecordId, row.ResidentId, row.RecordDate.ToString("yyyy-MM-dd"), row.GeneralHealthScore, NullIfEmpty(row.ExtendedJson));
+        return new HealthRecordDto(
+            row.HealthRecordId,
+            row.ResidentId,
+            row.RecordDate.ToString("yyyy-MM-dd"),
+            row.GeneralHealthScore,
+            row.NutritionScore,
+            row.SleepQualityScore,
+            row.EnergyLevelScore,
+            row.HeightCm,
+            row.WeightKg,
+            row.Bmi,
+            row.MedicalCheckupDone,
+            row.DentalCheckupDone,
+            row.PsychologicalCheckupDone,
+            row.Notes,
+            NullIfEmpty(row.ExtendedJson));
     }
 
     // ── Incident Reports ──────────────────────────────────────────────────────
@@ -1035,16 +1179,49 @@ public sealed class SupabaseLighthouseRepository(HavenDbContext db) : ILighthous
         var row = db.IncidentReports.FirstOrDefault(x => x.IncidentId == id);
         if (row is null) return null;
 
-        if (fields.TryGetValue("incident_type", out var it) && it is not null)   row.IncidentType    = it;
-        if (fields.TryGetValue("severity",      out var sv) && sv is not null)   row.Severity        = sv;
-        if (fields.TryGetValue("description",   out var desc))                   row.Description     = desc;
-        if (fields.TryGetValue("response_taken", out var rt))                    row.ResponseTaken   = rt;
-        if (fields.TryGetValue("reported_by",   out var rb))                     row.ReportedBy      = rb;
-        if (fields.TryGetValue("resolved",      out var res) && res is not null) row.Resolved        = res.Equals("true",  StringComparison.OrdinalIgnoreCase) || res == "1";
-        if (fields.TryGetValue("follow_up_required", out var fu) && fu is not null) row.FollowUpRequired = fu.Equals("true", StringComparison.OrdinalIgnoreCase) || fu == "1";
-        if (fields.TryGetValue("incident_date", out var idate) && DateOnly.TryParse(idate, out var id2)) row.IncidentDate = id2;
-        if (fields.TryGetValue("resolution_date", out var rdate))
-            row.ResolutionDate = !string.IsNullOrWhiteSpace(rdate) && DateOnly.TryParse(rdate, out var rd) ? rd : null;
+        foreach (var (k, v) in fields)
+        {
+            switch (NormalizeFieldKey(k))
+            {
+                case "resident_id" when int.TryParse(v, NumberStyles.Integer, CultureInfo.InvariantCulture, out var residentId):
+                    row.ResidentId = residentId;
+                    break;
+                case "safehouse_id":
+                    if (string.IsNullOrWhiteSpace(v)) row.SafehouseId = null;
+                    else if (int.TryParse(v, NumberStyles.Integer, CultureInfo.InvariantCulture, out var safehouseId))
+                        row.SafehouseId = safehouseId;
+                    break;
+                case "incident_type" when v is not null:
+                    row.IncidentType = v;
+                    break;
+                case "severity" when v is not null:
+                    row.Severity = v;
+                    break;
+                case "description":
+                    row.Description = NullIfEmpty(v);
+                    break;
+                case "response_taken":
+                    row.ResponseTaken = NullIfEmpty(v);
+                    break;
+                case "reported_by":
+                    row.ReportedBy = NullIfEmpty(v);
+                    break;
+                case "resolved" when v is not null:
+                    row.Resolved = IsTruthy(v);
+                    break;
+                case "follow_up_required" when v is not null:
+                    row.FollowUpRequired = IsTruthy(v);
+                    break;
+                case "incident_date" when !string.IsNullOrWhiteSpace(v) && DateOnly.TryParse(v, CultureInfo.InvariantCulture, out var incidentDate):
+                    row.IncidentDate = incidentDate;
+                    break;
+                case "resolution_date":
+                    row.ResolutionDate = !string.IsNullOrWhiteSpace(v) && DateOnly.TryParse(v, CultureInfo.InvariantCulture, out var resolutionDate)
+                        ? resolutionDate
+                        : null;
+                    break;
+            }
+        }
 
         db.SaveChanges();
         return ToIncidentDto(row);
@@ -1082,6 +1259,19 @@ public sealed class SupabaseLighthouseRepository(HavenDbContext db) : ILighthous
     }
 
     private static string? NullIfEmpty(string? s) => string.IsNullOrWhiteSpace(s) ? null : s;
+
+    private static bool IsTruthy(string value) =>
+        value.Equals("true", StringComparison.OrdinalIgnoreCase) ||
+        value.Equals("1", StringComparison.OrdinalIgnoreCase) ||
+        value.Equals("yes", StringComparison.OrdinalIgnoreCase);
+
+    private static string NormalizeFieldKey(string key)
+    {
+        if (string.IsNullOrWhiteSpace(key)) return string.Empty;
+        var normalized = key.Trim().Replace("-", "_").Replace(" ", "_");
+        normalized = CamelBoundaryRegex.Replace(normalized, "_$1");
+        return normalized.ToLowerInvariant();
+    }
 
     private IReadOnlyDictionary<string, string>? ReadRowAsStrings(string table, string idColumn, int id)
     {

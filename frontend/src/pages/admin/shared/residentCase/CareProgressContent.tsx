@@ -880,6 +880,17 @@ function parseEducationExtended(json: string | null | undefined): EducationExten
   }
 }
 
+function educationStateFromRecord(record: EducationRecord): EducationExtended {
+  const parsed = parseEducationExtended(record.extendedJson)
+  return {
+    ...parsed,
+    educationLevel: record.educationLevel ?? parsed.educationLevel,
+    attendanceRate: record.attendanceRate ?? parsed.attendanceRate,
+    completionStatus: record.completionStatus ?? parsed.completionStatus,
+    notes: record.notes ?? parsed.notes,
+  }
+}
+
 export function EducationSection({
   residentId,
   rows,
@@ -923,7 +934,7 @@ export function EducationSection({
       setCreateOpen(false)
       setRecordDate(r.recordDate.slice(0, 10))
       setProgress(r.progressPercent != null ? String(r.progressPercent) : '')
-      setExt(parseEducationExtended(r.extendedJson))
+      setExt(educationStateFromRecord(r))
     }
     onInitialOpenConsumed?.()
   }, [initialOpenRecordId, rows, onInitialOpenConsumed])
@@ -957,14 +968,22 @@ export function EducationSection({
       if (sel && !createOpen) {
         await patchEducationRecord(sel.id, {
           recordDate,
+          educationLevel: ext.educationLevel,
+          attendanceRate: ext.attendanceRate,
           progressPercent: p ?? null,
+          completionStatus: ext.completionStatus,
+          notes: ext.notes,
           extendedJson,
         })
       } else {
         await createEducationRecord({
           residentId,
           recordDate,
+          educationLevel: ext.educationLevel,
+          attendanceRate: ext.attendanceRate,
           progressPercent: p ?? null,
+          completionStatus: ext.completionStatus,
+          notes: ext.notes,
           extendedJson,
         })
       }
@@ -983,7 +1002,7 @@ export function EducationSection({
     setCreateOpen(false)
     setRecordDate(r.recordDate.slice(0, 10))
     setProgress(r.progressPercent != null ? String(r.progressPercent) : '')
-    setExt(parseEducationExtended(r.extendedJson))
+    setExt(educationStateFromRecord(r))
   }
 
   return (
@@ -1028,7 +1047,7 @@ export function EducationSection({
               />
             ) : (
               sorted.map((r) => {
-                const x = parseEducationExtended(r.extendedJson)
+                const x = educationStateFromRecord(r)
                 return (
                   <RecordCardRow key={r.id} onClick={() => openRow(r)}>
                     <div className="flex flex-wrap items-center justify-between gap-2">
@@ -1214,6 +1233,23 @@ function parseHealthExtended(json: string | null | undefined): HealthExtended {
   }
 }
 
+function healthStateFromRecord(record: HealthRecord): HealthExtended {
+  const parsed = parseHealthExtended(record.extendedJson)
+  return {
+    ...parsed,
+    nutritionScore: record.nutritionScore ?? parsed.nutritionScore,
+    sleepScore: record.sleepQualityScore ?? parsed.sleepScore,
+    energyScore: record.energyLevelScore ?? parsed.energyScore,
+    heightCm: record.heightCm ?? parsed.heightCm,
+    weightKg: record.weightKg ?? parsed.weightKg,
+    bmi: record.bmi ?? parsed.bmi,
+    medicalCheckupDone: record.medicalCheckupDone ?? parsed.medicalCheckupDone,
+    dentalCheckupDone: record.dentalCheckupDone ?? parsed.dentalCheckupDone,
+    psychologicalCheckupDone: record.psychologicalCheckupDone ?? parsed.psychologicalCheckupDone,
+    medicalNotes: record.notes ?? parsed.medicalNotes,
+  }
+}
+
 export function HealthSection({
   residentId,
   rows,
@@ -1257,7 +1293,7 @@ export function HealthSection({
       setCreateOpen(false)
       setRecordDate(r.recordDate.slice(0, 10))
       setScore(r.healthScore != null ? String(r.healthScore) : '')
-      setExt(parseHealthExtended(r.extendedJson))
+      setExt(healthStateFromRecord(r))
     }
     onInitialOpenConsumed?.()
   }, [initialOpenRecordId, rows, onInitialOpenConsumed])
@@ -1296,6 +1332,16 @@ export function HealthSection({
         await patchHealthRecord(sel.id, {
           recordDate,
           healthScore: v ?? null,
+          nutritionScore: ext.nutritionScore,
+          sleepQualityScore: ext.sleepScore,
+          energyLevelScore: ext.energyScore,
+          heightCm: ext.heightCm,
+          weightKg: ext.weightKg,
+          bmi: ext.bmi,
+          medicalCheckupDone: ext.medicalCheckupDone,
+          dentalCheckupDone: ext.dentalCheckupDone,
+          psychologicalCheckupDone: ext.psychologicalCheckupDone,
+          notes: ext.medicalNotes,
           extendedJson,
         })
       } else {
@@ -1303,6 +1349,16 @@ export function HealthSection({
           residentId,
           recordDate,
           healthScore: v ?? null,
+          nutritionScore: ext.nutritionScore,
+          sleepQualityScore: ext.sleepScore,
+          energyLevelScore: ext.energyScore,
+          heightCm: ext.heightCm,
+          weightKg: ext.weightKg,
+          bmi: ext.bmi,
+          medicalCheckupDone: ext.medicalCheckupDone,
+          dentalCheckupDone: ext.dentalCheckupDone,
+          psychologicalCheckupDone: ext.psychologicalCheckupDone,
+          notes: ext.medicalNotes,
           extendedJson,
         })
       }
@@ -1321,7 +1377,7 @@ export function HealthSection({
     setCreateOpen(false)
     setRecordDate(r.recordDate.slice(0, 10))
     setScore(r.healthScore != null ? String(r.healthScore) : '')
-    setExt(parseHealthExtended(r.extendedJson))
+    setExt(healthStateFromRecord(r))
   }
 
   return (
@@ -1366,7 +1422,7 @@ export function HealthSection({
               />
             ) : (
               sorted.map((r) => {
-                const x = parseHealthExtended(r.extendedJson)
+                const x = healthStateFromRecord(r)
                 return (
                   <RecordCardRow key={r.id} onClick={() => openRow(r)}>
                     <div className="flex items-center justify-between gap-2">

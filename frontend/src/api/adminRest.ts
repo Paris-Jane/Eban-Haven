@@ -515,13 +515,25 @@ export async function listEducationRecords(residentId?: number): Promise<T.Educa
 export async function createEducationRecord(opts: {
   residentId: number
   recordDate?: string
+  educationLevel?: string | null
+  schoolName?: string | null
+  enrollmentStatus?: string | null
+  attendanceRate?: number | null
   progressPercent?: number | null
+  completionStatus?: string | null
+  notes?: string | null
   extendedJson?: string | null
 }): Promise<T.EducationRecord> {
   const body = {
     residentId: opts.residentId,
     recordDate: opts.recordDate ? new Date(opts.recordDate) : undefined,
+    educationLevel: opts.educationLevel ?? undefined,
+    schoolName: opts.schoolName ?? undefined,
+    enrollmentStatus: opts.enrollmentStatus ?? undefined,
+    attendanceRate: opts.attendanceRate ?? undefined,
     progressPercent: opts.progressPercent ?? undefined,
+    completionStatus: opts.completionStatus ?? undefined,
+    notes: opts.notes ?? undefined,
     extendedJson: opts.extendedJson ?? undefined,
   }
   return parseJson<T.EducationRecord>(
@@ -532,13 +544,25 @@ export async function createEducationRecord(opts: {
 export async function patchEducationRecord(
   id: number,
   patch: {
+    educationLevel?: string | null
+    schoolName?: string | null
+    enrollmentStatus?: string | null
+    attendanceRate?: number | null
     progressPercent?: number | null
+    completionStatus?: string | null
+    notes?: string | null
     recordDate?: string
     extendedJson?: string | null
   },
 ): Promise<T.EducationRecord> {
   const body = {
+    educationLevel: patch.educationLevel ?? undefined,
+    schoolName: patch.schoolName ?? undefined,
+    enrollmentStatus: patch.enrollmentStatus ?? undefined,
+    attendanceRate: patch.attendanceRate ?? undefined,
     progressPercent: patch.progressPercent ?? undefined,
+    completionStatus: patch.completionStatus ?? undefined,
+    notes: patch.notes ?? undefined,
     recordDate: patch.recordDate ?? undefined,
     extendedJson: patch.extendedJson,
   }
@@ -556,12 +580,32 @@ export async function createHealthRecord(opts: {
   residentId: number
   recordDate?: string
   healthScore?: number | null
+  nutritionScore?: number | null
+  sleepQualityScore?: number | null
+  energyLevelScore?: number | null
+  heightCm?: number | null
+  weightKg?: number | null
+  bmi?: number | null
+  medicalCheckupDone?: boolean | null
+  dentalCheckupDone?: boolean | null
+  psychologicalCheckupDone?: boolean | null
+  notes?: string | null
   extendedJson?: string | null
 }): Promise<T.HealthRecord> {
   const body = {
     residentId: opts.residentId,
     recordDate: opts.recordDate ? new Date(opts.recordDate) : undefined,
     healthScore: opts.healthScore ?? undefined,
+    nutritionScore: opts.nutritionScore ?? undefined,
+    sleepQualityScore: opts.sleepQualityScore ?? undefined,
+    energyLevelScore: opts.energyLevelScore ?? undefined,
+    heightCm: opts.heightCm ?? undefined,
+    weightKg: opts.weightKg ?? undefined,
+    bmi: opts.bmi ?? undefined,
+    medicalCheckupDone: opts.medicalCheckupDone ?? undefined,
+    dentalCheckupDone: opts.dentalCheckupDone ?? undefined,
+    psychologicalCheckupDone: opts.psychologicalCheckupDone ?? undefined,
+    notes: opts.notes ?? undefined,
     extendedJson: opts.extendedJson ?? undefined,
   }
   return parseJson<T.HealthRecord>(
@@ -573,12 +617,32 @@ export async function patchHealthRecord(
   id: number,
   patch: {
     healthScore?: number | null
+    nutritionScore?: number | null
+    sleepQualityScore?: number | null
+    energyLevelScore?: number | null
+    heightCm?: number | null
+    weightKg?: number | null
+    bmi?: number | null
+    medicalCheckupDone?: boolean | null
+    dentalCheckupDone?: boolean | null
+    psychologicalCheckupDone?: boolean | null
+    notes?: string | null
     recordDate?: string
     extendedJson?: string | null
   },
 ): Promise<T.HealthRecord> {
   const body = {
     healthScore: patch.healthScore ?? undefined,
+    nutritionScore: patch.nutritionScore ?? undefined,
+    sleepQualityScore: patch.sleepQualityScore ?? undefined,
+    energyLevelScore: patch.energyLevelScore ?? undefined,
+    heightCm: patch.heightCm ?? undefined,
+    weightKg: patch.weightKg ?? undefined,
+    bmi: patch.bmi ?? undefined,
+    medicalCheckupDone: patch.medicalCheckupDone ?? undefined,
+    dentalCheckupDone: patch.dentalCheckupDone ?? undefined,
+    psychologicalCheckupDone: patch.psychologicalCheckupDone ?? undefined,
+    notes: patch.notes ?? undefined,
     recordDate: patch.recordDate ?? undefined,
     extendedJson: patch.extendedJson,
   }

@@ -199,8 +199,35 @@ public sealed record EnrollmentGrowthPointDto(string Month, string Period, int C
 
 public sealed record SafehouseOptionDto(int Id, string Code, string Name, string Region);
 
-public sealed record EducationRecordDto(int Id, int ResidentId, string RecordDate, double? ProgressPercent, string? ExtendedJson);
-public sealed record HealthRecordDto(int Id, int ResidentId, string RecordDate, double? HealthScore, string? ExtendedJson);
+public sealed record EducationRecordDto(
+    int Id,
+    int ResidentId,
+    string RecordDate,
+    string? EducationLevel,
+    string? SchoolName,
+    string? EnrollmentStatus,
+    double? AttendanceRate,
+    double? ProgressPercent,
+    string? CompletionStatus,
+    string? Notes,
+    string? ExtendedJson);
+
+public sealed record HealthRecordDto(
+    int Id,
+    int ResidentId,
+    string RecordDate,
+    double? HealthScore,
+    double? NutritionScore,
+    double? SleepQualityScore,
+    double? EnergyLevelScore,
+    double? HeightCm,
+    double? WeightKg,
+    double? Bmi,
+    bool? MedicalCheckupDone,
+    bool? DentalCheckupDone,
+    bool? PsychologicalCheckupDone,
+    string? Notes,
+    string? ExtendedJson);
 
 /// <summary>Partial update for counseling / process recordings. Omitted/null properties are left unchanged.</summary>
 public sealed record PatchProcessRecordingDto(

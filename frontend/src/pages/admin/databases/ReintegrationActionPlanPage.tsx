@@ -190,6 +190,12 @@ function compactFieldRows(
   return fields.filter((field) => hasMeaningfulValue(field.value))
 }
 
+function numberOrNull(value: string) {
+  if (!value.trim()) return null
+  const parsed = Number(value)
+  return Number.isFinite(parsed) ? parsed : null
+}
+
 function isoToday() {
   return new Date().toISOString().slice(0, 10)
 }
@@ -504,6 +510,16 @@ export function ReintegrationActionPlanPage() {
       residentId: resident.id,
       recordDate: healthForm.recordDate,
       healthScore: score,
+      nutritionScore: numberOrNull(healthForm.nutritionScore),
+      sleepQualityScore: numberOrNull(healthForm.sleepScore),
+      energyLevelScore: numberOrNull(healthForm.energyScore),
+      heightCm: numberOrNull(healthForm.heightCm),
+      weightKg: numberOrNull(healthForm.weightKg),
+      bmi: numberOrNull(healthForm.bmi),
+      medicalCheckupDone: healthForm.medicalCheckupDone,
+      dentalCheckupDone: healthForm.dentalCheckupDone,
+      psychologicalCheckupDone: healthForm.psychologicalCheckupDone,
+      notes: healthForm.notes || null,
       extendedJson: JSON.stringify({
         source: 'reintegration-action-plan',
         weightKg: healthForm.weightKg || null,
@@ -546,7 +562,11 @@ export function ReintegrationActionPlanPage() {
     await createEducationRecord({
       residentId: resident.id,
       recordDate: educationForm.recordDate,
+      educationLevel: educationForm.educationLevel,
+      attendanceRate: numberOrNull(educationForm.attendanceRate),
       progressPercent: progress,
+      completionStatus: educationForm.completionStatus,
+      notes: educationForm.notes || null,
       extendedJson: JSON.stringify({
         source: 'reintegration-action-plan',
         programName: educationForm.programName,
@@ -700,15 +720,15 @@ export function ReintegrationActionPlanPage() {
               {sortedHealth.slice(0, 8).map((record) => {
                 const extra = parseExtendedJson<HealthExtended>(record.extendedJson)
                 const detailRows = compactFieldRows([
-                  { label: 'Weight', value: extra?.weightKg },
-                  { label: 'Height', value: extra?.heightCm },
-                  { label: 'BMI', value: extra?.bmi },
-                  { label: 'Nutrition', value: extra?.nutritionScore },
-                  { label: 'Sleep', value: extra?.sleepScore },
-                  { label: 'Energy', value: extra?.energyScore },
-                  { label: 'Medical check', value: extra?.medicalCheckupDone },
-                  { label: 'Dental check', value: extra?.dentalCheckupDone },
-                  { label: 'Psych check', value: extra?.psychologicalCheckupDone },
+                  { label: 'Weight', value: record.weightKg ?? extra?.weightKg },
+                  { label: 'Height', value: record.heightCm ?? extra?.heightCm },
+                  { label: 'BMI', value: record.bmi ?? extra?.bmi },
+                  { label: 'Nutrition', value: record.nutritionScore ?? extra?.nutritionScore },
+                  { label: 'Sleep', value: record.sleepQualityScore ?? extra?.sleepScore },
+                  { label: 'Energy', value: record.energyLevelScore ?? extra?.energyScore },
+                  { label: 'Medical check', value: record.medicalCheckupDone ?? extra?.medicalCheckupDone },
+                  { label: 'Dental check', value: record.dentalCheckupDone ?? extra?.dentalCheckupDone },
+                  { label: 'Psych check', value: record.psychologicalCheckupDone ?? extra?.psychologicalCheckupDone },
                 ])
                 return (
                   <div key={record.id} className="rounded-lg border border-border bg-background px-4 py-3">
@@ -722,7 +742,7 @@ export function ReintegrationActionPlanPage() {
                     ) : (
                       <p className="mt-2 text-xs text-muted-foreground">Older health records only include the summary general health score.</p>
                     )}
-                    <p className="mt-2 text-xs text-muted-foreground">{extra?.notes?.trim() ? extra.notes : 'No additional notes recorded.'}</p>
+                    <p className="mt-2 text-xs text-muted-foreground">{record.notes?.trim() || extra?.notes?.trim() || 'No additional notes recorded.'}</p>
                   </div>
                 )
               })}
@@ -802,12 +822,12 @@ export function ReintegrationActionPlanPage() {
               {sortedEducation.slice(0, 8).map((record) => {
                 const extra = parseExtendedJson<EducationExtended>(record.extendedJson)
                 const detailRows = compactFieldRows([
-                  { label: 'Program', value: extra?.programName },
+                  { label: 'School / programme', value: record.schoolName ?? extra?.programName },
                   { label: 'Course', value: extra?.courseName },
-                  { label: 'Level', value: extra?.educationLevel },
-                  { label: 'Attendance status', value: extra?.attendanceStatus },
-                  { label: 'Attendance rate', value: extra?.attendanceRate },
-                  { label: 'Completion', value: extra?.completionStatus },
+                  { label: 'Level', value: record.educationLevel ?? extra?.educationLevel },
+                  { label: 'Enrollment status', value: record.enrollmentStatus ?? extra?.attendanceStatus },
+                  { label: 'Attendance rate', value: record.attendanceRate ?? extra?.attendanceRate },
+                  { label: 'Completion', value: record.completionStatus ?? extra?.completionStatus },
                   { label: 'GPA-like score', value: extra?.gpaLikeScore },
                 ])
                 return (
@@ -822,7 +842,7 @@ export function ReintegrationActionPlanPage() {
                     ) : (
                       <p className="mt-2 text-xs text-muted-foreground">Older education records only include the summary progress percent.</p>
                     )}
-                    <p className="mt-2 text-xs text-muted-foreground">{extra?.notes?.trim() ? extra.notes : 'No additional notes recorded.'}</p>
+                    <p className="mt-2 text-xs text-muted-foreground">{record.notes?.trim() || extra?.notes?.trim() || 'No additional notes recorded.'}</p>
                   </div>
                 )
               })}

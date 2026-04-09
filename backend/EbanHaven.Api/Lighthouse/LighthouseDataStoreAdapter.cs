@@ -52,14 +52,24 @@ public sealed class LighthouseDataStoreAdapter(LighthouseDataStore inner) : ILig
     public bool DeleteProcessRecording(int id) => throw new NotImplementedException();
     public bool DeleteHomeVisitation(int id) => throw new NotImplementedException();
     public IReadOnlyList<EducationRecordDto> ListEducationRecords(int? residentId) => throw new NotImplementedException();
-    public EducationRecordDto CreateEducationRecord(int residentId, DateOnly recordDate, double? progressPercent, string? extendedJson = null) =>
+    public EducationRecordDto CreateEducationRecord(int residentId, DateOnly recordDate, string? educationLevel, string? schoolName,
+        string? enrollmentStatus, double? attendanceRate, double? progressPercent, string? completionStatus, string? notes,
+        string? extendedJson = null) =>
         throw new NotImplementedException();
-    public EducationRecordDto? PatchEducationRecord(int id, double? progressPercent, DateOnly? recordDate, string? extendedJson = null) =>
+    public EducationRecordDto? PatchEducationRecord(int id, string? educationLevel, string? schoolName, string? enrollmentStatus,
+        double? attendanceRate, double? progressPercent, string? completionStatus, string? notes, DateOnly? recordDate,
+        string? extendedJson = null) =>
         throw new NotImplementedException();
     public IReadOnlyList<HealthRecordDto> ListHealthRecords(int? residentId) => throw new NotImplementedException();
-    public HealthRecordDto CreateHealthRecord(int residentId, DateOnly recordDate, double? healthScore, string? extendedJson = null) =>
+    public HealthRecordDto CreateHealthRecord(int residentId, DateOnly recordDate, double? healthScore, double? nutritionScore,
+        double? sleepQualityScore, double? energyLevelScore, double? heightCm, double? weightKg, double? bmi,
+        bool? medicalCheckupDone, bool? dentalCheckupDone, bool? psychologicalCheckupDone, string? notes,
+        string? extendedJson = null) =>
         throw new NotImplementedException();
-    public HealthRecordDto? PatchHealthRecord(int id, double? healthScore, DateOnly? recordDate, string? extendedJson = null) =>
+    public HealthRecordDto? PatchHealthRecord(int id, double? healthScore, double? nutritionScore, double? sleepQualityScore,
+        double? energyLevelScore, double? heightCm, double? weightKg, double? bmi, bool? medicalCheckupDone,
+        bool? dentalCheckupDone, bool? psychologicalCheckupDone, string? notes, DateOnly? recordDate,
+        string? extendedJson = null) =>
         throw new NotImplementedException();
 
     public IReadOnlyList<IncidentReportDto> ListIncidentReports(int? residentId) => throw new NotImplementedException();

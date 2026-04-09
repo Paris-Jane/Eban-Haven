@@ -330,7 +330,9 @@ public static class AdminApiExtensions
             var date = body.RecordDate.HasValue
                 ? body.RecordDate.Value
                 : DateOnly.FromDateTime(DateTime.UtcNow);
-            var created = repo.CreateEducationRecord(body.ResidentId, date, body.ProgressPercent, body.ExtendedJson);
+            var created = repo.CreateEducationRecord(body.ResidentId, date, body.EducationLevel, body.SchoolName,
+                body.EnrollmentStatus, body.AttendanceRate, body.ProgressPercent, body.CompletionStatus, body.Notes,
+                body.ExtendedJson);
             return Results.Created($"/api/admin/education-records/{created.Id}", created);
         });
 
@@ -338,7 +340,8 @@ public static class AdminApiExtensions
         {
             DateOnly? date = null;
             if (body.RecordDate.HasValue) date = body.RecordDate.Value;
-            var u = repo.PatchEducationRecord(id, body.ProgressPercent, date, body.ExtendedJson);
+            var u = repo.PatchEducationRecord(id, body.EducationLevel, body.SchoolName, body.EnrollmentStatus,
+                body.AttendanceRate, body.ProgressPercent, body.CompletionStatus, body.Notes, date, body.ExtendedJson);
             return u is null ? Results.NotFound() : Results.Ok(u);
         });
 
@@ -351,7 +354,10 @@ public static class AdminApiExtensions
             var date = body.RecordDate.HasValue
                 ? body.RecordDate.Value
                 : DateOnly.FromDateTime(DateTime.UtcNow);
-            var created = repo.CreateHealthRecord(body.ResidentId, date, body.HealthScore, body.ExtendedJson);
+            var created = repo.CreateHealthRecord(body.ResidentId, date, body.HealthScore, body.NutritionScore,
+                body.SleepQualityScore, body.EnergyLevelScore, body.HeightCm, body.WeightKg, body.Bmi,
+                body.MedicalCheckupDone, body.DentalCheckupDone, body.PsychologicalCheckupDone, body.Notes,
+                body.ExtendedJson);
             return Results.Created($"/api/admin/health-records/{created.Id}", created);
         });
 
@@ -359,7 +365,9 @@ public static class AdminApiExtensions
         {
             DateOnly? date = null;
             if (body.RecordDate.HasValue) date = body.RecordDate.Value;
-            var u = repo.PatchHealthRecord(id, body.HealthScore, date, body.ExtendedJson);
+            var u = repo.PatchHealthRecord(id, body.HealthScore, body.NutritionScore, body.SleepQualityScore,
+                body.EnergyLevelScore, body.HeightCm, body.WeightKg, body.Bmi, body.MedicalCheckupDone,
+                body.DentalCheckupDone, body.PsychologicalCheckupDone, body.Notes, date, body.ExtendedJson);
             return u is null ? Results.NotFound() : Results.Ok(u);
         });
     }
@@ -451,10 +459,20 @@ public sealed record CreateInterventionPlanRequest(
     double? TargetValue,
     string? ServicesProvided);
 
-public sealed record CreateEducationRecordRequest(int ResidentId, DateOnly? RecordDate, double? ProgressPercent, string? ExtendedJson);
+public sealed record CreateEducationRecordRequest(int ResidentId, DateOnly? RecordDate, string? EducationLevel,
+    string? SchoolName, string? EnrollmentStatus, double? AttendanceRate, double? ProgressPercent,
+    string? CompletionStatus, string? Notes, string? ExtendedJson);
 
-public sealed record PatchEducationRecordRequest(double? ProgressPercent, DateOnly? RecordDate, string? ExtendedJson);
+public sealed record PatchEducationRecordRequest(string? EducationLevel, string? SchoolName, string? EnrollmentStatus,
+    double? AttendanceRate, double? ProgressPercent, string? CompletionStatus, string? Notes, DateOnly? RecordDate,
+    string? ExtendedJson);
 
-public sealed record CreateHealthRecordRequest(int ResidentId, DateOnly? RecordDate, double? HealthScore, string? ExtendedJson);
+public sealed record CreateHealthRecordRequest(int ResidentId, DateOnly? RecordDate, double? HealthScore,
+    double? NutritionScore, double? SleepQualityScore, double? EnergyLevelScore, double? HeightCm, double? WeightKg,
+    double? Bmi, bool? MedicalCheckupDone, bool? DentalCheckupDone, bool? PsychologicalCheckupDone, string? Notes,
+    string? ExtendedJson);
 
-public sealed record PatchHealthRecordRequest(double? HealthScore, DateOnly? RecordDate, string? ExtendedJson);
+public sealed record PatchHealthRecordRequest(double? HealthScore, double? NutritionScore, double? SleepQualityScore,
+    double? EnergyLevelScore, double? HeightCm, double? WeightKg, double? Bmi, bool? MedicalCheckupDone,
+    bool? DentalCheckupDone, bool? PsychologicalCheckupDone, string? Notes, DateOnly? RecordDate,
+    string? ExtendedJson);

@@ -379,7 +379,9 @@ public sealed class AdminController(ILighthouseRepository repo) : ControllerBase
     public IActionResult CreateEducationRecord([FromBody] CreateEducationRecordRequest body)
     {
         var date = body.RecordDate ?? DateOnly.FromDateTime(DateTime.UtcNow);
-        var created = repo.CreateEducationRecord(body.ResidentId, date, body.ProgressPercent, body.ExtendedJson);
+        var created = repo.CreateEducationRecord(body.ResidentId, date, body.EducationLevel, body.SchoolName,
+            body.EnrollmentStatus, body.AttendanceRate, body.ProgressPercent, body.CompletionStatus, body.Notes,
+            body.ExtendedJson);
         return Created($"/api/admin/education-records/{created.Id}", created);
     }
 
@@ -387,7 +389,8 @@ public sealed class AdminController(ILighthouseRepository repo) : ControllerBase
     public IActionResult PatchEducationRecord(int id, [FromBody] PatchEducationRecordRequest body)
     {
         var date = body.RecordDate;
-        var u = repo.PatchEducationRecord(id, body.ProgressPercent, date, body.ExtendedJson);
+        var u = repo.PatchEducationRecord(id, body.EducationLevel, body.SchoolName, body.EnrollmentStatus,
+            body.AttendanceRate, body.ProgressPercent, body.CompletionStatus, body.Notes, date, body.ExtendedJson);
         return u is null ? NotFound() : Ok(u);
     }
 
@@ -398,14 +401,19 @@ public sealed class AdminController(ILighthouseRepository repo) : ControllerBase
     public IActionResult CreateHealthRecord([FromBody] CreateHealthRecordRequest body)
     {
         var date = body.RecordDate ?? DateOnly.FromDateTime(DateTime.UtcNow);
-        var created = repo.CreateHealthRecord(body.ResidentId, date, body.HealthScore, body.ExtendedJson);
+        var created = repo.CreateHealthRecord(body.ResidentId, date, body.HealthScore, body.NutritionScore,
+            body.SleepQualityScore, body.EnergyLevelScore, body.HeightCm, body.WeightKg, body.Bmi,
+            body.MedicalCheckupDone, body.DentalCheckupDone, body.PsychologicalCheckupDone, body.Notes,
+            body.ExtendedJson);
         return Created($"/api/admin/health-records/{created.Id}", created);
     }
 
     [HttpPatch("health-records/{id:int}")]
     public IActionResult PatchHealthRecord(int id, [FromBody] PatchHealthRecordRequest body)
     {
-        var u = repo.PatchHealthRecord(id, body.HealthScore, body.RecordDate, body.ExtendedJson);
+        var u = repo.PatchHealthRecord(id, body.HealthScore, body.NutritionScore, body.SleepQualityScore,
+            body.EnergyLevelScore, body.HeightCm, body.WeightKg, body.Bmi, body.MedicalCheckupDone,
+            body.DentalCheckupDone, body.PsychologicalCheckupDone, body.Notes, body.RecordDate, body.ExtendedJson);
         return u is null ? NotFound() : Ok(u);
     }
 
@@ -486,10 +494,20 @@ public sealed class AdminController(ILighthouseRepository repo) : ControllerBase
         double? TargetValue,
         string? ServicesProvided);
     public sealed record CreateAllocationRequest(int DonationId, int SafehouseId, decimal? Amount, string? Notes, string? ProgramArea);
-    public sealed record CreateEducationRecordRequest(int ResidentId, DateOnly? RecordDate, double? ProgressPercent, string? ExtendedJson);
-    public sealed record PatchEducationRecordRequest(double? ProgressPercent, DateOnly? RecordDate, string? ExtendedJson);
-    public sealed record CreateHealthRecordRequest(int ResidentId, DateOnly? RecordDate, double? HealthScore, string? ExtendedJson);
-    public sealed record PatchHealthRecordRequest(double? HealthScore, DateOnly? RecordDate, string? ExtendedJson);
+    public sealed record CreateEducationRecordRequest(int ResidentId, DateOnly? RecordDate, string? EducationLevel,
+        string? SchoolName, string? EnrollmentStatus, double? AttendanceRate, double? ProgressPercent,
+        string? CompletionStatus, string? Notes, string? ExtendedJson);
+    public sealed record PatchEducationRecordRequest(string? EducationLevel, string? SchoolName, string? EnrollmentStatus,
+        double? AttendanceRate, double? ProgressPercent, string? CompletionStatus, string? Notes, DateOnly? RecordDate,
+        string? ExtendedJson);
+    public sealed record CreateHealthRecordRequest(int ResidentId, DateOnly? RecordDate, double? HealthScore,
+        double? NutritionScore, double? SleepQualityScore, double? EnergyLevelScore, double? HeightCm, double? WeightKg,
+        double? Bmi, bool? MedicalCheckupDone, bool? DentalCheckupDone, bool? PsychologicalCheckupDone, string? Notes,
+        string? ExtendedJson);
+    public sealed record PatchHealthRecordRequest(double? HealthScore, double? NutritionScore, double? SleepQualityScore,
+        double? EnergyLevelScore, double? HeightCm, double? WeightKg, double? Bmi, bool? MedicalCheckupDone,
+        bool? DentalCheckupDone, bool? PsychologicalCheckupDone, string? Notes, DateOnly? RecordDate,
+        string? ExtendedJson);
 
     private static object LegacyCaseFromSummary(ResidentSummaryDto r) => new
     {
