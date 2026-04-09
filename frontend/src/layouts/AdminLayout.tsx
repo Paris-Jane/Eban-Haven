@@ -199,7 +199,8 @@ export function AdminLayout() {
           ))}
         </nav>
 
-        <div className="shrink-0 space-y-1 border-t border-sidebar-border bg-sidebar p-3">
+        <div className="shrink-0 space-y-3 border-t border-sidebar-border bg-sidebar p-3">
+          {!sidebarCollapsed && <GoogleTranslate variant="admin" />}
           <button
             type="button"
             onClick={() => void signOut()}
@@ -228,9 +229,6 @@ export function AdminLayout() {
           >
             <Menu className="h-5 w-5" />
           </button>
-          <div className="ml-auto w-full max-w-xs">
-            <GoogleTranslate variant="admin" />
-          </div>
         </header>
         <main className="flex-1 bg-background p-4 lg:p-8">
           <Outlet />

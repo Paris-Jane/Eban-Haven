@@ -211,13 +211,23 @@ export function GoogleTranslate({ variant = 'footer' }: GoogleTranslateProps) {
 
   const wrapperClassName =
     variant === 'admin'
-      ? 'flex items-center gap-3 rounded-xl border border-border bg-card px-3 py-2 shadow-sm'
-      : 'rounded-2xl border border-border bg-background/70 p-4 shadow-sm backdrop-blur-sm'
+      ? 'rounded-xl border border-sidebar-border bg-sidebar-accent/70 px-3 py-3 text-sidebar-foreground'
+      : 'inline-flex max-w-full items-center gap-3 rounded-full border border-border bg-muted/60 px-3 py-2'
 
   const labelClassName =
     variant === 'admin'
-      ? 'text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground'
-      : 'text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground'
+      ? 'text-[10px] font-semibold uppercase tracking-[0.22em] text-sidebar-foreground/55'
+      : 'text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground'
+
+  const selectClassName =
+    variant === 'admin'
+      ? 'w-full rounded-lg border border-sidebar-border bg-sidebar px-3 py-2 text-sm text-sidebar-foreground outline-none transition-colors focus:border-sidebar-primary focus:ring-2 focus:ring-sidebar-primary/25'
+      : 'min-w-[11rem] rounded-full border border-border bg-background px-3 py-1.5 text-sm text-foreground outline-none transition-colors focus:border-primary focus:ring-2 focus:ring-primary/20'
+
+  const descriptionClassName =
+    variant === 'admin'
+      ? 'mt-2 text-[11px] leading-relaxed text-sidebar-foreground/60'
+      : 'text-[11px] text-muted-foreground'
 
   return (
     <div className={wrapperClassName}>
@@ -225,12 +235,12 @@ export function GoogleTranslate({ variant = 'footer' }: GoogleTranslateProps) {
         <label htmlFor={selectId} className={labelClassName}>
           Language
         </label>
-        <div className={variant === 'admin' ? 'mt-1' : 'mt-2'}>
+        <div className={variant === 'admin' ? 'mt-1.5' : 'mt-0.5'}>
           <select
             id={selectId}
             value={language}
             onChange={onLanguageChange}
-            className="w-full rounded-xl border border-border bg-card px-3 py-2 text-sm text-foreground outline-none transition-colors focus:border-primary focus:ring-2 focus:ring-primary/20"
+            className={selectClassName}
             aria-label="Choose website language"
           >
             {languageOptions.map((option) => (
@@ -240,9 +250,11 @@ export function GoogleTranslate({ variant = 'footer' }: GoogleTranslateProps) {
             ))}
           </select>
         </div>
-        <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">
-          Powered by Google Translate. Your selection stays active as you move between pages.
-        </p>
+        {variant === 'admin' ? (
+          <p className={descriptionClassName}>Keeps your selected language active across admin pages.</p>
+        ) : (
+          <p className={descriptionClassName}>Translate this site</p>
+        )}
       </div>
       <div id={ELEMENT_ID} className="google-translate-host" aria-hidden />
     </div>

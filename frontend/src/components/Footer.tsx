@@ -127,7 +127,8 @@ export function Footer() {
             Privacy Policy
           </Link>
         </div>
-        <div className="mt-8 border-t border-border pt-8">
+        <div className="mt-8 flex flex-col gap-3 border-t border-border pt-6 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-xs text-muted-foreground">Language support for readers across Ghana.</p>
           <GoogleTranslate />
         </div>
       </div>
