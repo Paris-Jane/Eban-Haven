@@ -135,35 +135,49 @@ public sealed class ReintegrationReadinessController(HavenDbContext db, IHttpCli
     [HttpGet("{residentId:int}/reintegration-readiness")]
     public async Task<IActionResult> GetReintegrationReadiness(int residentId, CancellationToken ct)
     {
-        var conn = db.Database.GetDbConnection();
-        if (conn.State == ConnectionState.Closed)
-            await conn.OpenAsync(ct);
-
-        var row = await conn.QueryFirstOrDefaultAsync<dynamic>(
-            FeatureSql, new { ResidentId = residentId });
+        dynamic? row;
+        try
+        {
+            var conn = db.Database.GetDbConnection();
+            if (conn.State == ConnectionState.Closed)
+                await conn.OpenAsync(ct);
+            row = await conn.QueryFirstOrDefaultAsync<dynamic>(FeatureSql, new { ResidentId = residentId });
+        }
+        catch (Exception ex)
+        {
+            return Problem(detail: $"SQL error: {ex.Message}", statusCode: 500);
+        }
 
         if (row is null)
             return NotFound(new { message = $"Resident {residentId} not found." });
 
-        var payload = new ReintegrationFeaturesPayload(
-            ResidentId:             residentId,
-            SafehouseId:            (string)(row.safehouse_code ?? "Unknown"),
-            AgeAtEntry:             (int)ToDouble(row.age_at_entry, 15),
-            DaysInProgram:          (int)ToDouble(row.days_in_program, 0),
-            ReferralSource:         "Unknown",          // column not in base schema; model uses as categorical default
-            TotalSessions:          ToDouble(row.total_sessions, 0),
-            PctProgressNoted:       ToDouble(row.pct_progress_noted, 0),
-            PctConcernsFlagged:     ToDouble(row.pct_concerns_flagged, 0),
-            LatestAttendanceRate:   0.0,                // attendance_rate column not in base schema; default = 0
-            AvgProgressPercent:     ToDouble(row.avg_progress_percent, 0),
-            AvgGeneralHealthScore:  ToDouble(row.avg_general_health_score, 5),
-            PctPsychCheckupDone:    0.0,                // psychological_checkup_done column not in base schema; default = 0
-            NumHealthRecords:       ToDouble(row.num_health_records, 0),
-            TotalIncidents:         ToDouble(row.total_incidents, 0),
-            NumSevereIncidents:     ToDouble(row.num_severe_incidents, 0),
-            TotalPlans:             ToDouble(row.total_plans, 0),
-            PctPlansAchieved:       ToDouble(row.pct_plans_achieved, 0)
-        );
+        ReintegrationFeaturesPayload payload;
+        try
+        {
+            payload = new ReintegrationFeaturesPayload(
+                ResidentId:             residentId,
+                SafehouseId:            (string)(row.safehouse_code ?? "Unknown"),
+                AgeAtEntry:             (int)ToDouble(row.age_at_entry, 15),
+                DaysInProgram:          (int)ToDouble(row.days_in_program, 0),
+                ReferralSource:         "Unknown",
+                TotalSessions:          ToDouble(row.total_sessions, 0),
+                PctProgressNoted:       ToDouble(row.pct_progress_noted, 0),
+                PctConcernsFlagged:     ToDouble(row.pct_concerns_flagged, 0),
+                LatestAttendanceRate:   0.0,
+                AvgProgressPercent:     ToDouble(row.avg_progress_percent, 0),
+                AvgGeneralHealthScore:  ToDouble(row.avg_general_health_score, 5),
+                PctPsychCheckupDone:    0.0,
+                NumHealthRecords:       ToDouble(row.num_health_records, 0),
+                TotalIncidents:         ToDouble(row.total_incidents, 0),
+                NumSevereIncidents:     ToDouble(row.num_severe_incidents, 0),
+                TotalPlans:             ToDouble(row.total_plans, 0),
+                PctPlansAchieved:       ToDouble(row.pct_plans_achieved, 0)
+            );
+        }
+        catch (Exception ex)
+        {
+            return Problem(detail: $"Feature mapping error: {ex.Message}", statusCode: 500);
+        }
 
         var http = httpFactory.CreateClient("MlService");
         HttpResponseMessage response;
@@ -177,7 +191,7 @@ public sealed class ReintegrationReadinessController(HavenDbContext db, IHttpCli
         }
 
         if (!response.IsSuccessStatusCode)
-            return Problem(detail: await response.Content.ReadAsStringAsync(ct),
+            return Problem(detail: $"ML service error {(int)response.StatusCode}: {await response.Content.ReadAsStringAsync(ct)}",
                            statusCode: (int)response.StatusCode);
 
         var prediction = await response.Content.ReadFromJsonAsync<ReintegrationPredictionResponse>(ct);

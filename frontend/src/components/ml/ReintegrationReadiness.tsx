@@ -91,15 +91,23 @@ export function ReintegrationReadiness({ residentId }: { residentId: number }) {
     setError(null);
 
     apiFetch(`/api/residents/${residentId}/reintegration-readiness`)
-      .then((res) => {
+      .then(async (res) => {
         if (res.status === 401 || res.status === 403) {
           throw new Error("Session expired. Sign in again to load this prediction.");
         }
         if (res.status === 404) {
           throw new Error("Resident record not found.");
         }
-        if (res.status === 502) {
-          throw new Error("ML service is currently unavailable. Try again shortly.");
+        // For all other non-2xx: extract the detail field from ASP.NET ProblemDetails if present
+        if (!res.ok) {
+          const text = await res.text();
+          try {
+            const j = JSON.parse(text) as { detail?: string; title?: string };
+            throw new Error(j.detail ?? j.title ?? `HTTP ${res.status}: ${text.slice(0, 200)}`);
+          } catch (parseErr) {
+            if (parseErr instanceof SyntaxError) throw new Error(`HTTP ${res.status}: ${text.slice(0, 200)}`);
+            throw parseErr;
+          }
         }
         return parseJson<ReintegrationResult>(res);
       })
