@@ -47,11 +47,15 @@ public sealed class ReintegrationReadinessController(HavenDbContext db, IHttpCli
 {
     // Extracts the 16-feature vector expected by the Reintegration Readiness GBM.
     //
-    // Column notes:
-    //  - The actual DB was populated directly from CSVs, so all CSV columns are present
-    //    as direct columns (attendance_rate, psychological_checkup_done, age_upon_admission, etc.).
-    //    The EF entity definitions are a subset only; Dapper can query any column.
-    //  - age_upon_admission (the intake age) is the correct proxy for age_at_entry.
+    // Column inventory (only EF-mapped columns are queried — optional migration columns
+    // attendance_rate / psychological_checkup_done / age_upon_admission / referral_source
+    // may not exist on all environments, so we use safe defaults for those features):
+    //  residents          : resident_id, safehouse_id, date_of_admission, present_age
+    //  process_recordings : progress_noted (bool), concerns_flagged (bool)
+    //  education_records  : progress_percent
+    //  health_wellbeing   : general_health_score
+    //  incident_reports   : severity
+    //  intervention_plans : status
     private const string FeatureSql = """
         WITH
           session_agg AS (
@@ -70,7 +74,6 @@ public sealed class ReintegrationReadinessController(HavenDbContext db, IHttpCli
           health_agg AS (
             SELECT
               COALESCE(AVG(general_health_score), 5.0)                                         AS avg_health_score,
-              COALESCE(AVG(CASE WHEN psychological_checkup_done THEN 1.0 ELSE 0.0 END), 0.0)  AS pct_psych_checkup_done,
               COUNT(*)::float                                                                   AS num_health_records
             FROM health_wellbeing_records
             WHERE resident_id = @ResidentId
@@ -96,8 +99,8 @@ public sealed class ReintegrationReadinessController(HavenDbContext db, IHttpCli
           r.resident_id,
           COALESCE(s.code, 'Unknown')                                                          AS safehouse_code,
           CASE
-            WHEN r.age_upon_admission ~ '^\d+$'
-              THEN LEAST(25, GREATEST(10, r.age_upon_admission::int))
+            WHEN r.present_age ~ '^\d+$'
+              THEN LEAST(25, GREATEST(10, r.present_age::int))
             ELSE 15
           END                                                                                   AS age_at_entry,
           GREATEST(0,
@@ -107,21 +110,11 @@ public sealed class ReintegrationReadinessController(HavenDbContext db, IHttpCli
               ELSE 0
             END
           )                                                                                     AS days_in_program,
-          COALESCE(NULLIF(TRIM(COALESCE(r.referral_source, '')), ''), 'Unknown')               AS referral_source,
           sa.total_sessions,
           sa.pct_progress_noted,
           sa.pct_concerns_flagged,
-          COALESCE(
-            (SELECT attendance_rate
-             FROM education_records
-             WHERE resident_id = @ResidentId
-             ORDER BY record_date DESC
-             LIMIT 1),
-            0.0
-          )                                                                                     AS latest_attendance_rate,
           ea.avg_progress_percent,
           LEAST(10.0, GREATEST(1.0, ha.avg_health_score))                                      AS avg_general_health_score,
-          ha.pct_psych_checkup_done,
           ha.num_health_records,
           ia.total_incidents,
           ia.num_severe_incidents,
@@ -157,14 +150,14 @@ public sealed class ReintegrationReadinessController(HavenDbContext db, IHttpCli
             SafehouseId:            (string)(row.safehouse_code ?? "Unknown"),
             AgeAtEntry:             (int)ToDouble(row.age_at_entry, 15),
             DaysInProgram:          (int)ToDouble(row.days_in_program, 0),
-            ReferralSource:         (string)(row.referral_source ?? "Unknown"),
+            ReferralSource:         "Unknown",          // column not in base schema; model uses as categorical default
             TotalSessions:          ToDouble(row.total_sessions, 0),
             PctProgressNoted:       ToDouble(row.pct_progress_noted, 0),
             PctConcernsFlagged:     ToDouble(row.pct_concerns_flagged, 0),
-            LatestAttendanceRate:   ToDouble(row.latest_attendance_rate, 0),
+            LatestAttendanceRate:   0.0,                // attendance_rate column not in base schema; default = 0
             AvgProgressPercent:     ToDouble(row.avg_progress_percent, 0),
             AvgGeneralHealthScore:  ToDouble(row.avg_general_health_score, 5),
-            PctPsychCheckupDone:    ToDouble(row.pct_psych_checkup_done, 0),
+            PctPsychCheckupDone:    0.0,                // psychological_checkup_done column not in base schema; default = 0
             NumHealthRecords:       ToDouble(row.num_health_records, 0),
             TotalIncidents:         ToDouble(row.total_incidents, 0),
             NumSevereIncidents:     ToDouble(row.num_severe_incidents, 0),
