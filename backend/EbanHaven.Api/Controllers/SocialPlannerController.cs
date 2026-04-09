@@ -133,8 +133,10 @@ public sealed class SocialPlannerController(
     /// Proxies Pexels CDN images through the backend so clients in regions
     /// that block pexels.com can still view the photos.
     /// Only allows requests to *.pexels.com to prevent open-proxy abuse.
+    /// Auth is not required: browsers cannot send Bearer tokens in img src requests.
     /// </summary>
     [HttpGet("image-proxy")]
+    [AllowAnonymous]
     public async Task<IActionResult> ImageProxy([FromQuery] string url, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(url))
