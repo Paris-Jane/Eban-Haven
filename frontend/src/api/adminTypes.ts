@@ -309,6 +309,15 @@ export type AtRiskDonorInfo = {
   top_risk_signals: string[]
 }
 
+export type DonorUpgradeInfo = {
+  supporter_id: number | null
+  upgrade_probability: number
+  prediction: string           // "Likely to Upgrade" | "Unlikely"
+  propensity_tier: string      // "High" | "Moderate" | "Low"
+  threshold_used: number
+  top_upgrade_signals: string[]
+}
+
 // ── Marketing Analytics ───────────────────────────────────────────────────────
 
 export type CampaignPerformance = {

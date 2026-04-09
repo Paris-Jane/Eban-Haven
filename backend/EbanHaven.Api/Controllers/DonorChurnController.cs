@@ -36,6 +36,27 @@ file record ChurnPredictionResponse(
     [property: JsonPropertyName("top_risk_signals")]  List<string> TopRiskSignals
 );
 
+file record UpgradeFeaturePayload(
+    [property: JsonPropertyName("supporter_id")]             int?   SupporterId,
+    [property: JsonPropertyName("days_since_last_donation")] double DaysSinceLastDonation,
+    [property: JsonPropertyName("total_donations")]          double TotalDonations,
+    [property: JsonPropertyName("avg_amount")]               double AvgAmount,
+    [property: JsonPropertyName("amount_trend")]             double AmountTrend,
+    [property: JsonPropertyName("pct_recurring")]            double PctRecurring,
+    [property: JsonPropertyName("num_campaigns")]            int    NumCampaigns,
+    [property: JsonPropertyName("acquisition_channel")]      string AcquisitionChannel,
+    [property: JsonPropertyName("relationship_type")]        string RelationshipType
+);
+
+file record UpgradePredictionResponse(
+    [property: JsonPropertyName("supporter_id")]        int?         SupporterId,
+    [property: JsonPropertyName("upgrade_probability")] double       UpgradeProbability,
+    [property: JsonPropertyName("prediction")]          string       Prediction,
+    [property: JsonPropertyName("propensity_tier")]     string       PropensityTier,
+    [property: JsonPropertyName("threshold_used")]      double       ThresholdUsed,
+    [property: JsonPropertyName("top_upgrade_signals")] List<string> TopUpgradeSignals
+);
+
 // ── Controller ────────────────────────────────────────────────────────────────
 
 [ApiController]
@@ -264,6 +285,107 @@ public sealed class DonorChurnController(HavenDbContext db, IHttpClientFactory h
 
         var prediction = await response.Content.ReadFromJsonAsync<ChurnPredictionResponse>(ct);
         return Ok(prediction);
+    }
+
+    // ── GET /api/donors/upgrade-candidates ──────────────────────────────────────
+
+    private const string UpgradeFeatureSql = """
+        WITH donation_data AS (
+            SELECT
+                d.supporter_id,
+                d.amount::float                           AS amount,
+                d.donation_date::timestamp                AS donation_ts,
+                d.is_recurring::bool                      AS is_recurring,
+                d.campaign_name
+            FROM donations d
+            WHERE d.donation_type = 'Monetary'
+              AND d.amount IS NOT NULL
+        ),
+        ranked AS (
+            SELECT *,
+                   ROW_NUMBER() OVER (PARTITION BY supporter_id ORDER BY donation_ts DESC) AS rn_desc,
+                   ROW_NUMBER() OVER (PARTITION BY supporter_id ORDER BY donation_ts ASC)  AS rn_asc
+            FROM donation_data
+        ),
+        aggs AS (
+            SELECT
+                supporter_id,
+                COUNT(*)                                                                       AS total_donations,
+                COALESCE(AVG(amount), 0.0)                                                     AS avg_amount,
+                COALESCE(AVG(amount) FILTER (WHERE rn_desc <= 3), 0.0) -
+                COALESCE(AVG(amount) FILTER (WHERE rn_asc  <= 3), 0.0)                        AS amount_trend,
+                COALESCE(EXTRACT(EPOCH FROM (NOW() - MAX(donation_ts)))::int / 86400, 9999)   AS days_since_last_donation,
+                COALESCE(AVG(CASE WHEN is_recurring THEN 1.0 ELSE 0.0 END), 0.0)             AS pct_recurring,
+                COUNT(DISTINCT campaign_name) FILTER (WHERE campaign_name IS NOT NULL)         AS num_campaigns
+            FROM ranked
+            GROUP BY supporter_id
+        )
+        SELECT
+            s.supporter_id,
+            COALESCE(s.acquisition_channel, 'Unknown')                                        AS acquisition_channel,
+            COALESCE(s.relationship_type,   'Unknown')                                        AS relationship_type,
+            COALESCE(a.total_donations,          0)                                            AS total_donations,
+            COALESCE(a.avg_amount,               0.0)                                          AS avg_amount,
+            COALESCE(a.amount_trend,             0.0)                                          AS amount_trend,
+            COALESCE(a.days_since_last_donation, 9999)                                         AS days_since_last_donation,
+            COALESCE(a.pct_recurring,            0.0)                                          AS pct_recurring,
+            COALESCE(a.num_campaigns,            0)                                            AS num_campaigns
+        FROM supporters s
+        LEFT JOIN aggs a ON a.supporter_id = s.supporter_id
+        ORDER BY COALESCE(a.avg_amount, 0.0) DESC
+        """;
+
+    [HttpGet("upgrade-candidates")]
+    public async Task<IActionResult> GetUpgradeCandidates(
+        double threshold = 0.4,
+        int limit = 100,
+        CancellationToken ct = default)
+    {
+        var conn = db.Database.GetDbConnection();
+        if (conn.State == ConnectionState.Closed)
+            await conn.OpenAsync(ct);
+        var rows = (await conn.QueryAsync<dynamic>(UpgradeFeatureSql)).ToList();
+
+        if (rows.Count == 0)
+            return Ok(Array.Empty<UpgradePredictionResponse>());
+
+        var payloads = rows.Select(r => new UpgradeFeaturePayload(
+            SupporterId:            (int?)r.supporter_id,
+            DaysSinceLastDonation:  ToDouble(r.days_since_last_donation, 9999),
+            TotalDonations:         ToDouble(r.total_donations,          0),
+            AvgAmount:              ToDouble(r.avg_amount,               0),
+            AmountTrend:            ToDouble(r.amount_trend,             0),
+            PctRecurring:           ToDouble(r.pct_recurring,            0),
+            NumCampaigns:           (int)ToDouble(r.num_campaigns,       0),
+            AcquisitionChannel:     (string)(r.acquisition_channel ?? "Unknown"),
+            RelationshipType:       (string)(r.relationship_type   ?? "Unknown")
+        )).ToList();
+
+        var http = httpFactory.CreateClient("MlService");
+        HttpResponseMessage response;
+        try
+        {
+            response = await http.PostAsJsonAsync("/predict/donor-upgrade-propensity-batch", payloads, ct);
+        }
+        catch (HttpRequestException ex)
+        {
+            return Problem(detail: $"ML service unavailable: {ex.Message}", statusCode: 502);
+        }
+
+        if (!response.IsSuccessStatusCode)
+            return Problem(detail: await response.Content.ReadAsStringAsync(ct),
+                           statusCode: (int)response.StatusCode);
+
+        var predictions = await response.Content
+            .ReadFromJsonAsync<List<UpgradePredictionResponse>>(ct);
+
+        var candidates = predictions!
+            .Where(p => p.UpgradeProbability >= threshold)
+            .OrderByDescending(p => p.UpgradeProbability)
+            .Take(limit)
+            .ToList();
+
+        return Ok(candidates);
     }
 
     private static double ToDouble(dynamic? value, double fallback) =>

@@ -77,6 +77,12 @@ export async function getAtRiskDonors(threshold = 0.55, limit = 50): Promise<T.A
   )
 }
 
+export async function getUpgradeCandidates(threshold = 0.4, limit = 100): Promise<T.DonorUpgradeInfo[]> {
+  return parseJson<T.DonorUpgradeInfo[]>(
+    await apiFetch(`/api/donors/upgrade-candidates?threshold=${threshold}&limit=${limit}`),
+  )
+}
+
 export async function getDonorEmailProfile(supporterId: number): Promise<T.DonorEmailProfile> {
   return parseJson<T.DonorEmailProfile>(await apiFetch(`${base}/email-hub/supporters/${supporterId}`))
 }

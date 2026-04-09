@@ -14,6 +14,7 @@ export {
   patchDonationFields,
   getAllocations,
   getAtRiskDonors,
+  getUpgradeCandidates,
   getDonorEmailProfile,
   generateDonorEmail,
   sendDonorEmail,

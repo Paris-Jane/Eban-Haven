@@ -1,0 +1,38 @@
+{
+  "model_name": "donor_upgrade_propensity_lr",
+  "model_version": "1.0.0",
+  "target": "YoY giving increase (most_recent_year_total > prior_year_total)",
+  "labeling_strategy": "Per donor: most recent consecutive calendar-year pair",
+  "feature_columns": [
+    "days_since_last_donation",
+    "total_donations",
+    "avg_amount",
+    "amount_trend",
+    "pct_recurring",
+    "num_campaigns",
+    "acquisition_channel",
+    "relationship_type"
+  ],
+  "numerical_features": [
+    "days_since_last_donation",
+    "total_donations",
+    "avg_amount",
+    "amount_trend",
+    "pct_recurring",
+    "num_campaigns"
+  ],
+  "categorical_features": [
+    "acquisition_channel",
+    "relationship_type"
+  ],
+  "roc_auc_loo": null,
+  "f1_loo": null,
+  "best_threshold": 0.5,
+  "n_training_samples": null,
+  "n_positive": null,
+  "n_negative": null,
+  "cv_strategy": "LeaveOneOut",
+  "trained_on": null,
+  "currency": "PHP",
+  "data_warning": "Placeholder — run donor-upgrade-propensity.ipynb top-to-bottom to train the model and populate this file."
+}

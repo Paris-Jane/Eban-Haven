@@ -1,13 +1,15 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
-import { ChevronDown, LoaderCircle, MailPlus, RefreshCw, Sparkles } from 'lucide-react'
+import { Link, useSearchParams } from 'react-router-dom'
+import { ChevronDown, ExternalLink, LoaderCircle, MailPlus, RefreshCw, Sparkles, TrendingUp, TriangleAlert } from 'lucide-react'
 import {
   generateDonorEmail,
   getAtRiskDonors,
+  getUpgradeCandidates,
   getDonorEmailProfile,
   sendDonorEmail,
   getSupporters,
   type AtRiskDonorInfo,
+  type DonorUpgradeInfo,
   type DonorEmailProfile,
   type GeneratedDonorEmail,
   type SentDonorEmail,
@@ -126,6 +128,8 @@ export function EmailHubPage() {
   const [recipientEmail, setRecipientEmail] = useState('')
   const [atRiskMap, setAtRiskMap] = useState<Map<number, AtRiskDonorInfo>>(new Map())
   const [sentEmailLog, setSentEmailLog] = useState<SentEmailLogEntry[]>(() => loadSentEmailLog())
+  const [upgradeMap, setUpgradeMap] = useState<Map<number, DonorUpgradeInfo>>(new Map())
+  const [mlFilter, setMlFilter] = useState<'all' | 'at-risk' | 'upgrade'>('all')
 
   useEffect(() => {
     try {
@@ -170,12 +174,20 @@ export function EmailHubPage() {
       setSendResult(null)
       setRecipientEmail(nextProfile.supporter.email ?? '')
       setError(null)
+      // Auto-suggest goal based on ML signals
+      setGoal((currentGoal) => {
+        const risk = atRiskMap.get(supporterId)
+        const upgrade = upgradeMap.get(supporterId)
+        if (risk && currentGoal === goalPresets[0]) return goalPresets[1]    // Re-engage
+        if (upgrade && !risk && currentGoal === goalPresets[0]) return goalPresets[2] // Monthly giver
+        return currentGoal
+      })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load donor history.')
     } finally {
       setLoadingProfile(false)
     }
-  }, [])
+  }, [atRiskMap, upgradeMap])
 
   useEffect(() => {
     void loadSupporters()
@@ -190,7 +202,7 @@ export function EmailHubPage() {
     if (selectedId != null) void loadProfile(selectedId)
   }, [selectedId, loadProfile])
 
-  // Load churn predictions silently — failures just mean no risk indicators shown
+  // Load churn + upgrade predictions silently — failures just mean no ML indicators shown
   useEffect(() => {
     getAtRiskDonors(0.55, 100)
       .then((rows) => {
@@ -200,28 +212,50 @@ export function EmailHubPage() {
             .map((r) => [r.supporter_id!, r])
         ))
       })
-      .catch(() => { /* non-critical — sidebar still works without risk data */ })
+      .catch(() => { /* non-critical */ })
+
+    getUpgradeCandidates(0.4, 100)
+      .then((rows) => {
+        setUpgradeMap(new Map(
+          rows
+            .filter((r) => r.supporter_id != null)
+            .map((r) => [r.supporter_id!, r])
+        ))
+      })
+      .catch(() => { /* non-critical — upgrade model may not be trained yet */ })
   }, [])
 
   const filteredSupporters = useMemo(() => {
     const needle = search.trim().toLowerCase()
-    const matches = needle
+    let matches = needle
       ? supporters.filter((s) =>
           `${s.displayName} ${s.email ?? ''} ${s.organizationName ?? ''} ${s.region ?? ''}`
             .toLowerCase()
             .includes(needle),
         )
       : supporters
-    // Sort: high-risk first, then moderate, then the rest (by churn probability desc within tier)
+
+    if (mlFilter === 'at-risk')  matches = matches.filter((s) => atRiskMap.has(s.id))
+    if (mlFilter === 'upgrade')  matches = matches.filter((s) => upgradeMap.has(s.id))
+
+    // Sort priority: at-risk first (by churn prob desc), then upgrade candidates, then rest
     return [...matches].sort((a, b) => {
       const ra = atRiskMap.get(a.id)
       const rb = atRiskMap.get(b.id)
+      const ua = upgradeMap.get(a.id)
+      const ub = upgradeMap.get(b.id)
+      // Both at risk — sort by churn probability
+      if (ra && rb) return rb.churn_probability - ra.churn_probability
+      // One at risk, the other not
       if (ra && !rb) return -1
       if (!ra && rb) return 1
-      if (ra && rb) return rb.churn_probability - ra.churn_probability
+      // Neither at risk — sort by upgrade probability
+      if (ua && ub) return ub.upgrade_probability - ua.upgrade_probability
+      if (ua && !ub) return -1
+      if (!ua && ub) return 1
       return 0
     })
-  }, [supporters, search, atRiskMap])
+  }, [supporters, search, atRiskMap, upgradeMap, mlFilter])
 
   const sentEmailMeta = useMemo(() => {
     const map = new Map<number, { lastSentAt: string; count: number; lastRecipient: string }>()
@@ -334,13 +368,20 @@ export function EmailHubPage() {
           <div className="flex items-center justify-between gap-3">
             <div>
               <p className={sectionFormTitle}>Donors</p>
-              <p className="mt-1 text-sm text-muted-foreground">
-                {atRiskMap.size > 0 ? (
-                  <span>
-                    <span className="font-medium text-red-600">{atRiskMap.size} at risk</span>
-                    {' · sorted to top'}
+              <p className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-sm text-muted-foreground">
+                {atRiskMap.size > 0 && (
+                  <span className="flex items-center gap-1 font-medium text-red-600">
+                    <TriangleAlert className="h-3.5 w-3.5" />
+                    {atRiskMap.size} at risk
                   </span>
-                ) : 'Pick a donor to build a custom email.'}
+                )}
+                {upgradeMap.size > 0 && (
+                  <span className="flex items-center gap-1 font-medium text-emerald-600">
+                    <TrendingUp className="h-3.5 w-3.5" />
+                    {upgradeMap.size} upgrade ready
+                  </span>
+                )}
+                {atRiskMap.size === 0 && upgradeMap.size === 0 && 'Pick a donor to build a custom email.'}
               </p>
             </div>
             <button
@@ -352,6 +393,32 @@ export function EmailHubPage() {
               <RefreshCw className={`h-4 w-4 ${loadingList ? 'animate-spin' : ''}`} />
             </button>
           </div>
+
+
+          {/* ML filter tabs */}
+          <div className="flex rounded-lg border border-border bg-muted/30 p-1 gap-1">
+            {([
+              ['all',      'All'],
+              ['at-risk',  'At Risk'],
+              ['upgrade',  'Upgrade'],
+            ] as const).map(([value, label_]) => (
+              <button
+                key={value}
+                type="button"
+                onClick={() => setMlFilter(value)}
+                className={`flex-1 rounded-md px-2 py-1.5 text-xs font-medium transition-colors ${
+                  mlFilter === value
+                    ? 'bg-background shadow-sm text-foreground'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                {label_}
+                {value === 'at-risk'  && atRiskMap.size  > 0 && <span className="ml-1 rounded-full bg-red-100 px-1.5 text-red-700">{atRiskMap.size}</span>}
+                {value === 'upgrade'  && upgradeMap.size > 0 && <span className="ml-1 rounded-full bg-emerald-100 px-1.5 text-emerald-700">{upgradeMap.size}</span>}
+              </button>
+            ))}
+          </div>
+
 
           <label className={label}>
             Search donors
@@ -372,6 +439,7 @@ export function EmailHubPage() {
               filteredSupporters.map((supporter) => {
                 const selected = supporter.id === selectedId
                 const risk = atRiskMap.get(supporter.id)
+                const upgrade = upgradeMap.get(supporter.id)
                 const isHigh = risk?.risk_tier === 'High Risk'
                 const isMod = risk?.risk_tier === 'Moderate Risk'
                 const emailMeta = sentEmailMeta.get(supporter.id)
@@ -385,7 +453,9 @@ export function EmailHubPage() {
                           ? 'border-red-200 bg-red-50/60 hover:bg-red-50'
                           : isMod
                             ? 'border-amber-200 bg-amber-50/60 hover:bg-amber-50'
-                            : 'border-border bg-background hover:border-primary/30 hover:bg-muted/40'
+                            : upgrade
+                              ? 'border-emerald-200 bg-emerald-50/50 hover:bg-emerald-50'
+                              : 'border-border bg-background hover:border-primary/30 hover:bg-muted/40'
                     }`}
                   >
                     <button
@@ -394,24 +464,38 @@ export function EmailHubPage() {
                       className="block w-full text-left"
                     >
                       <div className="flex items-start justify-between gap-2">
-                        <p className={`font-medium ${isHigh ? 'text-red-800' : isMod ? 'text-amber-800' : 'text-foreground'}`}>
+                        <p className={`font-medium ${isHigh ? 'text-red-800' : isMod ? 'text-amber-800' : upgrade ? 'text-emerald-800' : 'text-foreground'}`}>
                           {supporter.displayName}
                         </p>
-                        {risk && (
-                          <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${
-                            isHigh
-                              ? 'bg-red-100 text-red-700'
-                              : 'bg-amber-100 text-amber-700'
-                          }`}>
-                            {Math.round(risk.churn_probability * 100)}% churn risk
-                          </span>
-                        )}
+                        <div className="flex shrink-0 flex-col items-end gap-1">
+                          {risk && (
+                            <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                              isHigh ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'
+                            }`}>
+                              {Math.round(risk.churn_probability * 100)}% churn
+                            </span>
+                          )}
+                          {upgrade && (
+                            <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
+                              {Math.round(upgrade.upgrade_probability * 100)}% upgrade
+                            </span>
+                          )}
+                        </div>
                       </div>
                       <p className="mt-1 text-xs text-muted-foreground">{supporter.email ?? 'No email on file'}</p>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        {supporter.supporterType}
-                        {supporter.region ? ` · ${supporter.region}` : ''}
-                      </p>
+                      <div className="mt-1 flex items-center justify-between gap-2">
+                        <p className="text-xs text-muted-foreground">
+                          {supporter.supporterType}
+                          {supporter.region ? ` · ${supporter.region}` : ''}
+                        </p>
+                        <Link
+                          to={`/admin/donors/${supporter.id}`}
+                          onClick={(e) => e.stopPropagation()}
+                          className="flex items-center gap-1 text-[10px] text-primary hover:underline"
+                        >
+                          Profile <ExternalLink className="h-2.5 w-2.5" />
+                        </Link>
+                      </div>
                       <p className="mt-2 text-[11px] text-muted-foreground">
                         Last emailed:{' '}
                         <span className="font-medium text-foreground">
@@ -448,12 +532,43 @@ export function EmailHubPage() {
                       <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary">
                         {profile.supporter.supporterType}
                       </span>
+                      <Link
+                        to={`/admin/donors/${profile.supporter.id}`}
+                        className="inline-flex items-center gap-1 rounded-full border border-border bg-background px-2.5 py-1 text-xs font-medium text-muted-foreground hover:text-primary hover:border-primary/40 transition-colors"
+                      >
+                        <ExternalLink className="h-3 w-3" />
+                        View full profile
+                      </Link>
                     </div>
                     <p className="mt-1 text-sm text-muted-foreground">
                       {profile.supporter.email ?? 'No email on file'}
                       {profile.supporter.organizationName ? ` · ${profile.supporter.organizationName}` : ''}
                     </p>
                     <p className="mt-3 text-sm text-muted-foreground">{profile.relationshipSummary}</p>
+                    {(atRiskMap.has(profile.supporter.id) || upgradeMap.has(profile.supporter.id)) && (
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {atRiskMap.get(profile.supporter.id) && (() => {
+                          const r = atRiskMap.get(profile.supporter.id)!
+                          return (
+                            <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium ${
+                              r.risk_tier === 'High Risk' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'
+                            }`}>
+                              <TriangleAlert className="h-3 w-3" />
+                              {r.risk_tier} · {Math.round(r.churn_probability * 100)}% churn probability
+                            </span>
+                          )
+                        })()}
+                        {upgradeMap.get(profile.supporter.id) && (() => {
+                          const u = upgradeMap.get(profile.supporter.id)!
+                          return (
+                            <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-3 py-1 text-xs font-medium text-emerald-700">
+                              <TrendingUp className="h-3 w-3" />
+                              Upgrade candidate · {Math.round(u.upgrade_probability * 100)}% propensity
+                            </span>
+                          )
+                        })()}
+                      </div>
+                    )}
                   </div>
                   <div className="flex shrink-0 items-center gap-5">
                     <div className="hidden text-right md:block">
