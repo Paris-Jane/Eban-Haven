@@ -7,17 +7,17 @@ import { SITE_DISPLAY_NAME } from '../../site'
 
 const moneyPhp = new Intl.NumberFormat(undefined, { style: 'currency', currency: 'PHP' })
 const impactDescriptions: Record<string, string> = {
-  general: 'helped cover urgent day-to-day needs across the program, giving the team flexibility to respond where support was most needed.',
-  education: 'supported learning needs such as school access, supplies, tutoring, and educational stability.',
-  health: 'helped fund healthcare, checkups, medicines, and other health-related support for residents.',
-  counseling: 'supported counseling, case management, and emotional recovery services for girls in care.',
-  shelter: 'helped provide safe shelter, daily care, and a stable living environment for residents.',
-  nutrition: 'contributed to meals, nutritional support, and everyday wellbeing.',
-  reintegration: 'supported reintegration planning, family preparation, and transition support toward long-term stability.',
+  general: 'Helped cover urgent day-to-day needs across the program, giving the team flexibility to respond where support was most needed.',
+  education: 'Supported learning needs such as school access, supplies, tutoring, and educational stability.',
+  health: 'Helped fund healthcare, checkups, medicines, and other health-related support for residents.',
+  counseling: 'Supported counseling, case management, and emotional recovery services for girls in care.',
+  shelter: 'Helped provide safe shelter, daily care, and a stable living environment for residents.',
+  nutrition: 'Contributed to meals, nutritional support, and everyday wellbeing.',
+  reintegration: 'Supported reintegration planning, family preparation, and transition support toward long-term stability.',
 }
 
 function describeImpact(programArea: string) {
-  return impactDescriptions[programArea.trim().toLowerCase()] ?? 'supported direct care and practical program needs for residents.'
+  return impactDescriptions[programArea.trim().toLowerCase()] ?? 'Supported direct care and practical program needs for residents.'
 }
 
 export function DonorDashboardPage() {
