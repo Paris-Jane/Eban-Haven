@@ -54,9 +54,6 @@ type SavedChecklistItem = {
 }
 
 type SavedActionPlan = {
-  owner: string
-  dueDate: string
-  nextReviewDate: string
   lastReviewedAt: string | null
   checklist: SavedChecklistItem[]
 }
@@ -146,9 +143,6 @@ function checklistItems(resident: CohortResident) {
 
 function defaultSavedPlan(resident: CohortResident): SavedActionPlan {
   return {
-    owner: resident.assignedSocialWorker ?? '',
-    dueDate: '',
-    nextReviewDate: '',
     lastReviewedAt: null,
     checklist: checklistItems(resident).map((text, index) => ({
       id: `${resident.id}-${index}-${text}`,
@@ -185,6 +179,16 @@ function displayValue(value: string | number | boolean | null | undefined) {
   if (value == null || value === '') return '—'
   if (typeof value === 'boolean') return value ? 'Yes' : 'No'
   return String(value)
+}
+
+function hasMeaningfulValue(value: string | number | boolean | null | undefined) {
+  return !(value == null || value === '')
+}
+
+function compactFieldRows(
+  fields: Array<{ label: string; value: string | number | boolean | null | undefined }>,
+) {
+  return fields.filter((field) => hasMeaningfulValue(field.value))
 }
 
 function isoToday() {
@@ -481,6 +485,10 @@ export function ReintegrationActionPlanPage() {
   }, [resident])
 
   const handlePriorityAction = (blockerId: string, action: SectionAction) => {
+    if (expandedBlocker === blockerId && expandedSection === action.section) {
+      setExpandedBlocker('')
+      return
+    }
     if (action.preset) setPlannerPreset((current) => ({ ...current, ...action.preset }))
     setExpandedBlocker(blockerId)
     setExpandedSection(action.section)
@@ -692,21 +700,30 @@ export function ReintegrationActionPlanPage() {
             <div className="space-y-3">
               {sortedHealth.slice(0, 8).map((record) => {
                 const extra = parseExtendedJson<HealthExtended>(record.extendedJson)
+                const detailRows = compactFieldRows([
+                  { label: 'Weight', value: extra?.weightKg },
+                  { label: 'Height', value: extra?.heightCm },
+                  { label: 'BMI', value: extra?.bmi },
+                  { label: 'Nutrition', value: extra?.nutritionScore },
+                  { label: 'Sleep', value: extra?.sleepScore },
+                  { label: 'Energy', value: extra?.energyScore },
+                  { label: 'Medical check', value: extra?.medicalCheckupDone },
+                  { label: 'Dental check', value: extra?.dentalCheckupDone },
+                  { label: 'Psych check', value: extra?.psychologicalCheckupDone },
+                ])
                 return (
                   <div key={record.id} className="rounded-lg border border-border bg-background px-4 py-3">
                     <p className="text-sm font-medium text-foreground">{record.recordDate.slice(0, 10)} · General health {record.healthScore?.toFixed(2) ?? '—'}</p>
-                    <div className="mt-2 grid gap-2 sm:grid-cols-3 text-xs text-muted-foreground">
-                      <span>Weight: {displayValue(extra?.weightKg)}</span>
-                      <span>Height: {displayValue(extra?.heightCm)}</span>
-                      <span>BMI: {displayValue(extra?.bmi)}</span>
-                      <span>Nutrition: {displayValue(extra?.nutritionScore)}</span>
-                      <span>Sleep: {displayValue(extra?.sleepScore)}</span>
-                      <span>Energy: {displayValue(extra?.energyScore)}</span>
-                      <span>Medical check: {displayValue(extra?.medicalCheckupDone)}</span>
-                      <span>Dental check: {displayValue(extra?.dentalCheckupDone)}</span>
-                      <span>Psych check: {displayValue(extra?.psychologicalCheckupDone)}</span>
-                    </div>
-                    <p className="mt-2 text-xs text-muted-foreground">{extra?.notes ?? 'No additional notes recorded.'}</p>
+                    {detailRows.length > 0 ? (
+                      <div className="mt-2 grid gap-2 sm:grid-cols-3 text-xs text-muted-foreground">
+                        {detailRows.map((field) => (
+                          <span key={field.label}>{field.label}: {displayValue(field.value)}</span>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="mt-2 text-xs text-muted-foreground">Older health records only include the summary general health score.</p>
+                    )}
+                    <p className="mt-2 text-xs text-muted-foreground">{extra?.notes?.trim() ? extra.notes : 'No additional notes recorded.'}</p>
                   </div>
                 )
               })}
@@ -785,19 +802,28 @@ export function ReintegrationActionPlanPage() {
             <div className="space-y-3">
               {sortedEducation.slice(0, 8).map((record) => {
                 const extra = parseExtendedJson<EducationExtended>(record.extendedJson)
+                const detailRows = compactFieldRows([
+                  { label: 'Program', value: extra?.programName },
+                  { label: 'Course', value: extra?.courseName },
+                  { label: 'Level', value: extra?.educationLevel },
+                  { label: 'Attendance status', value: extra?.attendanceStatus },
+                  { label: 'Attendance rate', value: extra?.attendanceRate },
+                  { label: 'Completion', value: extra?.completionStatus },
+                  { label: 'GPA-like score', value: extra?.gpaLikeScore },
+                ])
                 return (
                   <div key={record.id} className="rounded-lg border border-border bg-background px-4 py-3">
                     <p className="text-sm font-medium text-foreground">{record.recordDate.slice(0, 10)} · Progress {record.progressPercent?.toFixed(1) ?? '—'}%</p>
-                    <div className="mt-2 grid gap-2 sm:grid-cols-3 text-xs text-muted-foreground">
-                      <span>Program: {displayValue(extra?.programName)}</span>
-                      <span>Course: {displayValue(extra?.courseName)}</span>
-                      <span>Level: {displayValue(extra?.educationLevel)}</span>
-                      <span>Attendance status: {displayValue(extra?.attendanceStatus)}</span>
-                      <span>Attendance rate: {displayValue(extra?.attendanceRate)}</span>
-                      <span>Completion: {displayValue(extra?.completionStatus)}</span>
-                      <span>GPA-like score: {displayValue(extra?.gpaLikeScore)}</span>
-                    </div>
-                    <p className="mt-2 text-xs text-muted-foreground">{extra?.notes ?? 'No additional notes recorded.'}</p>
+                    {detailRows.length > 0 ? (
+                      <div className="mt-2 grid gap-2 sm:grid-cols-3 text-xs text-muted-foreground">
+                        {detailRows.map((field) => (
+                          <span key={field.label}>{field.label}: {displayValue(field.value)}</span>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="mt-2 text-xs text-muted-foreground">Older education records only include the summary progress percent.</p>
+                    )}
+                    <p className="mt-2 text-xs text-muted-foreground">{extra?.notes?.trim() ? extra.notes : 'No additional notes recorded.'}</p>
                   </div>
                 )
               })}
@@ -1193,12 +1219,13 @@ export function ReintegrationActionPlanPage() {
 
       {notice ? <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">{notice}</div> : null}
 
-      <section className={`${card} space-y-5`}>
+      <section className={`${card} space-y-5 bg-gradient-to-br from-white via-white to-emerald-50/50`}>
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="space-y-3">
             <div className="flex flex-wrap items-center gap-2">
               <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${tierConfig.badge}`}>{prediction}</span>
-              <span className="rounded-full border border-border px-3 py-1 text-xs font-medium text-muted-foreground">{tier}</span>
+              <span className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-800">{tier}</span>
+              <span className="rounded-full border border-slate-200 bg-white/90 px-3 py-1 text-xs font-medium text-slate-700">{resident.reintegrationStatus ?? 'Not started'}</span>
             </div>
             <div>
               <h2 className="text-xl font-semibold text-foreground">{resident.internalCode}</h2>
@@ -1215,19 +1242,19 @@ export function ReintegrationActionPlanPage() {
         </div>
 
         <div className="grid gap-4 md:grid-cols-4">
-          <div className="rounded-xl border border-emerald-200 bg-emerald-50/40 px-4 py-4">
+          <div className="rounded-xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-teal-50 px-4 py-4 shadow-sm">
             <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Readiness score</p>
             <p className="mt-2 text-3xl font-bold text-foreground">{Math.round(resident.readiness.reintegration_probability * 100)}%</p>
           </div>
-          <div className="rounded-xl border border-border bg-background px-4 py-4">
+          <div className="rounded-xl border border-slate-200 bg-white px-4 py-4">
             <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Reintegration status</p>
             <p className="mt-2 text-sm font-medium text-foreground">{resident.reintegrationStatus ?? 'Not started'}</p>
           </div>
-          <div className="rounded-xl border border-border bg-background px-4 py-4">
+          <div className="rounded-xl border border-amber-200 bg-amber-50/50 px-4 py-4">
             <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Current risk</p>
             <p className="mt-2 text-sm font-medium text-foreground">{resident.currentRiskLevel ?? 'No current risk label'}</p>
           </div>
-          <div className="rounded-xl border border-border bg-background px-4 py-4">
+          <div className="rounded-xl border border-sky-200 bg-sky-50/50 px-4 py-4">
             <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Reintegration type</p>
             <p className="mt-2 text-sm font-medium text-foreground">{resident.reintegrationType ?? 'Not recorded'}</p>
           </div>
@@ -1257,7 +1284,7 @@ export function ReintegrationActionPlanPage() {
         </p>
       </section>
 
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1.2fr)_22rem]">
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1.2fr)_20rem]">
         <div className="space-y-4">
           <div className={`${card} space-y-4`}>
             <div>
@@ -1298,8 +1325,8 @@ export function ReintegrationActionPlanPage() {
                             type="button"
                             className={`rounded-lg border px-3 py-2 text-xs font-medium transition ${
                               isActive
-                                ? 'border-primary bg-primary/10 text-primary'
-                                : 'border-border bg-background text-foreground hover:bg-muted'
+                                ? 'border-primary bg-white text-primary shadow-sm'
+                                : 'border-border bg-white text-foreground hover:bg-muted'
                             }`}
                             onClick={() => handlePriorityAction(area.feature, action)}
                           >
@@ -1319,38 +1346,24 @@ export function ReintegrationActionPlanPage() {
         <div className={`${card} sticky top-24 h-fit space-y-4`}>
           <div>
             <h2 className="text-base font-semibold text-foreground">Action checklist</h2>
-            <p className="mt-1 text-sm text-muted-foreground">Keep ownership, dates, and completed steps visible while reviewing the case.</p>
+            <p className="mt-1 text-sm text-muted-foreground">Keep the immediate reintegration steps visible while you work through the blockers.</p>
           </div>
-          <div className="rounded-xl border border-border bg-background px-4 py-4">
+          <div className="rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-white px-4 py-4">
             <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Checklist progress</p>
             <p className="mt-2 text-3xl font-bold text-foreground">{completedChecklist}/{actionPlan.checklist.length}</p>
             <p className="mt-1 text-sm text-muted-foreground">Actions completed</p>
           </div>
-          <div className="grid gap-3">
-            <label className={label}>
-              Owner
-              <input className={input} value={actionPlan.owner} onChange={(e) => updateActionPlan({ ...actionPlan, owner: e.target.value })} />
-            </label>
-            <label className={label}>
-              Due date
-              <input type="date" className={input} value={actionPlan.dueDate} onChange={(e) => updateActionPlan({ ...actionPlan, dueDate: e.target.value })} />
-            </label>
-            <label className={label}>
-              Next review
-              <input type="date" className={input} value={actionPlan.nextReviewDate} onChange={(e) => updateActionPlan({ ...actionPlan, nextReviewDate: e.target.value })} />
-            </label>
-          </div>
-          <div className="rounded-xl border border-border bg-background px-4 py-3">
+          <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
             <p className="text-sm text-muted-foreground">
               {actionPlan.lastReviewedAt ? `Last reviewed ${new Date(actionPlan.lastReviewedAt).toLocaleString()}` : 'No review has been logged yet.'}
             </p>
-            <button type="button" className="mt-3 rounded-lg border border-border px-3 py-2 text-sm font-medium text-foreground hover:bg-muted" onClick={() => updateActionPlan({ ...actionPlan, lastReviewedAt: new Date().toISOString() })}>
+            <button type="button" className="mt-3 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-foreground hover:bg-slate-50" onClick={() => updateActionPlan({ ...actionPlan, lastReviewedAt: new Date().toISOString() })}>
               Mark reviewed today
             </button>
           </div>
           <ul className="space-y-2">
             {actionPlan.checklist.map((item) => (
-              <li key={item.id} className="flex items-start gap-3 rounded-xl border border-border bg-background px-4 py-3">
+              <li key={item.id} className={`flex items-start gap-3 rounded-2xl border px-4 py-3 transition ${item.done ? 'border-emerald-200 bg-emerald-50/60' : 'border-slate-200 bg-white'}`}>
                 <input
                   type="checkbox"
                   checked={item.done}
