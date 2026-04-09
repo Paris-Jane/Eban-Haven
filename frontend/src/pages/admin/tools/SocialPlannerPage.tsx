@@ -32,6 +32,7 @@ import {
   type PlannedSocialPost,
 } from '../../../api/admin'
 import { type SocialChatMessage, type SocialChatResponse, sendSocialChat } from '../../../api/socialChat'
+import { apiFetch } from '../../../api/client'
 import { alertError, btnPrimary, card, input, pageDesc, pageTitle } from '../shared/adminStyles'
 import { Badge, CategoryBadge, StatusBadge } from '../shared/adminDataTable/AdminBadges'
 
@@ -127,10 +128,7 @@ function normalizeHashtag(tag: string) {
 }
 
 async function fetchPexelsImages(query: string): Promise<PexelsPhoto[]> {
-  const res = await fetch(
-    `/api/admin/social-planner/image-search?query=${encodeURIComponent(query)}`,
-    { credentials: 'include' },
-  )
+  const res = await apiFetch(`/api/admin/social-planner/image-search?query=${encodeURIComponent(query)}`)
   if (!res.ok) throw new Error('Image search failed')
   const data = (await res.json()) as { photos: PexelsPhoto[] }
   return data.photos ?? []
