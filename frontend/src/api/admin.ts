@@ -50,6 +50,7 @@ export {
   deletePlannedSocialPost,
   updatePlannedSocialPost,
   getReportsSummary,
+  getMarketingAnalyticsSummary,
   listEducationRecords,
   createEducationRecord,
   patchEducationRecord,
