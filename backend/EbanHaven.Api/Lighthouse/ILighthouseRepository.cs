@@ -18,7 +18,7 @@ public interface ILighthouseRepository
     ResidentDetailDto? GetResident(int id);
     bool UpdateResident(int id, IReadOnlyDictionary<string, string?> patch);
     ResidentSummaryDto? UpdateResidentStatus(int id, string caseStatus);
-    ResidentSummaryDto CreateResident(string internalCode, string caseStatus, string? caseCategory);
+    ResidentSummaryDto CreateResident(string? internalCode, string caseStatus, string? caseCategory);
 
     IReadOnlyList<ProcessRecordingDto> ListProcessRecordings(int? residentId);
     ProcessRecordingDto CreateProcessRecording(int residentId, DateTime sessionDate, string socialWorker, string sessionType,

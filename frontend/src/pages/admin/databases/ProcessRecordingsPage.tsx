@@ -49,6 +49,7 @@ import {
 } from '../shared/adminDataTable/adminFormatters'
 
 const sessionTypes = ['Individual', 'Group'] as const
+const emotionalStateOptions = ['Anxious', 'Fearful', 'Neutral', 'Sad', 'Calm', 'Hopeful', 'Engaged'] as const
 
 function emptyFilters() {
   return {
@@ -93,6 +94,7 @@ export function ProcessRecordingsPage() {
   const [interventions, setInterventions] = useState('')
   const [followUp, setFollowUp] = useState('')
   const [sessionDate, setSessionDate] = useState(() => new Date().toISOString().slice(0, 10))
+  const [residentInput, setResidentInput] = useState('')
 
   const loadAll = useCallback(async () => {
     setLoading(true)
@@ -117,6 +119,12 @@ export function ProcessRecordingsPage() {
     if (!showNew || residents.length === 0) return
     setFormResidentId((prev) => (prev && residents.some((r) => r.id === prev) ? prev : residents[0]?.id ?? 0))
   }, [showNew, residents])
+
+  useEffect(() => {
+    if (!showNew) return
+    const resident = residents.find((r) => r.id === formResidentId)
+    setResidentInput(resident ? `${resident.internalCode} (#${resident.id})` : '')
+  }, [showNew, residents, formResidentId])
 
   const residentOptions = useMemo(
     () => residents.map((r) => ({ id: r.id, label: `${r.internalCode} (#${r.id})` })),
@@ -258,6 +266,8 @@ export function ProcessRecordingsPage() {
       setNarrative('')
       setInterventions('')
       setFollowUp('')
+      setEmoStart('')
+      setEmoEnd('')
       setShowNew(false)
       await loadAll()
     } catch (err) {
@@ -277,11 +287,9 @@ export function ProcessRecordingsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className={pageTitle}>Process recordings</h2>
+        <h2 className={pageTitle}>Process Recordings</h2>
         <p className={pageDesc}>
-          Each entry documents a dated interaction between a social worker and a resident, including observations,
-          interventions, and follow-up actions. Open a row for the resident case file. Filters support ranges and
-          multi-select.
+          Document counseling sessions, key observations, interventions used, and follow-up steps for each resident interaction.
         </p>
       </div>
 
@@ -348,7 +356,7 @@ export function ProcessRecordingsPage() {
           />
           <MultiSelectFilter
             labelText="Emotional state"
-            options={emoOpts.length ? emoOpts : ['—']}
+            options={emoOpts.length ? emoOpts : [...emotionalStateOptions]}
             selected={filters.emotionalStates}
             onChange={(s) => setFilters((f) => ({ ...f, emotionalStates: s }))}
           />
@@ -360,26 +368,31 @@ export function ProcessRecordingsPage() {
       {showNew && (
         <form id="admin-add-process" onSubmit={onSubmit} className={`${cardForm} scroll-mt-28`}>
           <div className="flex items-center justify-between">
-            <p className={sectionFormTitle}>New process recording</p>
+            <p className={sectionFormTitle}>New Process Recording</p>
             <button type="button" className="text-sm text-muted-foreground hover:text-foreground" onClick={() => setShowNew(false)}>
               Close
             </button>
           </div>
-          <label className={label}>
-            Resident
-            <select
-              className={input}
-              value={formResidentId || ''}
-              onChange={(e) => setFormResidentId(Number(e.target.value))}
-              required
-            >
-              {residents.map((r) => (
-                <option key={r.id} value={r.id}>
-                  {r.internalCode}
-                </option>
-              ))}
-            </select>
-          </label>
+            <label className={label}>
+              Resident
+              <input
+                list="process-recording-residents"
+                className={input}
+                value={residentInput}
+                onChange={(e) => {
+                  setResidentInput(e.target.value)
+                  const match = residentOptions.find((option) => option.label === e.target.value)
+                  setFormResidentId(match?.id ?? 0)
+                }}
+                placeholder="Search resident by code"
+                required
+              />
+              <datalist id="process-recording-residents">
+                {residentOptions.map((resident) => (
+                  <option key={resident.id} value={resident.label} />
+                ))}
+              </datalist>
+            </label>
           <label className={label}>
             Session date
             <input type="date" className={input} value={sessionDate} onChange={(e) => setSessionDate(e.target.value)} />
@@ -402,14 +415,28 @@ export function ProcessRecordingsPage() {
             Duration (minutes)
             <input type="number" min={0} className={input} value={duration} onChange={(e) => setDuration(e.target.value)} />
           </label>
-          <label className={label}>
-            Emotional state (start)
-            <input className={input} value={emoStart} onChange={(e) => setEmoStart(e.target.value)} placeholder="e.g. Anxious" />
-          </label>
-          <label className={label}>
-            Emotional state (end)
-            <input className={input} value={emoEnd} onChange={(e) => setEmoEnd(e.target.value)} placeholder="e.g. Hopeful" />
-          </label>
+            <label className={label}>
+              Emotional State (Start)
+              <select className={input} value={emoStart} onChange={(e) => setEmoStart(e.target.value)}>
+                <option value="">—</option>
+                {emotionalStateOptions.map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className={label}>
+              Emotional State (End)
+              <select className={input} value={emoEnd} onChange={(e) => setEmoEnd(e.target.value)}>
+                <option value="">—</option>
+                {emotionalStateOptions.map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
+            </label>
           <label className={label}>
             Interventions applied
             <input className={input} value={interventions} onChange={(e) => setInterventions(e.target.value)} />
@@ -441,9 +468,9 @@ export function ProcessRecordingsPage() {
                   onClick={(e) => e.stopPropagation()}
                 />
               </th>
-              <SortableTh label="Session date" sortKey="sessionDate" activeKey={sortKey} direction={sortDir} onSort={onSort} />
+              <SortableTh label="Session Date" sortKey="sessionDate" activeKey={sortKey} direction={sortDir} onSort={onSort} />
               <SortableTh label="Resident" sortKey="residentInternalCode" activeKey={sortKey} direction={sortDir} onSort={onSort} />
-              <SortableTh label="Social worker" sortKey="socialWorker" activeKey={sortKey} direction={sortDir} onSort={onSort} />
+              <SortableTh label="Social Worker" sortKey="socialWorker" activeKey={sortKey} direction={sortDir} onSort={onSort} />
               <SortableTh label="Type" sortKey="sessionType" activeKey={sortKey} direction={sortDir} onSort={onSort} />
               <SortableTh label="Minutes" sortKey="sessionDurationMinutes" activeKey={sortKey} direction={sortDir} onSort={onSort} />
               <SortableTh label="Emotion" sortKey="emotionalStateObserved" activeKey={sortKey} direction={sortDir} onSort={onSort} />

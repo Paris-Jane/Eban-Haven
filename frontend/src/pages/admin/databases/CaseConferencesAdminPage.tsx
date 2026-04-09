@@ -69,6 +69,7 @@ export function CaseConferencesAdminPage() {
   const [sortDir, setSortDir] = useState<SortDirection>(null)
   const [selected, setSelected] = useState<Set<number>>(new Set())
   const [deleteModal, setDeleteModal] = useState<{ ids: number[]; labels: string[] } | null>(null)
+  const [upcomingSearch, setUpcomingSearch] = useState('')
 
   const [newResidentId, setNewResidentId] = useState(0)
   const [newCategory, setNewCategory] = useState('')
@@ -78,6 +79,7 @@ export function CaseConferencesAdminPage() {
   const [newTargetDate, setNewTargetDate] = useState('')
   const [newStatus, setNewStatus] = useState<string>(PLAN_STATUSES[0])
   const [newConfDate, setNewConfDate] = useState('')
+  const [newResidentInput, setNewResidentInput] = useState('')
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -103,6 +105,12 @@ export function CaseConferencesAdminPage() {
     if (!showAddPlan) return
     setNewResidentId((prev) => (prev && residents.some((r) => r.id === prev) ? prev : residents[0]?.id ?? 0))
   }, [showAddPlan, residents])
+
+  useEffect(() => {
+    if (!showAddPlan) return
+    const resident = residents.find((r) => r.id === newResidentId)
+    setNewResidentInput(resident ? `${resident.internalCode} (#${resident.id})` : '')
+  }, [showAddPlan, residents, newResidentId])
 
   const residentOptions = useMemo(
     () => residents.map((r) => ({ id: r.id, label: `${r.internalCode} (#${r.id})` })),
@@ -165,14 +173,23 @@ export function CaseConferencesAdminPage() {
     return p
   }, [filters])
 
-  const upcomingPlans = useMemo(
-    () =>
-      [...plans]
-        .filter((p) => p.caseConferenceDate)
-        .sort((a, b) => (a.caseConferenceDate ?? '').localeCompare(b.caseConferenceDate ?? ''))
-        .slice(0, 40),
-    [plans],
-  )
+  const upcomingPlans = useMemo(() => {
+    const today = new Date().toISOString().slice(0, 10)
+    const query = upcomingSearch.trim().toLowerCase()
+    const futurePlans = plans
+      .filter((p) => p.caseConferenceDate && p.caseConferenceDate >= today)
+      .sort((a, b) => (a.caseConferenceDate ?? '').localeCompare(b.caseConferenceDate ?? ''))
+    const recentPlans = plans
+      .filter((p) => p.caseConferenceDate && p.caseConferenceDate < today)
+      .sort((a, b) => (b.caseConferenceDate ?? '').localeCompare(a.caseConferenceDate ?? ''))
+    return [...futurePlans, ...recentPlans]
+      .filter((p) => {
+        if (!query) return true
+        const hay = `${p.residentInternalCode} ${p.planCategory} ${p.status} ${p.planDescription ?? ''}`.toLowerCase()
+        return hay.includes(query)
+      })
+      .slice(0, 24)
+  }, [plans, upcomingSearch])
 
   function onSort(key: string) {
     const next = nextSortState(key, sortKey, sortDir)
@@ -237,6 +254,7 @@ export function CaseConferencesAdminPage() {
         residentId: newResidentId,
         planCategory: newCategory.trim(),
         planDescription: newDescription.trim(),
+        servicesProvided: newServices.trim() || null,
         targetDate: newTargetDate.trim() || null,
         targetValue,
         status: newStatus,
@@ -249,6 +267,7 @@ export function CaseConferencesAdminPage() {
       setNewTargetDate('')
       setNewConfDate('')
       setNewStatus(PLAN_STATUSES[0])
+      setUpcomingSearch('')
       setShowAddPlan(false)
       await load()
     } catch (err) {
@@ -268,9 +287,9 @@ export function CaseConferencesAdminPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className={pageTitle}>Case conferences</h2>
+        <h2 className={pageTitle}>Case Conferences</h2>
         <p className={pageDesc}>
-          Intervention plans — open a row for the resident case file. Conference and target dates support range filters.
+          Monitor case conference schedules, intervention plans, target dates, and status updates for each resident.
         </p>
       </div>
 
@@ -278,25 +297,48 @@ export function CaseConferencesAdminPage() {
 
       <div className={card}>
         <button type="button" className="text-sm font-medium text-primary hover:underline" onClick={() => setShowUpcoming((s) => !s)}>
-          {showUpcoming ? 'Hide scheduled conferences' : 'Show scheduled conferences'}
+          {showUpcoming ? 'Hide Upcoming Conferences' : 'Show Upcoming Conferences'}
         </button>
         {showUpcoming && (
-          <div className="mt-4">
-            <h3 className="text-sm font-semibold text-foreground">Upcoming / recent case conferences</h3>
-            <p className="mt-1 text-xs text-muted-foreground">Plans with a scheduled conference date.</p>
-            <ul className="mt-4 max-h-72 space-y-2 overflow-y-auto text-sm">
+          <div className="mt-4 space-y-4">
+            <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+              <div>
+                <h3 className="text-sm font-semibold text-foreground">Upcoming Case Conferences</h3>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Scheduled conferences are shown in chronological order, followed by the most recent past meetings.
+                </p>
+              </div>
+              <label className="block md:w-72">
+                <span className="mb-1 block text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">Search resident</span>
+                <input
+                  type="search"
+                  className={input}
+                  value={upcomingSearch}
+                  onChange={(e) => setUpcomingSearch(e.target.value)}
+                  placeholder="Resident code, category, status…"
+                />
+              </label>
+            </div>
+            <ul className="grid gap-3 lg:grid-cols-2">
               {upcomingPlans.length === 0 ? (
-                <li className="text-muted-foreground">None in dataset.</li>
+                <li className="rounded-xl border border-dashed border-border bg-background/60 p-4 text-sm text-muted-foreground">
+                  No scheduled conferences match this view.
+                </li>
               ) : (
                 upcomingPlans.map((p) => (
-                  <li key={p.id} className="border-b border-border/60 pb-2">
-                    <Link className="font-medium text-primary hover:underline" to={`/admin/residents/${p.residentId}`}>
-                      {p.residentInternalCode}
-                    </Link>
-                    <span className="text-foreground"> · {p.planCategory}</span>
-                    <span className="ml-2 text-muted-foreground">
-                      {p.caseConferenceDate ? formatAdminDate(p.caseConferenceDate) : '—'} · {p.status}
-                    </span>
+                  <li key={p.id} className="rounded-xl border border-border bg-background/70 p-4 shadow-sm">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="space-y-1">
+                        <Link className="text-sm font-semibold text-primary hover:underline" to={`/admin/residents/${p.residentId}`}>
+                          {p.residentInternalCode}
+                        </Link>
+                        <p className="text-sm text-foreground">{p.planCategory}</p>
+                      </div>
+                      <StatusBadge status={p.status} />
+                    </div>
+                    <p className="mt-3 text-xs uppercase tracking-[0.12em] text-muted-foreground">Conference Date</p>
+                    <p className="mt-1 text-sm font-medium text-foreground">{formatAdminDate(p.caseConferenceDate)}</p>
+                    <p className="mt-3 line-clamp-2 text-sm text-muted-foreground">{p.planDescription || 'No summary provided yet.'}</p>
                   </li>
                 ))
               )}
@@ -312,7 +354,7 @@ export function CaseConferencesAdminPage() {
         filterOpen={filterOpen}
         onFilterToggle={() => setFilterOpen((o) => !o)}
         onAddClick={openAddPlan}
-        addLabel="Add plan"
+        addLabel="Add conference"
       />
 
       <AdminBulkActionsBar
@@ -371,7 +413,7 @@ export function CaseConferencesAdminPage() {
       {showAddPlan && (
         <div id="admin-add-intervention-plan" className={`${card} scroll-mt-28 space-y-4`}>
           <div className="flex items-center justify-between">
-            <p className={sectionFormTitle}>New intervention plan</p>
+            <p className={sectionFormTitle}>New Case Conference</p>
             <button type="button" className="text-sm text-muted-foreground hover:text-foreground" onClick={() => setShowAddPlan(false)}>
               Close
             </button>
@@ -379,18 +421,23 @@ export function CaseConferencesAdminPage() {
           <form onSubmit={onCreatePlan} className="grid gap-3 sm:grid-cols-2">
             <label className={label}>
               Resident *
-              <select
+              <input
+                list="case-conference-residents"
                 className={input}
-                value={newResidentId || ''}
-                onChange={(e) => setNewResidentId(Number(e.target.value))}
+                value={newResidentInput}
+                onChange={(e) => {
+                  setNewResidentInput(e.target.value)
+                  const match = residentOptions.find((option) => option.label === e.target.value)
+                  setNewResidentId(match?.id ?? 0)
+                }}
+                placeholder="Search resident by code"
                 required
-              >
-                {residents.map((r) => (
-                  <option key={r.id} value={r.id}>
-                    {r.internalCode}
-                  </option>
+              />
+              <datalist id="case-conference-residents">
+                {residentOptions.map((resident) => (
+                  <option key={resident.id} value={resident.label} />
                 ))}
-              </select>
+              </datalist>
             </label>
             <label className={label}>
               Plan status *

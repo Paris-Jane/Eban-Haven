@@ -88,11 +88,9 @@ public static class AdminApiExtensions
 
         admin.MapPost("/residents", (CreateResidentRequest body, ILighthouseRepository repo) =>
         {
-            if (string.IsNullOrWhiteSpace(body.InternalCode))
-                return Results.BadRequest(new { error = "InternalCode is required." });
             if (string.IsNullOrWhiteSpace(body.CaseStatus))
                 return Results.BadRequest(new { error = "CaseStatus is required." });
-            var created = repo.CreateResident(body.InternalCode.Trim(), body.CaseStatus.Trim(), body.CaseCategory?.Trim());
+            var created = repo.CreateResident(body.InternalCode?.Trim(), body.CaseStatus.Trim(), body.CaseCategory?.Trim());
             return Results.Created($"/api/admin/residents/{created.Id}", created);
         });
 
@@ -403,7 +401,7 @@ public sealed record CreateDonationRequest(
     string? Notes,
     string? CampaignName);
 
-public sealed record CreateResidentRequest(string InternalCode, string CaseStatus, string? CaseCategory);
+public sealed record CreateResidentRequest(string? InternalCode, string CaseStatus, string? CaseCategory);
 
 public sealed record UpdateCaseStatusRequest(string Status);
 

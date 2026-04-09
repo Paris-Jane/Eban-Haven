@@ -107,14 +107,12 @@ public sealed class AdminController(ILighthouseRepository repo) : ControllerBase
     [Authorize(Policy = AdminOnlyPolicy.Name)]
     public IActionResult CreateResident([FromBody] CreateResidentRequest body)
     {
-        if (string.IsNullOrWhiteSpace(body.InternalCode))
-            return BadRequest(new { error = "InternalCode is required." });
         if (string.IsNullOrWhiteSpace(body.CaseStatus))
             return BadRequest(new { error = "CaseStatus is required." });
 
         try
         {
-            var created = repo.CreateResident(body.InternalCode.Trim(), body.CaseStatus.Trim(), body.CaseCategory?.Trim());
+            var created = repo.CreateResident(body.InternalCode?.Trim(), body.CaseStatus.Trim(), body.CaseCategory?.Trim());
             return Created($"/api/admin/residents/{created.Id}", created);
         }
         catch (DbUpdateException ex) when (ex.InnerException is PostgresException pg)

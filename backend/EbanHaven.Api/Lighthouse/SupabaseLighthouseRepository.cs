@@ -337,7 +337,7 @@ public sealed class SupabaseLighthouseRepository(HavenDbContext db) : ILighthous
         return ListResidents(null, null, null, null).FirstOrDefault(x => x.Id == id);
     }
 
-    public ResidentSummaryDto CreateResident(string internalCode, string caseStatus, string? caseCategory)
+    public ResidentSummaryDto CreateResident(string? internalCode, string caseStatus, string? caseCategory)
     {
         // The UI "quick add" form only supplies internal code + status (+ optional category).
         // Do not hardcode SafehouseId=1; pick a real safehouse row or fail with a clear message.
@@ -350,7 +350,7 @@ public sealed class SupabaseLighthouseRepository(HavenDbContext db) : ILighthous
 
         var row = new Resident
         {
-            InternalCode = internalCode,
+            InternalCode = string.IsNullOrWhiteSpace(internalCode) ? string.Empty : internalCode.Trim(),
             CaseStatus = caseStatus,
             CaseCategory = string.IsNullOrWhiteSpace(caseCategory) ? "Surrendered" : caseCategory!,
             Sex = "F",
@@ -367,8 +367,12 @@ public sealed class SupabaseLighthouseRepository(HavenDbContext db) : ILighthous
         if (string.IsNullOrWhiteSpace(row.CaseControlNo))
         {
             row.CaseControlNo = $"C{row.ResidentId:D4}";
-            db.SaveChanges();
         }
+        if (string.IsNullOrWhiteSpace(row.InternalCode))
+        {
+            row.InternalCode = $"R-{row.ResidentId:D4}";
+        }
+        db.SaveChanges();
 
         return ListResidents(null, null, null, null).First(x => x.Id == row.ResidentId);
     }

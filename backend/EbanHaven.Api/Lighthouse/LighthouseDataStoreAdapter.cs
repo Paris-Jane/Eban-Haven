@@ -18,7 +18,7 @@ public sealed class LighthouseDataStoreAdapter(LighthouseDataStore inner) : ILig
     public ResidentDetailDto? GetResident(int id) => inner.GetResident(id);
     public bool UpdateResident(int id, IReadOnlyDictionary<string, string?> patch) => inner.UpdateResident(id, patch);
     public ResidentSummaryDto? UpdateResidentStatus(int id, string caseStatus) => inner.UpdateResidentStatus(id, caseStatus);
-    public ResidentSummaryDto CreateResident(string internalCode, string caseStatus, string? caseCategory) =>
+    public ResidentSummaryDto CreateResident(string? internalCode, string caseStatus, string? caseCategory) =>
         inner.CreateResident(internalCode, caseStatus, caseCategory);
     public IReadOnlyList<ProcessRecordingDto> ListProcessRecordings(int? residentId) => inner.ListProcessRecordings(residentId);
     public ProcessRecordingDto CreateProcessRecording(int residentId, DateTime sessionDate, string socialWorker, string sessionType,

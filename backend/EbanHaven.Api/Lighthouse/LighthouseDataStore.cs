@@ -271,7 +271,7 @@ public sealed class LighthouseDataStore
         }
     }
 
-    public ResidentSummaryDto CreateResident(string internalCode, string caseStatus, string? caseCategory)
+    public ResidentSummaryDto CreateResident(string? internalCode, string caseStatus, string? caseCategory)
     {
         lock (_lock)
         {
@@ -282,7 +282,7 @@ public sealed class LighthouseDataStore
                 row[k] = string.Empty;
             row["resident_id"] = next.ToString(CultureInfo.InvariantCulture);
             row["case_control_no"] = $"C{next:D4}";
-            row["internal_code"] = internalCode;
+            row["internal_code"] = string.IsNullOrWhiteSpace(internalCode) ? $"R-{next:D4}" : internalCode.Trim();
             row["safehouse_id"] = "1";
             row["case_status"] = caseStatus;
             row["case_category"] = string.IsNullOrWhiteSpace(caseCategory) ? "Surrendered" : caseCategory!;

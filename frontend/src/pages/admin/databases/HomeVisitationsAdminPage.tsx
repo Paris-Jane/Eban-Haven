@@ -98,6 +98,7 @@ export function HomeVisitationsAdminPage() {
   const [followUp, setFollowUp] = useState(false)
   const [followNotes, setFollowNotes] = useState('')
   const [resId, setResId] = useState(0)
+  const [residentInput, setResidentInput] = useState('')
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -118,6 +119,17 @@ export function HomeVisitationsAdminPage() {
   useEffect(() => {
     void load()
   }, [load])
+
+  useEffect(() => {
+    if (!showNew) return
+    setResId((prev) => (prev && residents.some((r) => r.id === prev) ? prev : residents[0]?.id ?? 0))
+  }, [showNew, residents])
+
+  useEffect(() => {
+    if (!showNew) return
+    const resident = residents.find((r) => r.id === resId)
+    setResidentInput(resident ? `${resident.internalCode} (#${resident.id})` : '')
+  }, [showNew, residents, resId])
 
   const residentOptions = useMemo(
     () => residents.map((r) => ({ id: r.id, label: `${r.internalCode} (#${r.id})` })),
@@ -264,6 +276,10 @@ export function HomeVisitationsAdminPage() {
       })
       setObservations('')
       setFollowNotes('')
+      setLocationVisited('')
+      setCoop('')
+      setSafety(false)
+      setFollowUp(false)
       setShowNew(false)
       await load()
     } catch (err) {
@@ -283,9 +299,9 @@ export function HomeVisitationsAdminPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className={pageTitle}>Home visitation</h2>
+        <h2 className={pageTitle}>Home Visitations</h2>
         <p className={pageDesc}>
-          Field visit log — open a row for the resident profile. Confirm before deleting.
+          Track home visits, family engagement, and follow-up needs so field teams can review each contact at a glance.
         </p>
       </div>
 
@@ -371,20 +387,30 @@ export function HomeVisitationsAdminPage() {
       {showNew && (
         <form id="admin-add-visitation" onSubmit={onSubmit} className={`${cardForm} scroll-mt-28`}>
           <div className="flex items-center justify-between">
-            <p className={sectionFormTitle}>Log visitation</p>
+            <p className={sectionFormTitle}>New Home Visitation</p>
             <button type="button" className="text-sm text-muted-foreground hover:text-foreground" onClick={() => setShowNew(false)}>
               Close
             </button>
           </div>
           <label className={label}>
             Resident
-            <select className={input} value={resId || ''} onChange={(e) => setResId(Number(e.target.value))} required>
-              {residents.map((r) => (
-                <option key={r.id} value={r.id}>
-                  {r.internalCode}
-                </option>
+            <input
+              list="home-visitation-residents"
+              className={input}
+              value={residentInput}
+              onChange={(e) => {
+                setResidentInput(e.target.value)
+                const match = residentOptions.find((option) => option.label === e.target.value)
+                setResId(match?.id ?? 0)
+              }}
+              placeholder="Search resident by code"
+              required
+            />
+            <datalist id="home-visitation-residents">
+              {residentOptions.map((resident) => (
+                <option key={resident.id} value={resident.label} />
               ))}
-            </select>
+            </datalist>
           </label>
           <label className={label}>
             Visit date

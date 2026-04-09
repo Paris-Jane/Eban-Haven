@@ -144,7 +144,7 @@ export async function patchResident(
 }
 
 export async function createResident(body: {
-  internalCode: string
+  internalCode?: string
   caseStatus: string
   caseCategory?: string
 }): Promise<T.ResidentSummary> {

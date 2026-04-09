@@ -1,10 +1,12 @@
-import { useMemo, useState } from 'react'
+import { Children, useMemo, useState, type ReactNode } from 'react'
 import { ChevronDown } from 'lucide-react'
 import { input, label } from '../adminStyles'
 import type { TriBool } from './adminFormatters'
 
 const filterBox =
-  'rounded-lg border border-border bg-card p-3 shadow-sm'
+  'rounded-2xl border border-border bg-card p-4 shadow-sm'
+const filterGroup =
+  'rounded-xl border border-border/80 bg-background/70 p-3'
 const detailBtn =
   'flex w-full items-center justify-between gap-2 rounded-lg border border-border bg-background px-3 py-2 text-left text-sm text-foreground hover:bg-muted/40'
 
@@ -13,14 +15,17 @@ export function FilterPanelCard({
   onClearAll,
   activeSummary,
 }: {
-  children: React.ReactNode
+  children: ReactNode
   onClearAll: () => void
   activeSummary?: string[]
 }) {
   return (
     <div className={`${filterBox} space-y-4`}>
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-sm font-semibold text-foreground">Filters</p>
+        <div>
+          <p className="text-sm font-semibold text-foreground">Filters</p>
+          <p className="text-xs text-muted-foreground">Narrow the table with quick controls below.</p>
+        </div>
         <button type="button" className="text-xs font-medium text-primary hover:underline" onClick={onClearAll}>
           Clear all
         </button>
@@ -37,7 +42,13 @@ export function FilterPanelCard({
           ))}
         </div>
       )}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{children}</div>
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        {Children.map(children, (child, index) => (
+          <div key={index} className={filterGroup}>
+            {child}
+          </div>
+        ))}
+      </div>
     </div>
   )
 }
