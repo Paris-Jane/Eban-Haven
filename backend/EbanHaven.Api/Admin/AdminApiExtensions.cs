@@ -271,7 +271,7 @@ public static class AdminApiExtensions
         {
             if (body.DonationId <= 0) return Results.BadRequest(new { error = "DonationId is required." });
             if (body.SafehouseId <= 0) return Results.BadRequest(new { error = "SafehouseId is required." });
-            var created = repo.CreateAllocation(body.DonationId, body.SafehouseId, body.Amount, body.Notes);
+            var created = repo.CreateAllocation(body.DonationId, body.SafehouseId, body.Amount, body.Notes, body.ProgramArea);
             return Results.Created($"/api/admin/donation-allocations/{created.Id}", created);
         });
 
@@ -441,7 +441,7 @@ public sealed record LegacyCreateCaseRequest(string ReferenceCode, string Status
 
 public sealed record LegacyCreateVisitationRequest(int? CaseId, string VisitorName, DateTime ScheduledAt, string Status);
 
-public sealed record CreateAllocationRequest(int DonationId, int SafehouseId, decimal? Amount, string? Notes);
+public sealed record CreateAllocationRequest(int DonationId, int SafehouseId, decimal? Amount, string? Notes, string? ProgramArea);
 
 public sealed record CreateInterventionPlanRequest(
     int ResidentId,

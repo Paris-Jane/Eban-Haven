@@ -324,7 +324,7 @@ public sealed class AdminController(ILighthouseRepository repo) : ControllerBase
         if (body.SafehouseId <= 0) return BadRequest(new { error = "SafehouseId is required." });
         try
         {
-            var created = repo.CreateAllocation(body.DonationId, body.SafehouseId, body.Amount, body.Notes);
+            var created = repo.CreateAllocation(body.DonationId, body.SafehouseId, body.Amount, body.Notes, body.ProgramArea);
             return Created($"/api/admin/donation-allocations/{created.Id}", created);
         }
         catch (Exception ex) { return BadRequest(new { error = ex.Message }); }
@@ -520,7 +520,7 @@ public sealed class AdminController(ILighthouseRepository repo) : ControllerBase
         string? CaseConferenceDate,
         double? TargetValue,
         string? ServicesProvided);
-    public sealed record CreateAllocationRequest(int DonationId, int SafehouseId, decimal? Amount, string? Notes);
+    public sealed record CreateAllocationRequest(int DonationId, int SafehouseId, decimal? Amount, string? Notes, string? ProgramArea);
     public sealed record CreateEducationRecordRequest(int ResidentId, DateOnly? RecordDate, double? ProgressPercent, string? ExtendedJson);
     public sealed record PatchEducationRecordRequest(double? ProgressPercent, DateOnly? RecordDate, string? ExtendedJson);
     public sealed record CreateHealthRecordRequest(int ResidentId, DateOnly? RecordDate, double? HealthScore, string? ExtendedJson);

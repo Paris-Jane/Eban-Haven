@@ -41,7 +41,7 @@ public interface ILighthouseRepository
     SupporterDto? PatchSupporterFields(int id, IReadOnlyDictionary<string, string?> fields);
     bool DeleteDonation(int id);
     DonationDto? PatchDonationFields(int id, IReadOnlyDictionary<string, string?> fields);
-    DonationAllocationDto CreateAllocation(int donationId, int safehouseId, decimal? amount, string? notes);
+    DonationAllocationDto CreateAllocation(int donationId, int safehouseId, decimal? amount, string? notes, string? programArea);
     DonationAllocationDto? PatchAllocationFields(int id, IReadOnlyDictionary<string, string?> fields);
     bool DeleteAllocation(int id);
     bool DeleteInterventionPlan(int id);
@@ -66,4 +66,3 @@ public interface ILighthouseRepository
     PublicImpactSummaryDto GetPublicImpactSummary();
     IReadOnlyList<PublicImpactSnapshotDto> GetPublishedSnapshots();
 }
-

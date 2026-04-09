@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import {
   alertError,
   btnPrimary,
@@ -33,6 +33,7 @@ function formatDateTime(value: string) {
 }
 
 export function DonorDetailPage() {
+  const navigate = useNavigate()
   const { id: idParam } = useParams()
   const id = Number(idParam)
   const [supporter, setSupporter] = useState<Supporter | null>(null)
@@ -104,9 +105,16 @@ export function DonorDetailPage() {
 
   return (
     <div className="space-y-8">
-      <Link to="/admin/donors" className="text-sm text-primary hover:underline">
-        ← Donors
-      </Link>
+      <button
+        type="button"
+        className="text-sm text-primary hover:underline"
+        onClick={() => {
+          if (window.history.length > 1) navigate(-1)
+          else navigate('/admin/donors')
+        }}
+      >
+        ← Back
+      </button>
       {loading ? (
         <p className="text-muted-foreground">Loading…</p>
       ) : !supporter ? (

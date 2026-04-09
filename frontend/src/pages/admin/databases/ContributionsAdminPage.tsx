@@ -32,7 +32,6 @@ import {
   DateRangeFilter,
   MinMaxFilter,
   MultiSelectFilter,
-  SearchableEntityMultiFilter,
   TextSearchFilter,
   TriBoolFilter,
 } from '../shared/adminDataTable/AdminFilterPrimitives'
@@ -40,7 +39,6 @@ import {
   formatAdminDate,
   inAmountRange,
   inDateRange,
-  matchesIdMulti,
   matchesStringMulti,
   matchesTriBool,
   type TriBool,
@@ -61,7 +59,7 @@ function emptyFilters() {
   return {
     dateFrom: '',
     dateTo: '',
-    supporterIds: new Set<number>(),
+    supporterQuery: '',
     donationTypes: new Set<string>(),
     amountMin: '',
     amountMax: '',
@@ -83,7 +81,6 @@ export function ContributionsAdminPage() {
   const [addOpen, setAddOpen] = useState(false)
   const [filterOpen, setFilterOpen] = useState(false)
   const [filters, setFilters] = useState(emptyFilters)
-  const [supporterFilterSearch, setSupporterFilterSearch] = useState('')
   const [sortKey, setSortKey] = useState<string | null>(null)
   const [sortDir, setSortDir] = useState<SortDirection>(null)
   const [selected, setSelected] = useState<Set<number>>(new Set())
@@ -91,9 +88,11 @@ export function ContributionsAdminPage() {
   const [saving, setSaving] = useState(false)
 
   const [newSup, setNewSup] = useState(0)
+  const [newSupporterSearch, setNewSupporterSearch] = useState('')
   const [newType, setNewType] = useState('Monetary')
   const [newAmt, setNewAmt] = useState('')
   const [newDate, setNewDate] = useState(() => new Date().toISOString().slice(0, 10))
+  const [newCampaign, setNewCampaign] = useState('')
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -114,14 +113,22 @@ export function ContributionsAdminPage() {
     void load()
   }, [load])
 
-  const supporterOptions = useMemo(
-    () => supporters.map((s) => ({ id: s.id, label: s.displayName || `Supporter #${s.id}` })),
-    [supporters],
-  )
-
   const typeOpts = useMemo(() => uniqSortedStrings(rows.map((r) => r.donationType)), [rows])
   const chOpts = useMemo(() => uniqSortedStrings(rows.map((r) => r.channelSource)), [rows])
   const impOpts = useMemo(() => uniqSortedStrings(rows.map((r) => r.impactUnit)), [rows])
+  const campaignOpts = useMemo(() => uniqSortedStrings(rows.map((r) => r.campaignName)), [rows])
+  const supporterSearchOptions = useMemo(
+    () =>
+      supporters.map((s) => ({
+        id: s.id,
+        label: `${s.displayName}${s.email ? ` — ${s.email}` : ''}`,
+      })),
+    [supporters],
+  )
+  const selectedNewSupporter = useMemo(
+    () => supporterSearchOptions.find((option) => option.label === newSupporterSearch) ?? null,
+    [supporterSearchOptions, newSupporterSearch],
+  )
 
   const filteredSorted = useMemo(() => {
     let list = rows.filter((r) => {
@@ -130,7 +137,12 @@ export function ContributionsAdminPage() {
       if (filters.dateFrom || filters.dateTo) {
         if (!inDateRange(r.donationDate, filters.dateFrom, filters.dateTo)) return false
       }
-      if (!matchesIdMulti(r.supporterId, filters.supporterIds)) return false
+      if (
+        filters.supporterQuery.trim() &&
+        !r.supporterDisplayName.toLowerCase().includes(filters.supporterQuery.trim().toLowerCase())
+      ) {
+        return false
+      }
       if (!matchesStringMulti(r.donationType, filters.donationTypes)) return false
       if (!inAmountRange(r.amount, filters.amountMin, filters.amountMax)) return false
       if (!matchesTriBool(r.isRecurring, filters.recurring)) return false
@@ -169,7 +181,7 @@ export function ContributionsAdminPage() {
   const activeSummary = useMemo(() => {
     const p: string[] = []
     if (filters.dateFrom || filters.dateTo) p.push('Date range')
-    if (filters.supporterIds.size) p.push(`Supporters: ${filters.supporterIds.size}`)
+    if (filters.supporterQuery.trim()) p.push('Supporter')
     if (filters.donationTypes.size) p.push(`Types: ${filters.donationTypes.size}`)
     if (filters.amountMin || filters.amountMax) p.push('Amount range')
     if (filters.recurring !== 'all') p.push(`Recurring: ${filters.recurring}`)
@@ -234,18 +246,23 @@ export function ContributionsAdminPage() {
   async function onCreate(e: FormEvent) {
     e.preventDefault()
     const amt = parseFloat(newAmt)
-    if (!newSup || !Number.isFinite(amt)) return
+    const supporterId = selectedNewSupporter?.id ?? newSup
+    if (!supporterId || !Number.isFinite(amt)) return
     setSaving(true)
     setError(null)
     try {
       await createDonation({
-        supporterId: newSup,
+        supporterId,
         donationType: newType,
         amount: amt,
         currencyCode: 'PHP',
         donationDate: `${newDate}T12:00:00`,
+        campaignName: newCampaign.trim() || undefined,
       })
       setNewAmt('')
+      setNewCampaign('')
+      setNewSupporterSearch('')
+      setNewSup(0)
       setAddOpen(false)
       await load()
     } catch (err) {
@@ -259,12 +276,13 @@ export function ContributionsAdminPage() {
     if (!edit) return
     setSaving(true)
     try {
-      await patchDonationFields(edit.id, {
-        donation_type: edit.donationType,
-        amount: edit.amount != null ? String(edit.amount) : '',
-        notes: edit.notes ?? '',
-        campaign_name: edit.campaignName ?? '',
-      })
+        await patchDonationFields(edit.id, {
+          donation_type: edit.donationType,
+          amount: edit.amount != null ? String(edit.amount) : '',
+          notes: edit.notes ?? '',
+          campaign_name: edit.campaignName ?? '',
+          channel_source: edit.channelSource ?? '',
+        })
       setEdit(null)
       await load()
     } catch (err) {
@@ -319,13 +337,10 @@ export function ContributionsAdminPage() {
             onFrom={(v) => setFilters((f) => ({ ...f, dateFrom: v }))}
             onTo={(v) => setFilters((f) => ({ ...f, dateTo: v }))}
           />
-          <SearchableEntityMultiFilter
+          <TextSearchFilter
             labelText="Supporter"
-            options={supporterOptions}
-            selectedIds={filters.supporterIds}
-            onChange={(s) => setFilters((f) => ({ ...f, supporterIds: s }))}
-            search={supporterFilterSearch}
-            onSearchChange={setSupporterFilterSearch}
+            value={filters.supporterQuery}
+            onChange={(v) => setFilters((f) => ({ ...f, supporterQuery: v }))}
           />
           <MultiSelectFilter
             labelText="Donation type"
@@ -375,13 +390,22 @@ export function ContributionsAdminPage() {
           </div>
           <label className={label}>
             Supporter
-            <select className={input} value={newSup} onChange={(e) => setNewSup(Number(e.target.value))}>
-              {supporters.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.displayName}
-                </option>
+            <input
+              list="donation-supporter-options"
+              className={input}
+              value={newSupporterSearch}
+              onChange={(e) => {
+                setNewSupporterSearch(e.target.value)
+                const match = supporterSearchOptions.find((option) => option.label === e.target.value)
+                setNewSup(match?.id ?? 0)
+              }}
+              placeholder="Search supporter by name or email"
+            />
+            <datalist id="donation-supporter-options">
+              {supporterSearchOptions.map((option) => (
+                <option key={option.id} value={option.label} />
               ))}
-            </select>
+            </datalist>
           </label>
           <label className={label}>
             Type
@@ -400,6 +424,21 @@ export function ContributionsAdminPage() {
           <label className={label}>
             Date
             <input type="date" className={input} value={newDate} onChange={(e) => setNewDate(e.target.value)} />
+          </label>
+          <label className={label}>
+            Campaign
+            <input
+              list="donation-campaign-options"
+              className={input}
+              value={newCampaign}
+              onChange={(e) => setNewCampaign(e.target.value)}
+              placeholder="Select or enter campaign"
+            />
+            <datalist id="donation-campaign-options">
+              {campaignOpts.map((option) => (
+                <option key={option} value={option} />
+              ))}
+            </datalist>
           </label>
           <button type="submit" disabled={saving} className={btnPrimary}>
             Add donation
@@ -517,6 +556,14 @@ export function ContributionsAdminPage() {
             <label className={label}>
               Notes
               <textarea className={input} rows={2} value={edit.notes ?? ''} onChange={(e) => setEdit({ ...edit, notes: e.target.value })} />
+            </label>
+            <label className={label}>
+              Campaign
+              <input className={input} value={edit.campaignName ?? ''} onChange={(e) => setEdit({ ...edit, campaignName: e.target.value })} />
+            </label>
+            <label className={label}>
+              Channel
+              <input className={input} value={edit.channelSource ?? ''} onChange={(e) => setEdit({ ...edit, channelSource: e.target.value })} />
             </label>
             <div className="flex gap-2">
               <button type="button" className={btnPrimary} disabled={saving} onClick={() => void saveEdit()}>

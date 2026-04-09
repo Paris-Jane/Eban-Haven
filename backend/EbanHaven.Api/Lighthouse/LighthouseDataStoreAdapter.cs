@@ -44,7 +44,7 @@ public sealed class LighthouseDataStoreAdapter(LighthouseDataStore inner) : ILig
     public SupporterDto? PatchSupporterFields(int id, IReadOnlyDictionary<string, string?> fields) => throw new NotImplementedException();
     public bool DeleteDonation(int id) => throw new NotImplementedException();
     public DonationDto? PatchDonationFields(int id, IReadOnlyDictionary<string, string?> fields) => throw new NotImplementedException();
-    public DonationAllocationDto CreateAllocation(int donationId, int safehouseId, decimal? amount, string? notes) => throw new NotImplementedException();
+    public DonationAllocationDto CreateAllocation(int donationId, int safehouseId, decimal? amount, string? notes, string? programArea) => throw new NotImplementedException();
     public DonationAllocationDto? PatchAllocationFields(int id, IReadOnlyDictionary<string, string?> fields) => throw new NotImplementedException();
     public bool DeleteAllocation(int id) => throw new NotImplementedException();
     public bool DeleteInterventionPlan(int id) => throw new NotImplementedException();
@@ -73,4 +73,3 @@ public sealed class LighthouseDataStoreAdapter(LighthouseDataStore inner) : ILig
     public PublicImpactSummaryDto GetPublicImpactSummary() => inner.GetPublicImpactSummary();
     public IReadOnlyList<PublicImpactSnapshotDto> GetPublishedSnapshots() => inner.GetPublishedSnapshots();
 }
-

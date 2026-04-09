@@ -56,7 +56,6 @@ function emptyFilters() {
   return {
     dateFrom: '',
     dateTo: '',
-    donationIds: new Set<number>(),
     safehouseIds: new Set<number>(),
     programAreas: new Set<string>(),
     amountMin: '',
@@ -76,7 +75,6 @@ export function AllocationsAdminPage() {
   const [addOpen, setAddOpen] = useState(false)
   const [filterOpen, setFilterOpen] = useState(false)
   const [filters, setFilters] = useState(emptyFilters)
-  const [donSearch, setDonSearch] = useState('')
   const [shSearch, setShSearch] = useState('')
   const [sortKey, setSortKey] = useState<string | null>(null)
   const [sortDir, setSortDir] = useState<SortDirection>(null)
@@ -88,6 +86,10 @@ export function AllocationsAdminPage() {
   const [shId, setShId] = useState(1)
   const [prog, setProg] = useState('Education')
   const [amt, setAmt] = useState('')
+  const [allocationSupporterSearch, setAllocationSupporterSearch] = useState('')
+  const [allocationNotes, setAllocationNotes] = useState('')
+
+  const programAreaOptions = ['General', 'Education', 'Health', 'Counseling', 'Shelter', 'Nutrition', 'Reintegration'] as const
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -115,13 +117,27 @@ export function AllocationsAdminPage() {
     return m
   }, [donations])
 
-  const donationOptions = useMemo(
+  const supporterOptions = useMemo(
     () =>
-      donations.map((d) => ({
-        id: d.id,
-        label: `#${d.id} · ${d.supporterDisplayName} · ${formatAdminDate(d.donationDate)}`,
+      uniqSortedStrings(donations.map((d) => d.supporterDisplayName)).map((displayName) => ({
+        id: displayName,
+        label: displayName,
       })),
     [donations],
+  )
+  const selectedAllocationSupporter = useMemo(
+    () => supporterOptions.find((option) => option.label === allocationSupporterSearch)?.label ?? '',
+    [supporterOptions, allocationSupporterSearch],
+  )
+  const allocationDonationOptions = useMemo(
+    () =>
+      donations
+        .filter((d) => !selectedAllocationSupporter || d.supporterDisplayName === selectedAllocationSupporter)
+        .map((d) => ({
+          id: d.id,
+          label: `#${d.id} · ${d.supporterDisplayName} · ${formatAdminDate(d.donationDate)}`,
+        })),
+    [donations, selectedAllocationSupporter],
   )
 
   const safehouseOptions = useMemo(
@@ -153,7 +169,6 @@ export function AllocationsAdminPage() {
       if (filters.dateFrom || filters.dateTo) {
         if (!inDateRange(r.allocationDate, filters.dateFrom, filters.dateTo)) return false
       }
-      if (!matchesIdMulti(r.donationId, filters.donationIds)) return false
       if (!matchesIdMulti(r.safehouseId, filters.safehouseIds)) return false
       if (!matchesStringMulti(r.programArea, filters.programAreas)) return false
       if (!inAmountRange(r.amountAllocated, filters.amountMin, filters.amountMax)) return false
@@ -181,7 +196,6 @@ export function AllocationsAdminPage() {
   const activeSummary = useMemo(() => {
     const p: string[] = []
     if (filters.dateFrom || filters.dateTo) p.push('Date range')
-    if (filters.donationIds.size) p.push(`Donations: ${filters.donationIds.size}`)
     if (filters.safehouseIds.size) p.push(`Safehouses: ${filters.safehouseIds.size}`)
     if (filters.programAreas.size) p.push(`Program: ${filters.programAreas.size}`)
     if (filters.amountMin || filters.amountMax) p.push('Amount range')
@@ -251,8 +265,13 @@ export function AllocationsAdminPage() {
         donationId: donId,
         safehouseId: shId,
         amount: n,
+        notes: allocationNotes.trim() || undefined,
+        programArea: prog,
       })
       setAmt('')
+      setAllocationNotes('')
+      setAllocationSupporterSearch('')
+      setDonId(0)
       setAddOpen(false)
       await load()
     } catch (err) {
@@ -331,14 +350,6 @@ export function AllocationsAdminPage() {
             onTo={(v) => setFilters((f) => ({ ...f, dateTo: v }))}
           />
           <SearchableEntityMultiFilter
-            labelText="Donation"
-            options={donationOptions}
-            selectedIds={filters.donationIds}
-            onChange={(s) => setFilters((f) => ({ ...f, donationIds: s }))}
-            search={donSearch}
-            onSearchChange={setDonSearch}
-          />
-          <SearchableEntityMultiFilter
             labelText="Safehouse"
             options={safehouseOptions}
             selectedIds={filters.safehouseIds}
@@ -372,11 +383,30 @@ export function AllocationsAdminPage() {
           </div>
           <form onSubmit={onCreate} className="flex flex-wrap items-end gap-3">
             <label className={label}>
+              Supporter
+              <input
+                list="allocation-supporter-options"
+                className={input}
+                value={allocationSupporterSearch}
+                onChange={(e) => {
+                  setAllocationSupporterSearch(e.target.value)
+                  setDonId(0)
+                }}
+                placeholder="Search donor first"
+              />
+              <datalist id="allocation-supporter-options">
+                {supporterOptions.map((option) => (
+                  <option key={option.id} value={option.label} />
+                ))}
+              </datalist>
+            </label>
+            <label className={label}>
               Donation
               <select className={input} value={donId} onChange={(e) => setDonId(Number(e.target.value))}>
-                {donations.map((d) => (
+                <option value={0}>Select donation</option>
+                {allocationDonationOptions.map((d) => (
                   <option key={d.id} value={d.id}>
-                    #{d.id} — {d.supporterDisplayName}
+                    {d.label}
                   </option>
                 ))}
               </select>
@@ -393,11 +423,21 @@ export function AllocationsAdminPage() {
             </label>
             <label className={label}>
               Program area
-              <input className={input} value={prog} onChange={(e) => setProg(e.target.value)} />
+              <select className={input} value={prog} onChange={(e) => setProg(e.target.value)}>
+                {programAreaOptions.map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
             </label>
             <label className={label}>
               Amount
               <input className={input} value={amt} onChange={(e) => setAmt(e.target.value)} />
+            </label>
+            <label className={label}>
+              Notes
+              <input className={input} value={allocationNotes} onChange={(e) => setAllocationNotes(e.target.value)} />
             </label>
             <button type="submit" disabled={saving} className={btnPrimary}>
               Add allocation
@@ -488,9 +528,26 @@ export function AllocationsAdminPage() {
       {edit && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/40 p-4">
           <div className={`${card} w-full max-w-md space-y-2`}>
+            <div className="grid gap-3 rounded-lg border border-border bg-muted/30 p-4 text-sm text-muted-foreground">
+              <p>
+                <span className="font-medium text-foreground">Donation:</span> {donationLabel(edit.donationId)}
+              </p>
+              <p>
+                <span className="font-medium text-foreground">Safehouse:</span> {edit.safehouseName ?? safehouseNameById.get(edit.safehouseId) ?? '—'}
+              </p>
+              <p>
+                <span className="font-medium text-foreground">Allocation date:</span> {formatAdminDate(edit.allocationDate)}
+              </p>
+            </div>
             <label className={label}>
               Program area
-              <input className={input} value={edit.programArea} onChange={(e) => setEdit({ ...edit, programArea: e.target.value })} />
+              <select className={input} value={edit.programArea} onChange={(e) => setEdit({ ...edit, programArea: e.target.value })}>
+                {programAreaOptions.map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
             </label>
             <label className={label}>
               Amount

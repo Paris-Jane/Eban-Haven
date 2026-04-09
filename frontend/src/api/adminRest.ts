@@ -360,6 +360,7 @@ export async function createAllocation(body: {
   safehouseId: number
   amount?: number | null
   notes?: string | null
+  programArea?: string | null
 }): Promise<T.DonationAllocation> {
   return parseJson<T.DonationAllocation>(
     await apiFetch(`${base}/donation-allocations`, { method: 'POST', body: JSON.stringify(body) }),
