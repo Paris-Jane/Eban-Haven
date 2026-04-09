@@ -129,6 +129,34 @@ public sealed class SocialPlannerController(
         return Content(json, "application/json");
     }
 
+    /// <summary>
+    /// Proxies Pexels CDN images through the backend so clients in regions
+    /// that block pexels.com can still view the photos.
+    /// Only allows requests to *.pexels.com to prevent open-proxy abuse.
+    /// </summary>
+    [HttpGet("image-proxy")]
+    public async Task<IActionResult> ImageProxy([FromQuery] string url, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(url))
+            return BadRequest();
+
+        Uri parsed;
+        try { parsed = new Uri(url); }
+        catch { return BadRequest(); }
+
+        if (!parsed.Host.EndsWith("pexels.com", StringComparison.OrdinalIgnoreCase))
+            return BadRequest(new { error = "Only pexels.com URLs are allowed." });
+
+        var client = httpFactory.CreateClient();
+        var resp = await client.GetAsync(url, cancellationToken);
+        if (!resp.IsSuccessStatusCode)
+            return StatusCode((int)resp.StatusCode);
+
+        var contentType = resp.Content.Headers.ContentType?.MediaType ?? "image/jpeg";
+        var bytes = await resp.Content.ReadAsByteArrayAsync(cancellationToken);
+        return File(bytes, contentType);
+    }
+
     public sealed record CreatePlannedSocialPostsRequest(
         IReadOnlyList<CreatePlannedSocialPostItem> Posts,
         string? SourcePrompt);

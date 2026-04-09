@@ -32,7 +32,7 @@ import {
   type PlannedSocialPost,
 } from '../../../api/admin'
 import { type SocialChatMessage, type SocialChatResponse, sendSocialChat } from '../../../api/socialChat'
-import { apiFetch } from '../../../api/client'
+import { apiFetch, apiBaseUrl } from '../../../api/client'
 import { alertError, btnPrimary, card, input, pageDesc, pageTitle } from '../shared/adminStyles'
 import { Badge, CategoryBadge, StatusBadge } from '../shared/adminDataTable/AdminBadges'
 
@@ -134,6 +134,12 @@ async function fetchPexelsImages(query: string): Promise<PexelsPhoto[]> {
   return data.photos ?? []
 }
 
+/** Rewrites a Pexels CDN URL to go through our backend proxy. */
+function proxyImageUrl(url: string): string {
+  const base = apiBaseUrl()
+  return `${base}/api/admin/social-planner/image-proxy?url=${encodeURIComponent(url)}`
+}
+
 // ── Sub-components ────────────────────────────────────────────────────────────
 
 function StepBadge({ n, label, active }: { n: number; label: string; active?: boolean }) {
@@ -209,7 +215,7 @@ function ImageSearchPanel({ query, onClose }: { query: string; onClose: () => vo
             {photos.map((p) => (
               <div key={p.id} className="group relative h-24 overflow-hidden rounded-lg bg-muted">
                 <img
-                  src={p.src.medium}
+                  src={proxyImageUrl(p.src.medium)}
                   alt={p.alt || 'Pexels photo'}
                   className="h-full w-full object-cover"
                   loading="lazy"
@@ -222,14 +228,6 @@ function ImageSearchPanel({ query, onClose }: { query: string; onClose: () => vo
                   >
                     {copied === String(p.id) ? '✓ Copied!' : 'Copy URL'}
                   </button>
-                  <a
-                    href={p.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="rounded-md bg-white/70 px-2 py-1 text-[10px] font-semibold text-black"
-                  >
-                    View
-                  </a>
                 </div>
                 <p className="absolute bottom-0 left-0 right-0 truncate bg-black/40 px-1.5 py-0.5 text-[9px] text-white/80">
                   {p.photographer}
