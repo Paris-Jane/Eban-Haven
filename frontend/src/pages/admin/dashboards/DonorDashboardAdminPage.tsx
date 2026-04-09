@@ -7,7 +7,6 @@ import {
   Heart,
   Layers,
   Mail,
-  RefreshCcw,
   TrendingUp,
   UserPlus,
   Users,
