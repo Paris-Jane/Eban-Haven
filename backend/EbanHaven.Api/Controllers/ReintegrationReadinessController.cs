@@ -46,9 +46,14 @@ file record ReintegrationPredictionResponse(
 public sealed class ReintegrationReadinessController(HavenDbContext db, IHttpClientFactory httpFactory) : ControllerBase
 {
     // Extracts the 16-feature vector expected by the Reintegration Readiness GBM.
-    // All subquery CTEs return exactly one row even when the resident has no records,
-    // so the CROSS JOIN is safe. The education latest-attendance uses a scalar
-    // subquery to avoid a zero-row edge case with DISTINCT ON.
+    //
+    // Column notes:
+    //  - present_age (text) is the mapped column for current age; used as proxy for age_at_entry.
+    //  - health_wellbeing_records only maps general_health_score as a direct column;
+    //    psychological_checkup_done lives in extended_json.
+    //  - education_records only maps progress_percent as a direct column;
+    //    attendance_rate lives in extended_json.
+    //  - All extended_json parsing is wrapped in CASE / COALESCE to handle null/empty values.
     private const string FeatureSql = """
         WITH
           session_agg AS (
@@ -66,8 +71,14 @@ public sealed class ReintegrationReadinessController(HavenDbContext db, IHttpCli
           ),
           health_agg AS (
             SELECT
-              COALESCE(AVG(general_health_score), 5.0)                                          AS avg_health_score,
-              COALESCE(AVG(CASE WHEN psychological_checkup_done THEN 1.0 ELSE 0.0 END), 0.0)   AS pct_psych_checkup_done,
+              COALESCE(AVG(general_health_score), 5.0)                                         AS avg_health_score,
+              COALESCE(AVG(
+                CASE
+                  WHEN extended_json IS NOT NULL AND extended_json <> ''
+                    THEN CASE WHEN (extended_json::jsonb ->> 'psychological_checkup_done') = 'True' THEN 1.0 ELSE 0.0 END
+                  ELSE 0.0
+                END
+              ), 0.0)                                                                           AS pct_psych_checkup_done,
               COUNT(*)::float                                                                    AS num_health_records
             FROM health_wellbeing_records
             WHERE resident_id = @ResidentId
@@ -93,8 +104,8 @@ public sealed class ReintegrationReadinessController(HavenDbContext db, IHttpCli
           r.resident_id,
           COALESCE(s.code, 'Unknown')                                                          AS safehouse_code,
           CASE
-            WHEN r.age_upon_admission ~ '^\d+$'
-              THEN LEAST(25, GREATEST(10, r.age_upon_admission::int))
+            WHEN r.present_age ~ '^\d+$'
+              THEN LEAST(25, GREATEST(10, r.present_age::int))
             ELSE 15
           END                                                                                   AS age_at_entry,
           GREATEST(0,
@@ -109,7 +120,12 @@ public sealed class ReintegrationReadinessController(HavenDbContext db, IHttpCli
           sa.pct_progress_noted,
           sa.pct_concerns_flagged,
           COALESCE(
-            (SELECT attendance_rate
+            (SELECT
+               CASE
+                 WHEN extended_json IS NOT NULL AND extended_json <> ''
+                   THEN (extended_json::jsonb ->> 'attendance_rate')::float
+                 ELSE NULL
+               END
              FROM education_records
              WHERE resident_id = @ResidentId
              ORDER BY record_date DESC
