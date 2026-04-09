@@ -316,10 +316,17 @@ export function LoginPage() {
   async function onRegister(e: FormEvent) {
     e.preventDefault()
     setError(null)
-    if (!rEmail.trim() || !rPassword || !rDisplayName.trim()) {
-      setError('Email, password, and display name are required.')
-      return
-    }
+    const nextErrors: typeof registerErrors = {}
+    if (!rDisplayName.trim()) nextErrors.displayName = 'Display name is required.'
+    if (!rEmail.trim()) nextErrors.email = 'Email is required.'
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(rEmail.trim())) nextErrors.email = 'Enter a valid email address.'
+    if (!rPassword) nextErrors.password = 'Password is required.'
+    else if (rPassword.length < 14) nextErrors.password = 'Password must be at least 14 characters long.'
+    if (!rSupporterType.trim()) nextErrors.supporterType = 'Supporter type is required.'
+    if (!rCountry.trim()) nextErrors.country = 'Country is required.'
+    setRegisterErrors(nextErrors)
+    if (Object.keys(nextErrors).length > 0) return
+
     setSubmitting(true)
     try {
       await registerDonorAccount({
@@ -332,7 +339,7 @@ export function LoginPage() {
         lastName: rLast,
         relationshipType: rRel,
         region: rRegion,
-        country: rCountry,
+        country: rCountry.trim(),
         phone: rPhone,
         acquisitionChannel: rChannel,
       })
@@ -456,33 +463,50 @@ export function LoginPage() {
               />
             </form>
           ) : (
-            <form onSubmit={onRegister} className="space-y-6">
-              <div className="grid gap-5 lg:grid-cols-[1.15fr_0.85fr]">
-                <section className={cardClass}>
-                  <div className="mb-4">
-                    <p className="text-xs font-semibold uppercase tracking-[0.24em] text-accent">Account access</p>
-                    <h2 className="mt-2 font-heading text-xl font-semibold text-foreground">Sign-in essentials</h2>
-                  </div>
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <label className="text-sm sm:col-span-2">
-                      <span className="text-muted-foreground">Display name *</span>
-                      <input
+            <form onSubmit={onRegister} className="space-y-6" noValidate>
+              <section className={`${cardClass} space-y-6`}>
+                <div className="space-y-2">
+                  <p className="text-sm text-muted-foreground">
+                    Create your donor account in one form below. Start with the account details you will use to sign in, then add any profile information you want us to keep on file.
+                  </p>
+                </div>
+
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.24em] text-accent">Account access</p>
+                  <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                    <div className="sm:col-span-2">
+                      <FieldLabel
+                        htmlFor="register-display-name"
+                        label="Display name"
                         required
-                        className={inputClass}
+                        hint="This is the name that will appear in your donor account."
+                      />
+                      <input
+                        id="register-display-name"
+                        className={`${inputClass} ${registerErrors.displayName ? 'border-destructive' : ''}`}
                         value={rDisplayName}
                         onChange={(e) => setRDisplayName(e.target.value)}
+                        aria-invalid={!!registerErrors.displayName}
                       />
-                    </label>
-                    <label className="text-sm">
-                      <span className="text-muted-foreground">Email *</span>
-                      <input
-                        type="email"
+                      {registerErrors.displayName && <p className="mt-1 text-xs text-destructive">{registerErrors.displayName}</p>}
+                    </div>
+                    <div>
+                      <FieldLabel
+                        htmlFor="register-email"
+                        label="Email"
                         required
-                        className={inputClass}
+                        hint="We will use this for login, receipts, and account updates."
+                      />
+                      <input
+                        id="register-email"
+                        type="email"
+                        className={`${inputClass} ${registerErrors.email ? 'border-destructive' : ''}`}
                         value={rEmail}
                         onChange={(e) => setREmail(e.target.value)}
+                        aria-invalid={!!registerErrors.email}
                       />
-                    </label>
+                      {registerErrors.email && <p className="mt-1 text-xs text-destructive">{registerErrors.email}</p>}
+                    </div>
                     <div className="text-sm">
                       <PasswordField
                         id="register-pass"
@@ -490,15 +514,23 @@ export function LoginPage() {
                         autoComplete="new-password"
                         value={rPassword}
                         onChange={setRPassword}
-                        hint="Passwords must be at least 14 characters long."
+                        hint="Use at least 14 characters for a stronger account."
+                        error={registerErrors.password}
                       />
                     </div>
-                    <label className="text-sm">
-                      <span className="text-muted-foreground">Supporter type *</span>
+                    <div>
+                      <FieldLabel
+                        htmlFor="register-supporter-type"
+                        label="Supporter type"
+                        required
+                        hint="Choose the support role that best matches you."
+                      />
                       <select
-                        className={inputClass}
+                        id="register-supporter-type"
+                        className={`${inputClass} ${registerErrors.supporterType ? 'border-destructive' : ''}`}
                         value={rSupporterType}
                         onChange={(e) => setRSupporterType(e.target.value)}
+                        aria-invalid={!!registerErrors.supporterType}
                       >
                         {supporterTypeOptions.map((t) => (
                           <option key={t.value} value={t.value}>
@@ -506,10 +538,16 @@ export function LoginPage() {
                           </option>
                         ))}
                       </select>
-                    </label>
-                    <label className="text-sm">
-                      <span className="text-muted-foreground">How did you hear about us?</span>
+                      {registerErrors.supporterType && <p className="mt-1 text-xs text-destructive">{registerErrors.supporterType}</p>}
+                    </div>
+                    <div>
+                      <FieldLabel
+                        htmlFor="register-channel"
+                        label="How did you hear about us?"
+                        hint="This helps us understand which outreach channels are working."
+                      />
                       <select
+                        id="register-channel"
                         className={inputClass}
                         value={rChannel}
                         onChange={(e) => setRChannel(e.target.value)}
@@ -520,31 +558,32 @@ export function LoginPage() {
                           </option>
                         ))}
                       </select>
-                    </label>
+                    </div>
                   </div>
-                </section>
+                </div>
 
-                <section className={cardClass}>
-                  <div className="mb-4">
-                    <p className="text-xs font-semibold uppercase tracking-[0.24em] text-accent">Supporter profile</p>
-                    <h2 className="mt-2 font-heading text-xl font-semibold text-foreground">Personal details</h2>
-                  </div>
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <label className="text-sm">
-                      <span className="text-muted-foreground">First name</span>
-                      <input className={inputClass} value={rFirst} onChange={(e) => setRFirst(e.target.value)} />
-                    </label>
-                    <label className="text-sm">
-                      <span className="text-muted-foreground">Last name</span>
-                      <input className={inputClass} value={rLast} onChange={(e) => setRLast(e.target.value)} />
-                    </label>
-                    <label className="text-sm sm:col-span-2">
-                      <span className="text-muted-foreground">Organization name</span>
-                      <input className={inputClass} value={rOrg} onChange={(e) => setROrg(e.target.value)} />
-                    </label>
-                    <label className="text-sm">
-                      <span className="text-muted-foreground">Relationship to our work</span>
+                <div className="border-t border-border pt-6">
+                  <p className="text-xs font-semibold uppercase tracking-[0.24em] text-accent">Personal details</p>
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    Add any extra information you would like attached to your donor profile.
+                  </p>
+                  <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                    <div>
+                      <FieldLabel htmlFor="register-first" label="First name" hint="Optional preferred first name for greetings." />
+                      <input id="register-first" className={inputClass} value={rFirst} onChange={(e) => setRFirst(e.target.value)} />
+                    </div>
+                    <div>
+                      <FieldLabel htmlFor="register-last" label="Last name" hint="Optional surname or family name." />
+                      <input id="register-last" className={inputClass} value={rLast} onChange={(e) => setRLast(e.target.value)} />
+                    </div>
+                    <div className="sm:col-span-2">
+                      <FieldLabel htmlFor="register-org" label="Organization name" hint="Use this if you are giving on behalf of a group or company." />
+                      <input id="register-org" className={inputClass} value={rOrg} onChange={(e) => setROrg(e.target.value)} />
+                    </div>
+                    <div>
+                      <FieldLabel htmlFor="register-rel" label="Relationship to our work" hint="Tell us how you are connected to the mission." />
                       <select
+                        id="register-rel"
                         className={inputClass}
                         value={rRel}
                         onChange={(e) => setRRel(e.target.value as RelationshipValue)}
@@ -555,36 +594,50 @@ export function LoginPage() {
                           </option>
                         ))}
                       </select>
-                    </label>
-                    <label className="text-sm">
-                      <span className="text-muted-foreground">Phone</span>
-                      <input className={inputClass} value={rPhone} onChange={(e) => setRPhone(e.target.value)} />
-                    </label>
-                    <label className="text-sm">
-                      <span className="text-muted-foreground">Region</span>
-                      <input className={inputClass} value={rRegion} onChange={(e) => setRRegion(e.target.value)} />
-                    </label>
-                    <label className="text-sm">
-                      <span className="text-muted-foreground">Country</span>
-                      <input className={inputClass} value={rCountry} onChange={(e) => setRCountry(e.target.value)} />
-                    </label>
+                    </div>
+                    <div>
+                      <FieldLabel htmlFor="register-phone" label="Phone" hint="Optional number for follow-up contact." />
+                      <input id="register-phone" className={inputClass} value={rPhone} onChange={(e) => setRPhone(e.target.value)} />
+                    </div>
+                    <div>
+                      <FieldLabel htmlFor="register-region" label="Region" hint="Share the region you are based in, if relevant." />
+                      <input id="register-region" className={inputClass} value={rRegion} onChange={(e) => setRRegion(e.target.value)} />
+                    </div>
+                    <div>
+                      <FieldLabel
+                        htmlFor="register-country"
+                        label="Country"
+                        required
+                        hint="Country is required so we can complete your donor profile."
+                      />
+                      <input
+                        id="register-country"
+                        className={`${inputClass} ${registerErrors.country ? 'border-destructive' : ''}`}
+                        value={rCountry}
+                        onChange={(e) => setRCountry(e.target.value)}
+                        aria-invalid={!!registerErrors.country}
+                      />
+                      {registerErrors.country && <p className="mt-1 text-xs text-destructive">{registerErrors.country}</p>}
+                    </div>
                   </div>
-                </section>
-              </div>
+                </div>
+              </section>
 
-              <button
-                type="submit"
-                disabled={submitting}
-                className="w-full rounded-lg bg-primary py-3 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
-              >
-                {submitting ? 'Creating account…' : 'Create account'}
-              </button>
-              <GoogleAuthBlock
-                mode="register"
-                disabled={submitting}
-                onError={setError}
-                onCredential={completeGoogleAuth}
-              />
+              <div className="space-y-3">
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  className="w-full rounded-lg bg-primary py-3 text-sm font-medium text-primary-foreground transition-all hover:-translate-y-0.5 hover:opacity-95 disabled:opacity-50"
+                >
+                  {submitting ? 'Creating account…' : 'Create account'}
+                </button>
+                <GoogleAuthBlock
+                  mode="register"
+                  disabled={submitting}
+                  onError={setError}
+                  onCredential={completeGoogleAuth}
+                />
+              </div>
             </form>
           )}
         </motion.div>
