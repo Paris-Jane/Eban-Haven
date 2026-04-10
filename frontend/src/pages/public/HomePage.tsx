@@ -96,7 +96,7 @@ export function HomePage() {
         <div className="absolute inset-0">
           <img
             src={IMAGES.hero}
-            alt="Sunlight filtering through a forest path, symbolizing shelter, calm, and new beginnings"
+            alt="A teacher with a group of schoolchildren outdoors, representing education, safety, and community"
             className="h-full w-full object-cover"
           />
           <div className="absolute inset-0 bg-gradient-to-r from-foreground/80 via-foreground/50 to-transparent" />

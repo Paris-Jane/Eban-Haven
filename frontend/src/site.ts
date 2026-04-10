@@ -6,8 +6,8 @@
  * `frontend/public/images/` (e.g. `/images/home-hero.jpg`) for production.
  */
 export const IMAGES = {
-  /** Sunlight through trees — calm, hopeful; Unsplash (replace with `/images/...` for brand photos). */
-  hero: 'https://images.unsplash.com/photo-1441974231531-c6227db76b6e?auto=format&fit=crop&w=1920&q=80',
+  /** School / community — Unsplash (VC6MGt9ZoBA); replace with `/images/...` for your own photography. */
+  hero: 'https://images.unsplash.com/photo-1632215861513-130b66fe97f4?auto=format&fit=crop&w=1920&q=80',
   mission:
     'https://images.unsplash.com/photo-1529156069898-49953e39b3ac?auto=format&fit=crop&w=1200&q=80',
   /** CTA / join section (reuse or swap for a campaign photo) */
