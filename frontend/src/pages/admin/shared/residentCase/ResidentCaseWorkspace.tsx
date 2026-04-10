@@ -1647,6 +1647,7 @@ function ProgressRing({ label, progress, children }: { label: string; progress: 
         </svg>
         <div className="absolute inset-0 grid place-items-center px-2 text-center">{children}</div>
       </div>
+      <p className="mt-3 text-sm font-medium text-foreground">{label}</p>
     </div>
   )
 }
