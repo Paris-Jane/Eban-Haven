@@ -51,7 +51,7 @@ export function buildTimelineItems(
       kind: 'process',
       sort: t,
       dateIso: r.sessionDate,
-      title: 'Process recording',
+      title: 'Counseling session',
       summary: `${r.sessionType} · ${r.sessionNarrative.slice(0, 120)}${r.sessionNarrative.length > 120 ? '…' : ''}`,
       worker: r.socialWorker,
       flags,

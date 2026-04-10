@@ -242,7 +242,7 @@ export function ResidentsReportTab({
         </Link>{' '}
         ·{' '}
         <Link to="/admin/process-recordings" className="text-primary hover:underline">
-          Process recordings
+          Counseling sessions
         </Link>
       </p>
     </div>

@@ -8,7 +8,7 @@ import type { TimelineItem, TimelineKind } from './caseWorkspaceModel'
 export const ALL_TIMELINE_KINDS: TimelineKind[] = ['process', 'visit', 'incident', 'education', 'health', 'plan']
 
 const KIND_LABELS: Record<TimelineKind, string> = {
-  process: 'Session',
+  process: 'Counseling',
   visit: 'Visit',
   incident: 'Incident',
   education: 'Education',

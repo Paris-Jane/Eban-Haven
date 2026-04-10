@@ -483,7 +483,7 @@ export async function deleteResident(id: number): Promise<void> {
 
 export async function deleteProcessRecording(id: number): Promise<void> {
   const res = await apiFetch(`${base}/process-recordings/${id}`, { method: 'DELETE' })
-  if (!res.ok) throw new Error(`Delete process recording failed: ${res.status}`)
+  if (!res.ok) throw new Error(`Delete counseling session failed: ${res.status}`)
 }
 
 export async function deleteHomeVisitation(id: number): Promise<void> {

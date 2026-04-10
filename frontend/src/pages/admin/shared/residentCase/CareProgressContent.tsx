@@ -162,9 +162,9 @@ export function CounselingSection({
       {!hideChrome ? (
         <>
           <SectionHeader
-            title="Process recordings"
+            title="Counseling sessions"
             description="Each entry documents a dated interaction between a social worker and this resident, including observations, interventions, and follow-up actions. Open a row below for full notes and follow-up."
-            actions={<QuickActionButton onClick={() => setCreateOpen(true)}>Add recording</QuickActionButton>}
+            actions={<QuickActionButton onClick={() => setCreateOpen(true)}>Add session</QuickActionButton>}
           />
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             <SearchField value={q} onChange={setQ} placeholder="Worker, type, emotional state…" />
@@ -180,9 +180,9 @@ export function CounselingSection({
           <div className="space-y-2">
             {filtered.length === 0 ? (
               <EmptyState
-                title="No process recordings yet"
-                hint="Each recording captures a dated worker–resident interaction: observations, interventions, and follow-up."
-                action={<QuickActionButton onClick={() => setCreateOpen(true)}>Add recording</QuickActionButton>}
+                title="No counseling sessions yet"
+                hint="Each session captures a dated worker–resident interaction: observations, interventions, and follow-up."
+                action={<QuickActionButton onClick={() => setCreateOpen(true)}>Add session</QuickActionButton>}
               />
             ) : (
               filtered.map((r) => (
@@ -226,8 +226,8 @@ export function CounselingSection({
 
       <AdminDeleteModal
         open={deleteId != null}
-        title="Delete process recording?"
-        body="This process recording will be permanently removed."
+        title="Delete counseling session?"
+        body="This counseling session will be permanently removed."
         loading={saving}
         onCancel={() => setDeleteId(null)}
         onConfirm={async () => {
@@ -347,7 +347,7 @@ export function ProcessRecordingDrawer({
 
   return (
     <CaseDrawer
-      title={mode === 'create' ? 'New process recording' : 'Process recording'}
+      title={mode === 'create' ? 'New counseling session' : 'Counseling session'}
       onClose={onClose}
       footer={
         readOnly && initial ? (

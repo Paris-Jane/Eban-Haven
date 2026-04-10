@@ -1253,7 +1253,6 @@ export function ResidentCaseWorkspace({
                 >
                   <GoalDrillIn
                     goal={expandedGoal}
-                    data={goalCards[expandedGoal]}
                     healthRows={hl}
                     educationRows={edu}
                     visitRows={vis}
@@ -1296,7 +1295,6 @@ export function ResidentCaseWorkspace({
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <h3 className="text-base font-semibold text-foreground">Profile</h3>
-              <p className="mt-1 text-sm text-muted-foreground">Administrative details and background information.</p>
             </div>
             <button type="button" className={btnPrimary} onClick={() => setProfileOpen(true)}>
               Edit profile
@@ -1717,16 +1715,24 @@ function DrillInStatCard({
   )
 }
 
-/** Safety latest-visit row: small title, then one or two detail lines at the same prominent size. */
-function SafetyLatestVisitStatCard({ title, lines }: { title: string; lines: [string, string?] }) {
-  const [primary, secondary] = lines
+/** Safety latest-visit stat: label + single value; optional danger emphasis for flags. */
+function SafetyLatestVisitStatCard({
+  title,
+  value,
+  valueEmphasis = 'default',
+}: {
+  title: string
+  value: string
+  valueEmphasis?: 'default' | 'danger'
+}) {
+  const valueClassName =
+    valueEmphasis === 'danger'
+      ? `mt-3 max-w-full break-words px-1 text-base font-semibold leading-snug ${RESIDENT_SEMANTIC.danger.textBold}`
+      : 'mt-3 max-w-full break-words px-1 text-base font-semibold leading-snug text-foreground'
   return (
-    <div className="flex min-h-[10.5rem] flex-col items-center justify-center rounded-xl border border-border bg-card px-4 py-5 text-center">
+    <div className="flex min-h-[9.5rem] flex-col items-center justify-center rounded-xl border border-border bg-card px-4 py-5 text-center">
       <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{title}</p>
-      <p className="mt-3 max-w-full break-words px-1 text-base font-semibold leading-snug text-foreground">{primary}</p>
-      {secondary ? (
-        <p className="mt-2 max-w-full break-words px-1 text-base font-semibold leading-snug text-foreground">{secondary}</p>
-      ) : null}
+      <p className={valueClassName}>{value}</p>
     </div>
   )
 }
@@ -1767,7 +1773,6 @@ function CompactActivityRow({
 
 function GoalDrillIn({
   goal,
-  data,
   healthRows,
   educationRows,
   visitRows,
@@ -1787,7 +1792,6 @@ function GoalDrillIn({
   onRequestDeleteVisit,
 }: {
   goal: GoalKey
-  data: GoalCardData
   healthRows: HealthRecord[]
   educationRows: EducationRecord[]
   visitRows: HomeVisitation[]
@@ -1809,7 +1813,6 @@ function GoalDrillIn({
   if (goal === 'health') {
     return (
       <HealthGoalDrillIn
-        data={data}
         healthRows={healthRows}
         relatedPlan={relatedPlan}
         onReload={onReload}
@@ -1919,14 +1922,12 @@ function RecapScoreCell({ label, valueNum }: { label: string; valueNum: number |
 }
 
 function HealthGoalDrillIn({
-  data,
   healthRows,
   relatedPlan: _relatedPlan,
   onReload,
   onAddHealth,
   onOpenHealth,
 }: {
-  data: GoalCardData
   healthRows: HealthRecord[]
   relatedPlan: InterventionPlan | null
   onReload: () => Promise<void>
@@ -2149,7 +2150,6 @@ function HealthGoalDrillIn({
                 </span>
               </div>
               <div className="mt-2 space-y-2.5 text-sm">
-                <p className="text-center text-xs text-muted-foreground">Overall {data.currentLabel}</p>
                 <div className="grid grid-cols-2 gap-1.5">
                   <RecapScoreCell label="General health" valueNum={latest.healthScore} />
                   <RecapScoreCell label="Nutrition score" valueNum={latest.nutritionScore} />
@@ -2171,7 +2171,7 @@ function HealthGoalDrillIn({
 
       <div className="grid gap-3 md:grid-cols-3">
         <div className="flex min-h-[8.5rem] flex-col items-center justify-center rounded-xl border border-border bg-card px-4 py-6 text-center">
-          <p className="text-xs font-semibold uppercase tracking-wide text-foreground">Latest dental</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-foreground">Latest dental check</p>
           {latestDental ? (
             <p className="mt-3 text-lg font-semibold tabular-nums text-foreground">{formatAdminDate(latestDental.recordDate)}</p>
           ) : (
@@ -2179,7 +2179,7 @@ function HealthGoalDrillIn({
           )}
         </div>
         <div className="flex min-h-[8.5rem] flex-col items-center justify-center rounded-xl border border-border bg-card px-4 py-6 text-center">
-          <p className="text-xs font-semibold uppercase tracking-wide text-foreground">Latest medical</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-foreground">Latest medical check</p>
           {latestMedical ? (
             <p className="mt-3 text-lg font-semibold tabular-nums text-foreground">{formatAdminDate(latestMedical.recordDate)}</p>
           ) : (
@@ -2187,7 +2187,7 @@ function HealthGoalDrillIn({
           )}
         </div>
         <div className="flex min-h-[8.5rem] flex-col items-center justify-center rounded-xl border border-border bg-card px-4 py-6 text-center">
-          <p className="text-xs font-semibold uppercase tracking-wide text-foreground">Latest psychological</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-foreground">Latest psychological check</p>
           {latestPsych ? (
             <p className="mt-3 text-lg font-semibold tabular-nums text-foreground">{formatAdminDate(latestPsych.recordDate)}</p>
           ) : (
@@ -2871,12 +2871,6 @@ function SafetyGoalDrillIn({
 
   const latestVisit = byNewestDate(visitRows, (row) => row.visitDate)[0] ?? null
 
-  const purposeSnippet = (t: string | null | undefined, max = 72) => {
-    const s = (t ?? '').trim().replace(/\s+/g, ' ')
-    if (!s) return undefined
-    return s.length > max ? `${s.slice(0, max)}…` : s
-  }
-
   const locationOptions = useMemo(() => {
     const s = new Set<string>()
     visitRows.forEach((v) => {
@@ -3018,40 +3012,20 @@ function SafetyGoalDrillIn({
         <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Latest safety visit</p>
         {latestVisit ? (
           <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-            <SafetyLatestVisitStatCard
-              title="Date"
-              lines={[formatAdminDate(latestVisit.visitDate), 'Most recent visit on file']}
-            />
-            <SafetyLatestVisitStatCard
-              title="Location"
-              lines={[
-                latestVisit.locationVisited || '—',
-                latestVisit.socialWorker?.trim()
-                  ? `Social worker: ${latestVisit.socialWorker}`
-                  : 'Where the visit took place',
-              ]}
-            />
-            <SafetyLatestVisitStatCard
-              title="Visit type"
-              lines={[latestVisit.visitType || '—', purposeSnippet(latestVisit.purpose) ?? 'Purpose of visit']}
-            />
+            <SafetyLatestVisitStatCard title="Date" value={formatAdminDate(latestVisit.visitDate)} />
+            <SafetyLatestVisitStatCard title="Location" value={latestVisit.locationVisited || '—'} />
+            <SafetyLatestVisitStatCard title="Visit type" value={latestVisit.visitType || '—'} />
             <SafetyLatestVisitStatCard
               title="Safety concerns"
-              lines={[
-                latestVisit.safetyConcernsNoted ? 'Yes' : 'No',
-                latestVisit.safetyConcernsNoted
-                  ? 'Concern noted on this visit'
-                  : latestVisit.followUpNeeded
-                    ? 'Follow-up flagged'
-                    : 'No concern flags',
-              ]}
+              value={latestVisit.safetyConcernsNoted ? 'Yes' : 'No'}
+              valueEmphasis={latestVisit.safetyConcernsNoted ? 'danger' : 'default'}
             />
             <SafetyLatestVisitStatCard
               title="Outcome"
-              lines={[
-                latestVisit.visitOutcome || '—',
-                purposeSnippet(latestVisit.observations, 80) ?? 'Visit outcome summary',
-              ]}
+              value={latestVisit.visitOutcome || '—'}
+              valueEmphasis={
+                (latestVisit.visitOutcome ?? '').trim().toLowerCase() === 'unfavorable' ? 'danger' : 'default'
+              }
             />
           </div>
         ) : (

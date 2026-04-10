@@ -296,7 +296,7 @@ export function ProcessRecordingsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className={pageTitle}>Process Recordings</h2>
+        <h2 className={pageTitle}>Counseling Sessions</h2>
         <p className={pageDesc}>
           Document counseling sessions, key observations, interventions used, and follow-up steps for each resident interaction.
         </p>
@@ -311,12 +311,12 @@ export function ProcessRecordingsPage() {
         filterOpen={filterOpen}
         onFilterToggle={() => setFilterOpen((o) => !o)}
         onAddClick={openAdd}
-        addLabel="Add recording"
+        addLabel="Add session"
       />
 
       <AdminBulkActionsBar
         count={selected.size}
-        recordLabel="recording"
+        recordLabel="session"
         onDeleteClick={openDeleteModal}
         onClearSelection={() => setSelected(new Set())}
         disabled={saving}
@@ -377,7 +377,7 @@ export function ProcessRecordingsPage() {
       {showNew && (
         <form id="admin-add-process" onSubmit={onSubmit} className={`${cardForm} scroll-mt-28`}>
           <div className="flex items-center justify-between">
-            <p className={sectionFormTitle}>New Process Recording</p>
+            <p className={sectionFormTitle}>New counseling session</p>
             <button type="button" className="text-sm text-muted-foreground hover:text-foreground" onClick={() => setShowNew(false)}>
               Close
             </button>
@@ -459,7 +459,7 @@ export function ProcessRecordingsPage() {
             <textarea className={input} rows={4} value={narrative} onChange={(e) => setNarrative(e.target.value)} required />
           </label>
           <button type="submit" disabled={saving || residents.length === 0} className={btnPrimary}>
-            {saving ? 'Saving…' : 'Save recording'}
+            {saving ? 'Saving…' : 'Save session'}
           </button>
         </form>
       )}
@@ -497,7 +497,7 @@ export function ProcessRecordingsPage() {
             ) : filteredSorted.length === 0 ? (
               <tr>
                 <td colSpan={colCount} className={emptyCell}>
-                  No recordings for this view.
+                  No sessions for this view.
                 </td>
               </tr>
             ) : (
@@ -537,12 +537,12 @@ export function ProcessRecordingsPage() {
 
       <AdminDeleteModal
         open={deleteModal != null}
-        title={deleteModal && deleteModal.ids.length === 1 ? 'Delete recording?' : 'Delete recordings?'}
+        title={deleteModal && deleteModal.ids.length === 1 ? 'Delete session?' : 'Delete sessions?'}
         body={
           deleteModal
             ? deleteModal.ids.length === 1
-              ? 'You are about to delete one process recording.'
-              : `You are about to delete ${deleteModal.ids.length} process recordings.`
+              ? 'You are about to delete one counseling session.'
+              : `You are about to delete ${deleteModal.ids.length} counseling sessions.`
             : ''
         }
         previewLines={deleteModal && deleteModal.labels.length > 1 ? deleteModal.labels : deleteModal?.labels.slice(0, 1)}

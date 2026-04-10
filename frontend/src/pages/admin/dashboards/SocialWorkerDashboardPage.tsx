@@ -35,7 +35,7 @@ const shortcuts = [
   },
   {
     to: '/admin/process-recordings',
-    label: 'Process recordings',
+    label: 'Counseling sessions',
     hint: 'Worker-resident sessions, observations, interventions, and follow-up',
     icon: FileText,
   },
@@ -623,11 +623,11 @@ export function SocialWorkerDashboardPage() {
 
           <div className="space-y-4">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Process recordings</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Counseling sessions</p>
               <div className="mt-3 space-y-3">
                 {recentRecordings.length === 0 ? (
                   <div className="rounded-2xl border border-border bg-muted/20 p-4 text-sm text-muted-foreground">
-                    No process recordings yet.
+                    No counseling sessions yet.
                   </div>
                 ) : (
                   recentRecordings.map((recording) => (
@@ -652,7 +652,7 @@ export function SocialWorkerDashboardPage() {
                           to="/admin/process-recordings"
                           className="rounded-lg border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted/40"
                         >
-                          View records
+                          View sessions
                         </Link>
                       </div>
                     </div>

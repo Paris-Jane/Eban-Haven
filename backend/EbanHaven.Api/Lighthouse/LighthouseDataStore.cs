@@ -883,12 +883,14 @@ public sealed class LighthouseDataStore
 
             var pillars = CountPillarKeywords();
 
+            var completedReint = _residents.Count(r =>
+                GetStr(r, "reintegration_status").Equals("Completed", StringComparison.OrdinalIgnoreCase));
             var highlights = new List<string>
             {
-                $"{active} active residents across {perf.Count} safehouses (dataset snapshot).",
-                $"Average education progress across records: {eduAvg:F1}%.",
-                $"Average general health score: {hlAvg:F2} (scale ~1–5).",
-                $"Reintegration completed for {_residents.Count(r => GetStr(r, "reintegration_status").Equals("Completed", StringComparison.OrdinalIgnoreCase))} residents.",
+                $"{active} active residents across {perf.Count} operational safehouses.",
+                $"Average education progress from assessments on file: {eduAvg:F1}%.",
+                $"Average wellbeing score from records on file: {hlAvg:F2} (typical scale 1–5).",
+                $"{completedReint} resident{(completedReint == 1 ? "" : "s")} with reintegration marked completed.",
             };
 
             return new ReportsSummaryDto(

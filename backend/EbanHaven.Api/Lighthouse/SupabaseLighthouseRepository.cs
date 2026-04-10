@@ -639,10 +639,10 @@ public sealed class SupabaseLighthouseRepository(HavenDbContext db) : ILighthous
 
         var highlights = new List<string>
         {
-            $"{active} active residents across {perf.Count} safehouses (Supabase).",
-            $"Average education progress across records: {eduAvg:F1}%.",
-            $"Average general health score: {hlAvg:F2} (scale ~1–5).",
-            $"Reintegration completed for {completed} residents.",
+            $"{active} active residents across {perf.Count} operational safehouses.",
+            $"Average education progress from assessments on file: {eduAvg:F1}%.",
+            $"Average wellbeing score from records on file: {hlAvg:F2} (typical scale 1–5).",
+            $"{completed} resident{(completed == 1 ? "" : "s")} with reintegration marked completed.",
         };
 
         return new ReportsSummaryDto(

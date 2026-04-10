@@ -8,7 +8,7 @@ type Tab = 'residents' | 'process-recordings' | 'home-visitations' | 'case-confe
 
 const tabs: { id: Tab; label: string }[] = [
   { id: 'residents', label: 'Residents' },
-  { id: 'process-recordings', label: 'Process Recordings' },
+  { id: 'process-recordings', label: 'Counseling Sessions' },
   { id: 'home-visitations', label: 'Home Visitations' },
   { id: 'case-conferences', label: 'Case Conferences' },
 ]

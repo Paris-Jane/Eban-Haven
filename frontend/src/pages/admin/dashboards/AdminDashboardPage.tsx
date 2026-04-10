@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
   AlertTriangle,
@@ -6,15 +6,13 @@ import {
   BarChart3,
   CalendarDays,
   CheckCircle,
+  ChevronDown,
   ClipboardList,
-  FileText,
   GitBranch,
-  GraduationCap,
   Heart,
-  HeartPulse,
   Home,
   Mail,
-  ShieldAlert,
+  Star,
   TrendingUp,
   Users,
   Video,
@@ -48,28 +46,44 @@ function KpiCard({
   sub,
   accentClass,
   icon: Icon,
+  to,
 }: {
   label: string
   value: string
   sub?: string
   accentClass: string
   icon: React.ElementType
+  /** When set, the whole card navigates here (keyboard- and screen-reader friendly). */
+  to?: string
 }) {
-  return (
-    <div className={`${card} relative overflow-hidden`}>
+  const body = (
+    <>
       <div className={`absolute left-0 top-0 h-full w-1 ${accentClass}`} />
       <div className="flex items-start justify-between gap-2 pl-3">
         <div className="min-w-0">
           <p className={statCardInner}>{label}</p>
           <p className={`${statCardValue} truncate`}>{value}</p>
-          {sub && <p className={statCardSub}>{sub}</p>}
+          {sub ? <p className={statCardSub}>{sub}</p> : null}
         </div>
         <div className="shrink-0 rounded-lg bg-muted/50 p-2">
           <Icon className="h-4 w-4 text-primary" aria-hidden />
         </div>
       </div>
-    </div>
+    </>
   )
+
+  if (to) {
+    return (
+      <Link
+        to={to}
+        className={`${card} relative block overflow-hidden transition-colors hover:bg-muted/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background`}
+      >
+        {body}
+      </Link>
+    )
+  }
+
+  return <div className={`${card} relative overflow-hidden`}>{body}</div>
 }
 
 function SafehouseBar({
@@ -104,18 +118,67 @@ function SafehouseBar({
   )
 }
 
-const quickActions: { id: string; label: string; icon: React.ElementType; to: string }[] = [
+const logResidentCareOptions: { id: string; label: string; to: string }[] = [
+  { id: 'counseling', label: 'Counseling session', to: '/admin/process-recordings?new=1' },
+  { id: 'home-visit', label: 'Home visit', to: '/admin/home-visitations?new=1' },
+  { id: 'education', label: 'Education', to: '/admin/residents?pickFor=education' },
+  { id: 'health', label: 'Health', to: '/admin/residents?pickFor=health' },
+  { id: 'intervention', label: 'Intervention', to: '/admin/residents?pickFor=plan' },
+  { id: 'incident', label: 'Incident', to: '/admin/residents?pickFor=incident' },
+]
+
+const otherQuickActions: { id: string; label: string; icon: React.ElementType; to: string }[] = [
   { id: 'add-resident', label: 'Add resident', icon: Users, to: '/admin/residents?new=1' },
   { id: 'add-donor', label: 'Add donor', icon: Heart, to: '/admin/donors?new=1' },
-  { id: 'log-session', label: 'Log session', icon: FileText, to: '/admin/process-recordings?new=1' },
-  { id: 'record-home-visit', label: 'Record home visit', icon: Home, to: '/admin/home-visitations?new=1' },
-  { id: 'add-education', label: 'Add education record', icon: GraduationCap, to: '/admin/residents?pickFor=education' },
-  { id: 'add-health', label: 'Add health report', icon: HeartPulse, to: '/admin/residents?pickFor=health' },
-  { id: 'add-incident', label: 'Add incident report', icon: ShieldAlert, to: '/admin/residents?pickFor=incident' },
-  { id: 'add-plan', label: 'Add intervention plan', icon: ClipboardList, to: '/admin/residents?pickFor=plan' },
   { id: 'email-donors', label: 'Email donors', icon: Mail, to: '/admin/email-hub' },
-  { id: 'reports', label: 'Reports', icon: BarChart3, to: '/admin/reports' },
 ]
+
+function LogResidentCareMenu() {
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!open) return
+    function onDoc(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('mousedown', onDoc)
+    return () => document.removeEventListener('mousedown', onDoc)
+  }, [open])
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-xs font-medium text-foreground shadow-sm transition-colors hover:border-primary/35 hover:bg-muted/50"
+        aria-expanded={open}
+        aria-haspopup="menu"
+      >
+        Log Resident Care
+        <ChevronDown className={`h-3.5 w-3.5 shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} aria-hidden />
+      </button>
+      {open ? (
+        <div
+          className="absolute left-0 z-50 mt-2 min-w-[15rem] rounded-xl border border-border bg-card py-1 shadow-lg"
+          role="menu"
+        >
+          {logResidentCareOptions.map((item) => (
+            <Link
+              key={item.id}
+              to={item.to}
+              role="menuitem"
+              className="block px-4 py-2.5 text-sm text-foreground hover:bg-muted/60"
+              onClick={() => setOpen(false)}
+            >
+              {item.label}
+            </Link>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  )
+}
 
 function daysUntil(dateStr: string | null): number | null {
   if (!dateStr) return null
@@ -201,8 +264,9 @@ export function AdminDashboardPage() {
       <div>
         <h2 className={pageTitle}>Admin Dashboard</h2>
         <p className={pageDesc}>Live overview of operations — residents, donors, conferences, and outcomes.</p>
-        <div className="mt-4 flex flex-wrap gap-2">
-          {quickActions.map(({ id, label, icon: Icon, to }) => (
+        <div className="mt-4 flex flex-wrap items-center gap-2">
+          <LogResidentCareMenu />
+          {otherQuickActions.map(({ id, label, icon: Icon, to }) => (
             <Link
               key={id}
               to={to}
@@ -222,12 +286,14 @@ export function AdminDashboardPage() {
           sub={`across ${data.safehouses.length} safehouse${data.safehouses.length === 1 ? '' : 's'}`}
           accentClass="bg-primary"
           icon={Users}
+          to="/admin/residents"
         />
         <KpiCard
           label="Monetary gifts (30 d)"
           value={formatUsd(data.monetaryDonationsLast30DaysPhp)}
           accentClass="bg-accent"
           icon={Heart}
+          to="/admin/contributions"
         />
         <KpiCard
           label="Reintegration success"
@@ -235,13 +301,15 @@ export function AdminDashboardPage() {
           sub={`${data.reintegration.completedCount} completed · ${data.reintegration.inProgressCount} in progress`}
           accentClass="bg-foreground/55"
           icon={TrendingUp}
+          to="/admin/reintigration-readiness"
         />
         <KpiCard
-          label="Process recordings"
+          label="Counseling sessions"
           value={String(data.processRecordingsCount)}
           sub="all-time sessions"
           accentClass="bg-primary/45"
           icon={ClipboardList}
+          to="/admin/process-recordings"
         />
         <KpiCard
           label="Home & field visits"
@@ -249,7 +317,54 @@ export function AdminDashboardPage() {
           sub="last 90 days"
           accentClass="bg-accent/70"
           icon={Video}
+          to="/admin/home-visitations"
         />
+      </div>
+
+      <div>
+        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">More shortcuts</p>
+        <div className="mt-2 grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+          <KpiCard
+            label="Residents on file"
+            value={residentsLoading ? '—' : String(residents.length)}
+            sub="All statuses in directory"
+            accentClass="bg-primary"
+            icon={Users}
+            to="/admin/residents"
+          />
+          <KpiCard
+            label="Upcoming conferences"
+            value={String(conferencesSorted.length)}
+            sub="Scheduled case conferences"
+            accentClass="bg-accent"
+            icon={CalendarDays}
+            to="/admin/case-conferences"
+          />
+          <KpiCard
+            label="Reintegration in progress"
+            value={String(data.reintegration.inProgressCount)}
+            sub={`${data.reintegration.completedCount} completed to date`}
+            accentClass="bg-foreground/55"
+            icon={Star}
+            to="/admin/reintigration-readiness"
+          />
+          <KpiCard
+            label="At-risk donors"
+            value={String(atRiskDonors.length)}
+            sub="Flagged for outreach"
+            accentClass="bg-primary/45"
+            icon={Mail}
+            to="/admin/email-hub"
+          />
+          <KpiCard
+            label="Program analytics"
+            value="Reports"
+            sub="Donations, safehouses, outcomes"
+            accentClass="bg-accent/70"
+            icon={BarChart3}
+            to="/admin/reports"
+          />
+        </div>
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">

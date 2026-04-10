@@ -253,7 +253,7 @@ function actionConfig(area: ImprovementArea): SectionAction[] {
     case 'total_sessions':
       return [
         { label: 'Review session history', section: 'session-history' },
-        { label: 'Add process note', section: 'session-form' },
+        { label: 'Add counseling session', section: 'session-form' },
         {
           label: 'Create support plan',
           section: 'plan-builder',
@@ -914,8 +914,8 @@ export function ReintegrationActionPlanPage() {
     }
     if (section === 'session-history') {
       return (
-        <SectionPanel title="Session history" description="Fuller counseling and process-recording details." tone="default">
-          {sortedSessions.length === 0 ? <p className="text-sm text-muted-foreground">No process recordings yet.</p> : (
+        <SectionPanel title="Session history" description="Fuller counseling session details." tone="default">
+          {sortedSessions.length === 0 ? <p className="text-sm text-muted-foreground">No counseling sessions yet.</p> : (
             <div className="space-y-3">
               {sortedSessions.slice(0, 8).map((record) => (
                 <div key={record.id} className="rounded-lg border border-border bg-background px-4 py-3">
@@ -939,7 +939,7 @@ export function ReintegrationActionPlanPage() {
     }
     if (section === 'session-form') {
       return (
-        <SectionPanel title="Add process note" description="Capture the richer process recording fields used by the program.">
+        <SectionPanel title="Add counseling session" description="Capture the counseling session fields used by the program.">
           <div className="grid gap-3 md:grid-cols-3">
             <label className={label}>
               Session date
