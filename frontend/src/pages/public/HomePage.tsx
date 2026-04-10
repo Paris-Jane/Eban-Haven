@@ -221,55 +221,28 @@ export function HomePage() {
         </div>
       </section>
 
-      <section className="relative overflow-hidden border-y border-border/60 bg-muted/20 py-20 lg:py-28">
-        <div className="absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-primary/5 to-transparent" />
-        <div className="absolute -left-16 top-16 h-40 w-40 rounded-full bg-accent/10 blur-3xl" />
-        <div className="absolute -right-20 bottom-10 h-48 w-48 rounded-full bg-primary/10 blur-3xl" />
+      <section className="relative overflow-hidden bg-muted/35 py-20 lg:py-28">
+        <div className="absolute inset-x-0 top-0 h-px bg-border/70" />
+        <div className="absolute inset-x-0 bottom-0 h-px bg-border/70" />
         <div className="mx-auto max-w-7xl px-6 lg:px-8">
-          <div className="relative overflow-hidden rounded-[2rem] border border-border/70 bg-background/85 p-8 shadow-sm backdrop-blur sm:p-10 lg:p-14">
-            <div className="grid items-start gap-10 lg:grid-cols-[0.9fr_1.1fr] lg:gap-14">
-              <div>
-                <span className="text-xs font-semibold uppercase tracking-widest text-accent">Ghana focus</span>
-                <h2 className="mt-3 font-heading text-3xl font-bold text-foreground lg:text-4xl">
-                  Women and girls in Ghana deserve safety and dignity
-                </h2>
-                <p className="mt-5 text-base leading-relaxed text-muted-foreground">
-                  We support trusted in-country partners with shelter, trauma-informed care, and safe pathways back to
-                  school, family, and community life.
-                </p>
-              </div>
-
-              <div className="space-y-4">
-                <div className="grid gap-3 sm:grid-cols-3">
-                  <div className="rounded-2xl border border-border/70 bg-primary/5 px-4 py-4">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-primary">Safety</p>
-                    <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-                      Safe shelter and immediate protection for girls in crisis.
-                    </p>
-                  </div>
-                  <div className="rounded-2xl border border-border/70 bg-accent/10 px-4 py-4">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-accent">Healing</p>
-                    <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-                      Counseling and recovery support rooted in trauma-informed care.
-                    </p>
-                  </div>
-                  <div className="rounded-2xl border border-border/70 bg-primary/5 px-4 py-4">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-primary">Future</p>
-                    <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-                      Education and reintegration planning that helps girls move forward.
-                    </p>
-                  </div>
-                </div>
-
-                <div className="rounded-2xl border border-border/70 bg-muted/30 px-5 py-5">
-                  <p className="text-sm leading-relaxed text-muted-foreground">
-                    Ghanaian women and girls, especially adolescents, can face heightened risk of violence,
-                    exploitation, and interrupted education. Poverty, mobility, and uneven access to services can leave
-                    survivors isolated. Investing in girls in Ghana strengthens families, communities, and the leaders
-                    of tomorrow.
-                  </p>
-                </div>
-              </div>
+          <div className="mx-auto max-w-3xl text-center">
+            <span className="text-xs font-semibold uppercase tracking-widest text-accent">Ghana focus</span>
+            <h2 className="mt-3 font-heading text-3xl font-bold text-foreground lg:text-4xl">
+              Women and girls in Ghana deserve safety and dignity
+            </h2>
+            <p className="mt-4 text-lg leading-relaxed text-muted-foreground">
+              We support trusted in-country partners with shelter, trauma-informed care, and safe pathways back to
+              school, family, and community life.
+            </p>
+            <div className="mx-auto mt-8 max-w-2xl rounded-2xl border border-border/70 bg-background/70 px-6 py-5">
+              <p className="text-sm leading-relaxed text-muted-foreground">
+                Ghanaian women and girls, especially adolescents, can face heightened risk of violence,
+                exploitation, and interrupted education. Poverty, mobility, and uneven access to services can leave
+                survivors isolated.
+              </p>
+              <p className="mt-4 text-sm leading-relaxed text-muted-foreground">
+                Investing in girls in Ghana strengthens families, communities, and the leaders of tomorrow.
+              </p>
             </div>
           </div>
         </div>
