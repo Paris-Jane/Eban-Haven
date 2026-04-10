@@ -108,8 +108,8 @@ public sealed class DonorChurnController(HavenDbContext db, IHttpClientFactory h
             COALESCE(
                 a.days_since_first_donation,
                 CASE
-                    WHEN COALESCE(s.first_donation_date, '') ~ '^\d{4}-\d{2}-\d{2}$'
-                        THEN EXTRACT(EPOCH FROM (NOW() - s.first_donation_date::date::timestamp))::int / 86400
+                    WHEN s.first_donation_date IS NOT NULL
+                        THEN EXTRACT(EPOCH FROM (NOW() - s.first_donation_date::timestamp))::int / 86400
                     ELSE 0
                 END,
                 0
@@ -155,8 +155,8 @@ public sealed class DonorChurnController(HavenDbContext db, IHttpClientFactory h
             COALESCE(
                 EXTRACT(EPOCH FROM (NOW() - MIN(r.donation_ts)))::int / 86400,
                 CASE
-                    WHEN COALESCE(s.first_donation_date, '') ~ '^\d{4}-\d{2}-\d{2}$'
-                        THEN EXTRACT(EPOCH FROM (NOW() - s.first_donation_date::date::timestamp))::int / 86400
+                    WHEN s.first_donation_date IS NOT NULL
+                        THEN EXTRACT(EPOCH FROM (NOW() - s.first_donation_date::timestamp))::int / 86400
                     ELSE 0
                 END,
                 0
