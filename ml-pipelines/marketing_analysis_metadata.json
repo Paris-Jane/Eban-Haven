@@ -1,51 +1,51 @@
 {
   "pipeline_version": "1.0.0",
-  "last_run": "2026-04-08",
-  "n_observations": 238,
-  "r_squared": 0.019,
+  "last_run": "2026-04-09",
+  "n_observations": 234,
+  "r_squared": 0.0246,
   "campaign_lift": {
-    "coefficient": 0.076,
-    "ci_lower": -0.1125,
-    "ci_upper": 0.2644,
-    "p_value": 0.4294,
-    "pct_effect": 7.89,
+    "coefficient": 0.0623,
+    "ci_lower": -0.123,
+    "ci_upper": 0.2476,
+    "p_value": 0.5098,
+    "pct_effect": 6.43,
     "significant": false
   },
   "channel_effects": [
     {
       "channel": "Campaign",
-      "coefficient": 0.1112,
-      "ci_lower": -0.194,
-      "ci_upper": 0.4163,
-      "p_value": 0.4751,
-      "pct_effect": 11.76,
+      "coefficient": 0.0015,
+      "ci_lower": -0.2543,
+      "ci_upper": 0.2574,
+      "p_value": 0.9906,
+      "pct_effect": 0.15,
       "significant": false
     },
     {
       "channel": "Event",
-      "coefficient": 0.1201,
-      "ci_lower": -0.1901,
-      "ci_upper": 0.4304,
-      "p_value": 0.448,
-      "pct_effect": 12.76,
+      "coefficient": 0.0192,
+      "ci_lower": -0.2532,
+      "ci_upper": 0.2916,
+      "p_value": 0.8901,
+      "pct_effect": 1.94,
       "significant": false
     },
     {
       "channel": "PartnerReferral",
-      "coefficient": 0.122,
-      "ci_lower": -0.2542,
-      "ci_upper": 0.4982,
-      "p_value": 0.525,
-      "pct_effect": 12.98,
+      "coefficient": 0.0188,
+      "ci_lower": -0.3241,
+      "ci_upper": 0.3616,
+      "p_value": 0.9146,
+      "pct_effect": 1.89,
       "significant": false
     },
     {
       "channel": "SocialMedia",
-      "coefficient": 0.1361,
-      "ci_lower": -0.1855,
-      "ci_upper": 0.4576,
-      "p_value": 0.4069,
-      "pct_effect": 14.58,
+      "coefficient": 0.0288,
+      "ci_lower": -0.2518,
+      "ci_upper": 0.3094,
+      "p_value": 0.8405,
+      "pct_effect": 2.92,
       "significant": false
     }
   ],
@@ -57,7 +57,7 @@
     "channel_source_unique_donors": 29,
     "acquired_via_social_donors": 13,
     "avg_ltv_social_acquired_php": 5610.78,
-    "avg_ltv_all_donors_php": 4185.11,
-    "mann_whitney_p_value": 0.6297
+    "avg_ltv_all_donors_php": 4223.24,
+    "mann_whitney_p_value": 0.6954
   }
 }

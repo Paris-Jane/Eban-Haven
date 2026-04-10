@@ -6,3 +6,7 @@ pandas==2.2.2
 numpy==2.0.2
 pydantic==2.7.1
 statsmodels==0.14.2
+matplotlib==3.9.2
+seaborn==0.13.2
+psycopg2-binary==2.9.9
+scipy==1.13.1

@@ -1,7 +1,8 @@
 {
-  "model_name": "donor_churn_gbm",
-  "model_version": "1.0.0",
-  "target": "supporters.status == Inactive",
+  "model_name": "donor_churn_rf",
+  "model_version": "3.0.0",
+  "target": "no donation in next 365 days after observation snapshot",
+  "labeling_strategy": "Historical donor snapshots censored to avoid future-lookahead leakage",
   "feature_columns": [
     "days_since_last_donation",
     "days_since_first_donation",
@@ -34,9 +35,19 @@
     "supporter_type",
     "relationship_type"
   ],
-  "roc_auc_test": 0.7611,
-  "f1_test": 0.6173,
-  "best_threshold": 0.1154,
-  "trained_on": "2026-04-07",
-  "currency": "PHP"
+  "roc_auc_test": 0.4203,
+  "f1_test": 0.25,
+  "precision_test": 0.2,
+  "recall_test": 0.3333,
+  "best_threshold": 0.2625,
+  "trained_on": "2026-04-10",
+  "currency": "PHP",
+  "n_training_samples": 112,
+  "n_test_samples": 29,
+  "n_positive_total": 27,
+  "n_negative_total": 114,
+  "observation_horizon_days": 365,
+  "cv_strategy": "StratifiedKFold(5) + RandomizedSearchCV on training set",
+  "cv_roc_auc_mean": 0.807,
+  "data_source": "csv_snapshot"
 }

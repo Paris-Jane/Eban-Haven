@@ -16,6 +16,9 @@ internal sealed record ReintegrationFeaturesPayload(
     [property: JsonPropertyName("age_at_entry")]             int    AgeAtEntry,
     [property: JsonPropertyName("days_in_program")]          int    DaysInProgram,
     [property: JsonPropertyName("referral_source")]          string ReferralSource,
+    [property: JsonPropertyName("current_risk_level")]       string CurrentRiskLevel,
+    [property: JsonPropertyName("reintegration_type")]       string ReintegrationType,
+    [property: JsonPropertyName("case_status")]              string CaseStatus,
     [property: JsonPropertyName("total_sessions")]           double TotalSessions,
     [property: JsonPropertyName("pct_progress_noted")]       double PctProgressNoted,
     [property: JsonPropertyName("pct_concerns_flagged")]     double PctConcernsFlagged,
@@ -27,7 +30,8 @@ internal sealed record ReintegrationFeaturesPayload(
     [property: JsonPropertyName("total_incidents")]          double TotalIncidents,
     [property: JsonPropertyName("num_severe_incidents")]     double NumSevereIncidents,
     [property: JsonPropertyName("total_plans")]              double TotalPlans,
-    [property: JsonPropertyName("pct_plans_achieved")]       double PctPlansAchieved
+    [property: JsonPropertyName("pct_plans_achieved")]       double PctPlansAchieved,
+    [property: JsonPropertyName("active_plan_count")]        double ActivePlanCount
 );
 
 internal sealed record ImprovementArea(
@@ -97,12 +101,13 @@ internal sealed record ResidentCohortRow(
 [Authorize]
 public sealed class ReintegrationReadinessController(HavenDbContext db, IHttpClientFactory httpFactory) : ControllerBase
 {
-    // Extracts the 16-feature vector expected by the Reintegration Readiness GBM.
+    // Extracts the enriched feature vector expected by the Reintegration Readiness model.
     //
     // Column inventory (only EF-mapped columns are queried — optional migration columns
     // attendance_rate / psychological_checkup_done / age_upon_admission / referral_source
     // may not exist on all environments, so we use safe defaults for those features):
-    //  residents          : resident_id, safehouse_id, date_of_admission, present_age
+    //  residents          : resident_id, safehouse_id, date_of_admission, present_age,
+    //                       current_risk_level, reintegration_type, case_status
     //  process_recordings : progress_noted (bool), concerns_flagged (bool)
     //  education_records  : progress_percent
     //  health_wellbeing   : general_health_score
@@ -140,6 +145,13 @@ public sealed class ReintegrationReadinessController(HavenDbContext db, IHttpCli
           plan_agg AS (
             SELECT
               COUNT(*)::float                                                                    AS total_plans,
+              COUNT(*) FILTER (
+                WHERE status IS NOT NULL
+                  AND status NOT ILIKE 'Achieved'
+                  AND status NOT ILIKE 'Completed'
+                  AND status NOT ILIKE 'Cancelled'
+                  AND status NOT ILIKE 'Closed'
+              )::float                                                                          AS active_plan_count,
               CASE
                 WHEN COUNT(*) = 0 THEN 0.0
                 ELSE COUNT(*) FILTER (WHERE status ILIKE 'Achieved' OR status ILIKE 'Completed')::float / COUNT(*)::float
@@ -162,6 +174,9 @@ public sealed class ReintegrationReadinessController(HavenDbContext db, IHttpCli
               ELSE 0
             END
           )                                                                                     AS days_in_program,
+          COALESCE(r.current_risk_level, 'Unknown')                                             AS current_risk_level,
+          COALESCE(r.reintegration_type, 'Unknown')                                             AS reintegration_type,
+          COALESCE(r.case_status, 'Unknown')                                                    AS case_status,
           sa.total_sessions,
           sa.pct_progress_noted,
           sa.pct_concerns_flagged,
@@ -171,7 +186,8 @@ public sealed class ReintegrationReadinessController(HavenDbContext db, IHttpCli
           ia.total_incidents,
           ia.num_severe_incidents,
           pa.total_plans,
-          pa.pct_plans_achieved
+          pa.pct_plans_achieved,
+          pa.active_plan_count
         FROM residents r
         LEFT JOIN safehouses s ON s.safehouse_id = r.safehouse_id
         CROSS JOIN session_agg  sa
@@ -312,6 +328,9 @@ public sealed class ReintegrationReadinessController(HavenDbContext db, IHttpCli
             AgeAtEntry: (int)ToDouble(row.age_at_entry, 15),
             DaysInProgram: (int)ToDouble(row.days_in_program, 0),
             ReferralSource: "Unknown",
+            CurrentRiskLevel: (string)(row.current_risk_level ?? "Unknown"),
+            ReintegrationType: (string)(row.reintegration_type ?? "Unknown"),
+            CaseStatus: (string)(row.case_status ?? "Unknown"),
             TotalSessions: ToDouble(row.total_sessions, 0),
             PctProgressNoted: ToDouble(row.pct_progress_noted, 0),
             PctConcernsFlagged: ToDouble(row.pct_concerns_flagged, 0),
@@ -323,7 +342,8 @@ public sealed class ReintegrationReadinessController(HavenDbContext db, IHttpCli
             TotalIncidents: ToDouble(row.total_incidents, 0),
             NumSevereIncidents: ToDouble(row.num_severe_incidents, 0),
             TotalPlans: ToDouble(row.total_plans, 0),
-            PctPlansAchieved: ToDouble(row.pct_plans_achieved, 0));
+            PctPlansAchieved: ToDouble(row.pct_plans_achieved, 0),
+            ActivePlanCount: ToDouble(row.active_plan_count, 0));
 
     private async Task<ReintegrationPredictionResponse> PredictReintegrationAsync(ReintegrationFeaturesPayload payload, CancellationToken ct)
     {

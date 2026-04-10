@@ -29,12 +29,10 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy unified service + both model artifacts
-COPY app.py .
-COPY reintegration_model.joblib .
-COPY reintegration_model_metadata.json .
-COPY donor_churn_model.joblib .
-COPY donor_churn_metadata.json .
+# Copy the ml-pipelines workspace. Model artifacts are optional:
+# the service now starts cleanly and returns 503 for endpoints whose
+# artifacts have not been generated yet.
+COPY . .
 
 EXPOSE 8000
 

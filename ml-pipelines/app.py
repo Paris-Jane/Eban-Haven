@@ -22,14 +22,29 @@ _BASE = Path(__file__).parent
 
 # ── Load models at startup ─────────────────────────────────────────────────────
 
-def _load(model_file: str, meta_file: str):
-    mp = _BASE / model_file
-    mj = _BASE / meta_file
-    if not mp.exists():
-        raise FileNotFoundError(f"Model not found: {mp}")
-    return joblib.load(mp), json.loads(mj.read_text())
+def _read_metadata(meta_file: str) -> dict:
+    meta_path = _BASE / meta_file
+    if not meta_path.exists():
+        return {}
+    return json.loads(meta_path.read_text())
 
-_reint_model, _reint_meta   = _load("reintegration_model.joblib",  "reintegration_model_metadata.json")
+
+def _load_optional(model_file: str, meta_file: str):
+    mp = _BASE / model_file
+    if not mp.exists():
+        return None, _read_metadata(meta_file)
+    return joblib.load(mp), _read_metadata(meta_file)
+
+
+def _require_model(model, label: str):
+    if model is None:
+        raise HTTPException(
+            status_code=503,
+            detail=f"{label} model not available. Run the matching notebook to generate the artifact first.",
+        )
+
+
+_reint_model, _reint_meta   = _load_optional("reintegration_model.joblib",  "reintegration_model_metadata.json")
 
 # Build feature-importance lookup.
 # The model may be a raw estimator or a Pipeline; importances live on the
@@ -53,7 +68,7 @@ def _extract_importances(model) -> list[float]:
     return []
 
 _raw_importances = _extract_importances(_reint_model)
-_feature_cols    = _reint_meta["feature_columns"]
+_feature_cols    = _reint_meta.get("feature_columns", [])
 if len(_raw_importances) == len(_feature_cols):
     _reint_feature_importance: dict[str, float] = dict(zip(_feature_cols, _raw_importances))
 else:
@@ -70,6 +85,9 @@ _HIGHER_IS_BETTER = {
 
 _FEATURE_LABELS: dict[str, str] = {
     "days_in_program":          "Time in programme",
+    "current_risk_level":       "Current risk level",
+    "reintegration_type":       "Reintegration type",
+    "case_status":              "Case status",
     "total_sessions":           "Counselling sessions",
     "pct_progress_noted":       "Session progress rate",
     "pct_concerns_flagged":     "Concern rate",
@@ -82,10 +100,14 @@ _FEATURE_LABELS: dict[str, str] = {
     "num_severe_incidents":     "Severe incidents",
     "total_plans":              "Intervention plans",
     "pct_plans_achieved":       "Plans achieved",
+    "active_plan_count":        "Active intervention plans",
 }
 
 _FEATURE_SUGGESTIONS: dict[str, str] = {
     "days_in_program":          "Continue the resident in the programme to build stability and skills over time.",
+    "current_risk_level":       "Reduce current safety and stability risks before moving toward reintegration.",
+    "reintegration_type":       "Clarify the most appropriate reintegration pathway and prepare the resident for it.",
+    "case_status":              "Resolve outstanding case-management blockers that are slowing reintegration decisions.",
     "total_sessions":           "Schedule additional counselling or therapeutic sessions.",
     "pct_progress_noted":       "Ensure progress is consistently documented in each session.",
     "pct_concerns_flagged":     "Address outstanding concerns raised during sessions with the resident.",
@@ -98,15 +120,16 @@ _FEATURE_SUGGESTIONS: dict[str, str] = {
     "num_severe_incidents":     "Prioritise de-escalation support and address root causes of severe incidents.",
     "total_plans":              "Create additional targeted intervention plans with the resident.",
     "pct_plans_achieved":       "Review unmet intervention goals and adjust plans to improve completion rates.",
+    "active_plan_count":        "Close out or consolidate unfinished intervention plans so the resident is not carrying avoidable open items.",
 }
-_churn_model, _churn_meta   = _load("donor_churn_model.joblib",     "donor_churn_metadata.json")
+_churn_model, _churn_meta   = _load_optional("donor_churn_model.joblib", "donor_churn_metadata.json")
 
 # Upgrade propensity model — optional until notebook has been run
 _upgrade_model_path = _BASE / "donor_upgrade_model.joblib"
 _upgrade_meta_path  = _BASE / "donor_upgrade_metadata.json"
 try:
     if _upgrade_model_path.exists() and _upgrade_meta_path.exists():
-        _upgrade_model, _upgrade_meta = _load("donor_upgrade_model.joblib", "donor_upgrade_metadata.json")
+        _upgrade_model, _upgrade_meta = _load_optional("donor_upgrade_model.joblib", "donor_upgrade_metadata.json")
     else:
         _upgrade_model, _upgrade_meta = None, json.loads(_upgrade_meta_path.read_text()) if _upgrade_meta_path.exists() else {}
 except Exception as _upgrade_load_err:
@@ -148,8 +171,8 @@ def health():
     return {
         "status": "ok",
         "models": {
-            "reintegration_readiness": _reint_meta.get("model_version", "1.0.0"),
-            "donor_churn":             _churn_meta.get("model_version",  "1.0.0"),
+            "reintegration_readiness": _reint_meta.get("model_version", "not_trained") if _reint_model else "not_trained",
+            "donor_churn":             _churn_meta.get("model_version",  "not_trained") if _churn_model else "not_trained",
             "donor_upgrade_propensity": _upgrade_meta.get("model_version", "not_trained") if _upgrade_model else "not_trained",
         },
         "analyses": {
@@ -197,6 +220,9 @@ class ResidentFeatures(BaseModel):
     age_at_entry:             int             = Field(..., ge=10, le=25)
     days_in_program:          int             = Field(..., ge=0)
     referral_source:          str
+    current_risk_level:       str             = "Unknown"
+    reintegration_type:       str             = "Unknown"
+    case_status:              str             = "Unknown"
     total_sessions:           float           = Field(..., ge=0)
     pct_progress_noted:       float           = Field(..., ge=0.0, le=1.0)
     pct_concerns_flagged:     float           = Field(..., ge=0.0, le=1.0)
@@ -209,6 +235,7 @@ class ResidentFeatures(BaseModel):
     num_severe_incidents:     float           = Field(..., ge=0)
     total_plans:              float           = Field(..., ge=0)
     pct_plans_achieved:       float           = Field(..., ge=0.0, le=1.0)
+    active_plan_count:        float           = Field(0.0, ge=0)
 
 class ImprovementArea(BaseModel):
     feature:         str
@@ -229,6 +256,8 @@ class ReintegrationResponse(BaseModel):
 def _compute_improvements(features: ResidentFeatures) -> list[ImprovementArea]:
     """Return top 3 actionable features ranked by importance-weighted gap from benchmark."""
     benchmarks: dict[str, float] = _reint_meta.get("benchmark_medians", {})
+    if not benchmarks:
+        return []
     row        = features.model_dump()
     improvements: list[ImprovementArea] = []
 
@@ -259,6 +288,7 @@ def _compute_improvements(features: ResidentFeatures) -> list[ImprovementArea]:
 
 @app.post("/predict/reintegration-readiness", response_model=ReintegrationResponse)
 def predict_reintegration(features: ResidentFeatures):
+    _require_model(_reint_model, "Reintegration readiness")
     threshold = _reint_meta["best_threshold"]
     try:
         row  = features.model_dump()
@@ -318,6 +348,7 @@ def _churn_risk_signals(f: DonorFeatures) -> list[str]:
     return signals
 
 def _score_churn(features: DonorFeatures) -> DonorChurnResponse:
+    _require_model(_churn_model, "Donor churn")
     threshold = _churn_meta["best_threshold"]
     row  = features.model_dump()
     df   = pd.DataFrame([row])[_churn_meta["feature_columns"]]
@@ -347,6 +378,7 @@ def predict_churn_batch(features_list: list[DonorFeatures]):
     """Score multiple supporters in one call. Caller filters by threshold/limit."""
     if not features_list:
         return []
+    _require_model(_churn_model, "Donor churn")
     try:
         rows  = [f.model_dump() for f in features_list]
         df    = pd.DataFrame(rows)[_churn_meta["feature_columns"]]
@@ -403,11 +435,7 @@ def _upgrade_signals(f: DonorUpgradeFeatures) -> list[str]:
     return signals
 
 def _score_upgrade(f: DonorUpgradeFeatures) -> DonorUpgradeResponse:
-    if _upgrade_model is None:
-        raise HTTPException(
-            status_code=503,
-            detail="Upgrade propensity model not trained yet. Run donor-upgrade-propensity.ipynb first.",
-        )
+    _require_model(_upgrade_model, "Donor upgrade propensity")
     threshold = _upgrade_meta["best_threshold"]
     row  = f.model_dump()
     df   = pd.DataFrame([row])[_upgrade_meta["feature_columns"]]
@@ -439,11 +467,7 @@ def predict_upgrade_batch(features_list: list[DonorUpgradeFeatures]):
     """Score multiple donors in one call. Returns all results sorted by upgrade_probability desc."""
     if not features_list:
         return []
-    if _upgrade_model is None:
-        raise HTTPException(
-            status_code=503,
-            detail="Upgrade propensity model not trained yet. Run donor-upgrade-propensity.ipynb first.",
-        )
+    _require_model(_upgrade_model, "Donor upgrade propensity")
     try:
         threshold = _upgrade_meta["best_threshold"]
         rows  = [f.model_dump() for f in features_list]

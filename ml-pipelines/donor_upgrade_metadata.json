@@ -27,7 +27,7 @@
   ],
   "roc_auc_loo": 0.7164,
   "f1_loo": 0.6667,
-  "best_threshold": 0.6241,
+  "best_threshold": 0.6258,
   "n_training_samples": 37,
   "n_positive": 18,
   "n_negative": 19,
