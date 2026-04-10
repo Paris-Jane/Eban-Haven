@@ -83,8 +83,16 @@ export function normalizeImprovementLabel(label: string): string {
   return label.replace(/\bProgramme\b/g, 'Program')
 }
 
+export function displayTopImprovementArea(result: ReintegrationResult): ImprovementArea | null {
+  const improvements = result.top_improvements ?? []
+  if (improvements.length === 0) return null
+
+  const actionableArea = improvements.find((area) => area.feature !== 'days_in_program')
+  return actionableArea ?? improvements[0]
+}
+
 export function topImprovementLabel(result: ReintegrationResult): string {
-  return normalizeImprovementLabel(result.top_improvements[0]?.label ?? 'Maintain current support plan')
+  return normalizeImprovementLabel(displayTopImprovementArea(result)?.label ?? 'Maintain current support plan')
 }
 
 export function deriveReadinessTier(probability: number): ReintegrationResult['risk_tier'] {

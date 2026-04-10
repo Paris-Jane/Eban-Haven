@@ -3,6 +3,7 @@ import { ArrowUpDown } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { getReintegrationReadinessCohort, type ResidentSummary } from '../../../api/admin'
 import {
+  displayTopImprovementArea,
   deriveReadinessPrediction,
   deriveReadinessTier,
   formatFeatureValue,
@@ -333,7 +334,7 @@ export function ReintegrationReadinessPage() {
                       const tier = deriveReadinessTier(row.readiness.reintegration_probability)
                       const prediction = deriveReadinessPrediction(row.readiness.reintegration_probability)
                       const tierConfig = TIER_CONFIG[tier]
-                      const topArea = row.readiness.top_improvements[0]
+                      const topArea = displayTopImprovementArea(row.readiness)
                       return (
                         <tr
                           key={row.id}
