@@ -18,7 +18,17 @@ builder.Services.Configure<CorsOptions>(builder.Configuration.GetSection(CorsOpt
 builder.Services.Configure<OpenAIOptions>(builder.Configuration.GetSection(OpenAIOptions.SectionName));
 builder.Services.Configure<GmailOptions>(builder.Configuration.GetSection(GmailOptions.SectionName));
 builder.Services.Configure<MetaOptions>(builder.Configuration.GetSection(MetaOptions.SectionName));
-builder.Services.Configure<GoogleAuthOptions>(builder.Configuration.GetSection(GoogleAuthOptions.SectionName));
+
+// Google Sign-In (GIS): browser posts ID token to POST /api/auth/google. Bind ClientId from user-secrets
+// Authentication:Google:* or legacy GoogleAuth:* (must match VITE_GOOGLE_CLIENT_ID). Do not use AddGoogle +
+// Identity.External here — that is a redirect/cookie flow and conflicts with JWT-only auth.
+builder.Services.Configure<GoogleAuthOptions>(options =>
+{
+    var authGoogle = builder.Configuration.GetSection("Authentication:Google");
+    var legacy = builder.Configuration.GetSection(GoogleAuthOptions.SectionName);
+    options.ClientId = authGoogle["ClientId"] ?? legacy["ClientId"] ?? string.Empty;
+    options.ClientSecret = authGoogle["ClientSecret"] ?? legacy["ClientSecret"] ?? string.Empty;
+});
 
 // Lab-aligned password rules (same shape as ASP.NET Identity PasswordOptions). Validation runs in PasswordPolicy + Register.
 builder.Services.Configure<IdentityOptions>(options =>
