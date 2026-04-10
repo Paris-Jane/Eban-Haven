@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { apiFetch, getStaffToken, parseJson } from '../../api/client'
 import {
+  actionableImprovementAreas,
   deriveReadinessPrediction,
   deriveReadinessTier,
   formatFeatureValue,
@@ -186,6 +187,7 @@ export function ReintegrationReadiness({ residentId }: { residentId: number }) {
   const prediction = deriveReadinessPrediction(result.reintegration_probability)
   const config = TIER_CONFIG[tier]
   const isReady = prediction === 'Ready'
+  const visibleImprovements = actionableImprovementAreas(result)
 
   return (
     <div
@@ -234,12 +236,12 @@ export function ReintegrationReadiness({ residentId }: { residentId: number }) {
           </p>
         </div>
 
-        {result.top_improvements.length > 0 && (
+        {visibleImprovements.length > 0 && (
           <div className="space-y-2">
             <p className="text-xs font-semibold text-gray-700">
               🎯 Top areas to address
             </p>
-            {result.top_improvements.map((area, i) => (
+            {visibleImprovements.map((area, i) => (
               <ImprovementCard key={area.feature} area={area} rank={i + 1} />
             ))}
           </div>

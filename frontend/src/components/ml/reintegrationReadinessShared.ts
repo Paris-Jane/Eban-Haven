@@ -83,11 +83,15 @@ export function normalizeImprovementLabel(label: string): string {
   return label.replace(/\bProgramme\b/g, 'Program')
 }
 
+export function actionableImprovementAreas(result: ReintegrationResult): ImprovementArea[] {
+  return (result.top_improvements ?? []).filter((area) => area.feature !== 'days_in_program')
+}
+
 export function displayTopImprovementArea(result: ReintegrationResult): ImprovementArea | null {
   const improvements = result.top_improvements ?? []
   if (improvements.length === 0) return null
 
-  const actionableArea = improvements.find((area) => area.feature !== 'days_in_program')
+  const actionableArea = actionableImprovementAreas(result)[0]
   return actionableArea ?? improvements[0]
 }
 

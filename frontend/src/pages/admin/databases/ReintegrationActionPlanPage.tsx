@@ -33,6 +33,7 @@ import {
   pageTitle,
 } from '../shared/adminStyles'
 import {
+  actionableImprovementAreas,
   deriveReadinessPrediction,
   deriveReadinessTier,
   formatFeatureValue,
@@ -137,7 +138,7 @@ function parseExtendedJson<T>(raw?: string | null): T | null {
 }
 
 function checklistItems(resident: CohortResident) {
-  const actions = resident.readiness.top_improvements.slice(0, 3).map((area) => area.suggestion)
+  const actions = actionableImprovementAreas(resident.readiness).slice(0, 3).map((area) => area.suggestion)
   return [...actions, 'Review reintegration status and set the next follow-up date.'].slice(0, 4)
 }
 
@@ -153,7 +154,7 @@ function defaultSavedPlan(resident: CohortResident): SavedActionPlan {
 }
 
 function readinessNarrative(resident: CohortResident) {
-  const topAreas = resident.readiness.top_improvements.slice(0, 2).map((area) => area.label.toLowerCase())
+  const topAreas = actionableImprovementAreas(resident.readiness).slice(0, 2).map((area) => normalizeImprovementLabel(area.label).toLowerCase())
   const list = topAreas.length > 0 ? topAreas.join(' and ') : 'consistent case review'
   const prediction = deriveReadinessPrediction(resident.readiness.reintegration_probability)
 
@@ -1289,10 +1290,10 @@ export function ReintegrationActionPlanPage() {
               <h2 className="text-base font-semibold text-foreground">Priority blockers</h2>
               <p className="mt-1 text-sm text-muted-foreground">Each blocker opens richer history or form details inline, using the relevant fields from the program records.</p>
             </div>
-            {resident.readiness.top_improvements.length === 0 ? (
+            {actionableImprovementAreas(resident.readiness).length === 0 ? (
               <p className="text-sm text-muted-foreground">No major blockers surfaced in the latest model run.</p>
             ) : (
-              resident.readiness.top_improvements.map((area, index) => {
+              actionableImprovementAreas(resident.readiness).map((area, index) => {
                 const themeClass =
                   area.feature.includes('health') || area.feature.includes('psych')
                     ? 'border-border bg-card'
