@@ -80,6 +80,8 @@ public sealed class MarketingAnalyticsController(
     IHttpClientFactory httpFactory
 ) : ControllerBase
 {
+    private sealed record SocialWindowSpec(string Key, string Label, DateTimeOffset? StartUtc, DateTimeOffset? EndUtc);
+
     private static double ToDouble(object? v, double fallback = 0) =>
         v is null or DBNull ? fallback : Convert.ToDouble(v);
 
@@ -323,9 +325,199 @@ public sealed class MarketingAnalyticsController(
             .ToArray();
     }
 
-    [HttpGet("summary")]
-    public async Task<IActionResult> GetSummary(CancellationToken ct)
+    private static SocialWindowSpec ResolveSocialWindow(string? socialWindow)
     {
+        var now = DateTimeOffset.UtcNow;
+        var normalized = socialWindow?.Trim().ToLowerInvariant();
+
+        return normalized switch
+        {
+            "day" or "today" => new("day", "Today", now.Date, now.Date.AddDays(1)),
+            "month" or "this-month" => new("month", "This Month", new DateTimeOffset(now.Year, now.Month, 1, 0, 0, 0, TimeSpan.Zero), new DateTimeOffset(now.Year, now.Month, 1, 0, 0, 0, TimeSpan.Zero).AddMonths(1)),
+            "year" or "this-year" => new("year", "This Year", new DateTimeOffset(now.Year, 1, 1, 0, 0, 0, TimeSpan.Zero), new DateTimeOffset(now.Year + 1, 1, 1, 0, 0, 0, TimeSpan.Zero)),
+            "last30" or "last-30-days" => new("last30", "Last 30 Days", now.AddDays(-30), now),
+            "last90" or "last-90-days" => new("last90", "Last 90 Days", now.AddDays(-90), now),
+            _ => new("all", "All Time", null, null),
+        };
+    }
+
+    private static object BuildSocialWindowParams(SocialWindowSpec window) => new
+    {
+        WindowStartUtc = window.StartUtc?.UtcDateTime,
+        WindowEndUtc = window.EndUtc?.UtcDateTime,
+    };
+
+    private static string DonationWindowClause(SocialWindowSpec window) =>
+        window.StartUtc is null ? string.Empty : "AND donation_date >= @WindowStartUtc AND donation_date < @WindowEndUtc";
+
+    private static string SupporterWindowClause(SocialWindowSpec window) =>
+        window.StartUtc is null ? string.Empty : "AND COALESCE(s.first_donation_date::timestamp, s.created_at::timestamp) >= @WindowStartUtc AND COALESCE(s.first_donation_date::timestamp, s.created_at::timestamp) < @WindowEndUtc";
+
+    private static string SocialPostWindowClause(SocialWindowSpec window, string prefix = "WHERE") =>
+        window.StartUtc is null ? string.Empty : $"{prefix} created_at >= @WindowStartUtc AND created_at < @WindowEndUtc";
+
+    private static string BuildSocialSpotlightSql(SocialWindowSpec window) =>
+        $$"""
+        SELECT
+            COUNT(*)::int AS social_count,
+            ROUND(COALESCE(SUM(amount), 0)::numeric, 2) AS social_total,
+            ROUND(COALESCE(AVG(amount), 0)::numeric, 2) AS social_avg,
+            ROUND(
+                100.0 * COALESCE(SUM(CASE WHEN is_recurring THEN 1 ELSE 0 END)::numeric / NULLIF(COUNT(*), 0), 0), 1
+            ) AS social_recurring_pct,
+            COUNT(DISTINCT supporter_id)::int AS social_unique_donors
+        FROM donations
+        WHERE donation_type = 'Monetary'
+          AND amount IS NOT NULL
+          AND amount > 0
+          AND channel_source = 'SocialMedia'
+          {{DonationWindowClause(window)}}
+        """;
+
+    private static string BuildSocialAcquiredSql(SocialWindowSpec window) =>
+        $$"""
+        SELECT
+            COUNT(DISTINCT s.supporter_id)::int AS acquired_donors,
+            ROUND(AVG(ltv.total_amount)::numeric, 2) AS avg_ltv_acquired
+        FROM supporters s
+        JOIN (
+            SELECT supporter_id, SUM(amount) AS total_amount
+            FROM donations
+            WHERE donation_type = 'Monetary' AND amount IS NOT NULL AND amount > 0
+            GROUP BY supporter_id
+        ) ltv ON ltv.supporter_id = s.supporter_id
+        WHERE s.acquisition_channel = 'SocialMedia'
+          {{SupporterWindowClause(window)}}
+        """;
+
+    private static string BuildPlatformEffectivenessSql(SocialWindowSpec window) =>
+        $$"""
+        SELECT
+            COALESCE(platform, 'Unknown') AS label,
+            COUNT(*)::int AS post_count,
+            ROUND(percentile_cont(0.5) WITHIN GROUP (ORDER BY COALESCE(estimated_donation_value_php, 0))::numeric, 2) AS median_revenue_per_post_php,
+            ROUND(percentile_cont(0.5) WITHIN GROUP (ORDER BY COALESCE(donation_referrals, 0))::numeric, 2) AS median_donation_referrals,
+            ROUND(percentile_cont(0.5) WITHIN GROUP (ORDER BY CASE WHEN COALESCE(reach, 0) > 0
+                THEN 1000.0 * COALESCE(estimated_donation_value_php, 0) / reach
+                ELSE 0 END)::numeric, 2) AS median_revenue_per_thousand_reach_php,
+            ROUND(percentile_cont(0.5) WITHIN GROUP (ORDER BY CASE WHEN COALESCE(reach, 0) > 0
+                THEN 100.0 * COALESCE(click_throughs, 0) / reach
+                ELSE 0 END)::numeric, 2) AS median_click_through_rate_pct
+        FROM social_media_posts
+        {{SocialPostWindowClause(window)}}
+        GROUP BY COALESCE(platform, 'Unknown')
+        ORDER BY median_revenue_per_post_php DESC, post_count DESC
+        """;
+
+    private static string BuildDayOfWeekEffectivenessSql(SocialWindowSpec window) =>
+        $$"""
+        SELECT
+            COALESCE(day_of_week, 'Unknown') AS label,
+            COUNT(*)::int AS post_count,
+            ROUND(percentile_cont(0.5) WITHIN GROUP (ORDER BY COALESCE(estimated_donation_value_php, 0))::numeric, 2) AS median_revenue_per_post_php,
+            ROUND(percentile_cont(0.5) WITHIN GROUP (ORDER BY COALESCE(donation_referrals, 0))::numeric, 2) AS median_donation_referrals,
+            ROUND(percentile_cont(0.5) WITHIN GROUP (ORDER BY CASE WHEN COALESCE(reach, 0) > 0
+                THEN 1000.0 * COALESCE(estimated_donation_value_php, 0) / reach
+                ELSE 0 END)::numeric, 2) AS median_revenue_per_thousand_reach_php,
+            ROUND(percentile_cont(0.5) WITHIN GROUP (ORDER BY CASE WHEN COALESCE(reach, 0) > 0
+                THEN 100.0 * COALESCE(click_throughs, 0) / reach
+                ELSE 0 END)::numeric, 2) AS median_click_through_rate_pct
+        FROM social_media_posts
+        {{SocialPostWindowClause(window)}}
+        GROUP BY COALESCE(day_of_week, 'Unknown')
+        ORDER BY median_revenue_per_post_php DESC, post_count DESC
+        """;
+
+    private static string BuildContentTopicEffectivenessSql(SocialWindowSpec window) =>
+        $$"""
+        SELECT
+            COALESCE(content_topic, 'Unknown') AS label,
+            COUNT(*)::int AS post_count,
+            ROUND(percentile_cont(0.5) WITHIN GROUP (ORDER BY COALESCE(estimated_donation_value_php, 0))::numeric, 2) AS median_revenue_per_post_php,
+            ROUND(percentile_cont(0.5) WITHIN GROUP (ORDER BY COALESCE(donation_referrals, 0))::numeric, 2) AS median_donation_referrals,
+            ROUND(percentile_cont(0.5) WITHIN GROUP (ORDER BY CASE WHEN COALESCE(reach, 0) > 0
+                THEN 1000.0 * COALESCE(estimated_donation_value_php, 0) / reach
+                ELSE 0 END)::numeric, 2) AS median_revenue_per_thousand_reach_php,
+            ROUND(percentile_cont(0.5) WITHIN GROUP (ORDER BY CASE WHEN COALESCE(reach, 0) > 0
+                THEN 100.0 * COALESCE(click_throughs, 0) / reach
+                ELSE 0 END)::numeric, 2) AS median_click_through_rate_pct
+        FROM social_media_posts
+        {{SocialPostWindowClause(window)}}
+        GROUP BY COALESCE(content_topic, 'Unknown')
+        ORDER BY median_revenue_per_post_php DESC, post_count DESC
+        """;
+
+    private static string BuildRecurringHashtagEffectivenessSql(SocialWindowSpec window) =>
+        $$"""
+        WITH exploded AS (
+            SELECT
+                LOWER(TRIM(tag)) AS label,
+                COALESCE(estimated_donation_value_php, 0) AS estimated_donation_value_php,
+                COALESCE(donation_referrals, 0) AS donation_referrals,
+                COALESCE(reach, 0) AS reach,
+                COALESCE(click_throughs, 0) AS click_throughs
+            FROM social_media_posts
+            CROSS JOIN LATERAL regexp_split_to_table(COALESCE(hashtags, ''), '\s*,\s*') AS tag
+            {{SocialPostWindowClause(window)}}
+              AND NULLIF(TRIM(tag), '') IS NOT NULL
+              AND NULLIF(TRIM(COALESCE(campaign_name, '')), '') IS NULL
+        )
+        SELECT
+            label,
+            COUNT(*)::int AS post_count,
+            ROUND(percentile_cont(0.5) WITHIN GROUP (ORDER BY estimated_donation_value_php)::numeric, 2) AS median_revenue_per_post_php,
+            ROUND(percentile_cont(0.5) WITHIN GROUP (ORDER BY donation_referrals)::numeric, 2) AS median_donation_referrals,
+            ROUND(percentile_cont(0.5) WITHIN GROUP (ORDER BY CASE WHEN reach > 0
+                THEN 1000.0 * estimated_donation_value_php / reach
+                ELSE 0 END)::numeric, 2) AS median_revenue_per_thousand_reach_php,
+            ROUND(percentile_cont(0.5) WITHIN GROUP (ORDER BY CASE WHEN reach > 0
+                THEN 100.0 * click_throughs / reach
+                ELSE 0 END)::numeric, 2) AS median_click_through_rate_pct
+        FROM exploded
+        GROUP BY label
+        HAVING COUNT(*) >= 20
+        ORDER BY median_revenue_per_post_php DESC, post_count DESC
+        LIMIT 12
+        """;
+
+    private static string BuildCampaignHashtagEffectivenessSql(SocialWindowSpec window) =>
+        $$"""
+        WITH exploded AS (
+            SELECT
+                LOWER(TRIM(tag)) AS label,
+                COALESCE(estimated_donation_value_php, 0) AS estimated_donation_value_php,
+                COALESCE(donation_referrals, 0) AS donation_referrals,
+                COALESCE(reach, 0) AS reach,
+                COALESCE(click_throughs, 0) AS click_throughs
+            FROM social_media_posts
+            CROSS JOIN LATERAL regexp_split_to_table(COALESCE(hashtags, ''), '\s*,\s*') AS tag
+            {{SocialPostWindowClause(window)}}
+              AND NULLIF(TRIM(tag), '') IS NOT NULL
+              AND NULLIF(TRIM(COALESCE(campaign_name, '')), '') IS NOT NULL
+        )
+        SELECT
+            label,
+            COUNT(*)::int AS post_count,
+            ROUND(percentile_cont(0.5) WITHIN GROUP (ORDER BY estimated_donation_value_php)::numeric, 2) AS median_revenue_per_post_php,
+            ROUND(percentile_cont(0.5) WITHIN GROUP (ORDER BY donation_referrals)::numeric, 2) AS median_donation_referrals,
+            ROUND(percentile_cont(0.5) WITHIN GROUP (ORDER BY CASE WHEN reach > 0
+                THEN 1000.0 * estimated_donation_value_php / reach
+                ELSE 0 END)::numeric, 2) AS median_revenue_per_thousand_reach_php,
+            ROUND(percentile_cont(0.5) WITHIN GROUP (ORDER BY CASE WHEN reach > 0
+                THEN 100.0 * click_throughs / reach
+                ELSE 0 END)::numeric, 2) AS median_click_through_rate_pct
+        FROM exploded
+        GROUP BY label
+        HAVING COUNT(*) >= 15
+        ORDER BY median_revenue_per_post_php DESC, post_count DESC
+        LIMIT 12
+        """;
+
+    [HttpGet("summary")]
+    public async Task<IActionResult> GetSummary(string socialWindow = "all", CancellationToken ct = default)
+    {
+        var window = ResolveSocialWindow(socialWindow);
+        var windowParams = BuildSocialWindowParams(window);
         var conn = db.Database.GetDbConnection();
         if (conn.State == ConnectionState.Closed)
             await conn.OpenAsync(ct);
@@ -355,9 +547,9 @@ public sealed class MarketingAnalyticsController(
                 PctRecurringDonors:   (decimal)(r.pct_recurring_donors ?? 0m)
             )).ToList();
 
-        var spot    = await conn.QuerySingleAsync<dynamic>(SocialSpotlightSql);
+        var spot    = await conn.QuerySingleAsync<dynamic>(BuildSocialSpotlightSql(window), windowParams);
         var ltvRow  = await conn.QuerySingleAsync<dynamic>(AvgLtvSql);
-        var acqRow  = await conn.QuerySingleOrDefaultAsync<dynamic>(SocialAcquiredSql);
+        var acqRow  = await conn.QuerySingleOrDefaultAsync<dynamic>(BuildSocialAcquiredSql(window), windowParams);
 
         var spotlight = new SocialMediaSpotlight(
             DonationCount:      (int)(spot.social_count      ?? 0),
@@ -377,11 +569,11 @@ public sealed class MarketingAnalyticsController(
         IReadOnlyList<EffectivenessRankingRow> campaignHashtags = [];
         try
         {
-            platforms = BuildEffectivenessRows(await conn.QueryAsync<dynamic>(PlatformEffectivenessSql), take: 7);
-            daysOfWeek = BuildEffectivenessRows(await conn.QueryAsync<dynamic>(DayOfWeekEffectivenessSql), take: 7);
-            contentTopics = BuildEffectivenessRows(await conn.QueryAsync<dynamic>(ContentTopicEffectivenessSql), take: 8);
-            recurringHashtags = BuildEffectivenessRows(await conn.QueryAsync<dynamic>(RecurringHashtagEffectivenessSql), take: 8);
-            campaignHashtags = BuildEffectivenessRows(await conn.QueryAsync<dynamic>(CampaignHashtagEffectivenessSql), take: 8);
+            platforms = BuildEffectivenessRows(await conn.QueryAsync<dynamic>(BuildPlatformEffectivenessSql(window), windowParams), take: 7);
+            daysOfWeek = BuildEffectivenessRows(await conn.QueryAsync<dynamic>(BuildDayOfWeekEffectivenessSql(window), windowParams), take: 7);
+            contentTopics = BuildEffectivenessRows(await conn.QueryAsync<dynamic>(BuildContentTopicEffectivenessSql(window), windowParams), take: 8);
+            recurringHashtags = BuildEffectivenessRows(await conn.QueryAsync<dynamic>(BuildRecurringHashtagEffectivenessSql(window), windowParams), take: 8);
+            campaignHashtags = BuildEffectivenessRows(await conn.QueryAsync<dynamic>(BuildCampaignHashtagEffectivenessSql(window), windowParams), take: 8);
         }
         catch
         {

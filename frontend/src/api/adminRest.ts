@@ -691,6 +691,7 @@ export async function deleteIncidentReport(id: number): Promise<void> {
   await apiFetch(`${base}/incident-reports/${id}`, { method: 'DELETE' })
 }
 
-export async function getMarketingAnalyticsSummary(): Promise<T.MarketingAnalyticsSummary> {
-  return parseJson<T.MarketingAnalyticsSummary>(await apiFetch('/api/marketing/summary'))
+export async function getMarketingAnalyticsSummary(socialWindow = 'all'): Promise<T.MarketingAnalyticsSummary> {
+  const q = socialWindow ? `?socialWindow=${encodeURIComponent(socialWindow)}` : ''
+  return parseJson<T.MarketingAnalyticsSummary>(await apiFetch(`/api/marketing/summary${q}`))
 }

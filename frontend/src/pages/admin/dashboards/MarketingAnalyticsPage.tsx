@@ -22,6 +22,15 @@ function pct(n: number) {
   return `${n.toFixed(1)}%`
 }
 
+const SOCIAL_WINDOW_OPTIONS = [
+  { value: 'all', label: 'All Time' },
+  { value: 'day', label: 'Today' },
+  { value: 'month', label: 'This Month' },
+  { value: 'year', label: 'This Year' },
+  { value: 'last30', label: 'Last 30 Days' },
+  { value: 'last90', label: 'Last 90 Days' },
+] as const
+
 // ── Campaign Revenue Bar Chart ────────────────────────────────────────────────
 
 function CampaignRevenueChart({ campaigns }: { campaigns: CampaignPerformance[] }) {
@@ -243,18 +252,19 @@ export function MarketingAnalyticsPage() {
   const [data, setData]       = useState<MarketingAnalyticsSummary | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError]     = useState<string | null>(null)
+  const [socialWindow, setSocialWindow] = useState<(typeof SOCIAL_WINDOW_OPTIONS)[number]['value']>('all')
 
   const load = useCallback(async () => {
     setLoading(true)
     setError(null)
     try {
-      setData(await getMarketingAnalyticsSummary())
+      setData(await getMarketingAnalyticsSummary(socialWindow))
     } catch {
       setError('Failed to load marketing analytics.')
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [socialWindow])
 
   useEffect(() => { load() }, [load])
 
@@ -265,6 +275,7 @@ export function MarketingAnalyticsPage() {
     recurringHashtags: [],
     campaignHashtags: [],
   }
+  const selectedSocialWindow = SOCIAL_WINDOW_OPTIONS.find((option) => option.value === socialWindow) ?? SOCIAL_WINDOW_OPTIONS[0]
 
   return (
     <div className="space-y-8">
@@ -303,85 +314,133 @@ export function MarketingAnalyticsPage() {
 
       {data && (
         <>
-          {/* Channel Attribution */}
-          <div className={card}>
-            <div className="mb-5 flex items-center gap-2">
-              <TrendingUp className="h-4 w-4 text-primary" />
-              <h3 className="text-sm font-semibold text-foreground">Channel Attribution</h3>
-              <span className="ml-auto text-xs text-muted-foreground">total raised per channel</span>
+          <section className="space-y-5">
+            <div className="overflow-hidden rounded-2xl border bg-gradient-to-br from-primary/12 via-background to-primary/5">
+              <div className="flex flex-col gap-4 px-5 py-5 lg:flex-row lg:items-end lg:justify-between">
+                <div>
+                  <div className="flex items-center gap-2 text-primary">
+                    <Share2 className="h-4 w-4" />
+                    <span className="text-xs font-semibold uppercase tracking-[0.24em]">Social Media Intelligence</span>
+                  </div>
+                  <h3 className="mt-2 text-2xl font-semibold text-foreground">What your social content is doing right now</h3>
+                  <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
+                    Social performance appears first here so your team can quickly see what is driving donations, referrals,
+                    and content momentum before dropping into broader fundraising attribution.
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {SOCIAL_WINDOW_OPTIONS.map((option) => (
+                    <button
+                      key={option.value}
+                      type="button"
+                      onClick={() => setSocialWindow(option.value)}
+                      className={`rounded-full border px-3 py-1.5 text-xs font-medium transition ${
+                        socialWindow === option.value
+                          ? 'border-primary bg-primary text-primary-foreground shadow-sm'
+                          : 'border-border bg-background/80 text-muted-foreground hover:bg-muted'
+                      }`}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
-            <ChannelRevenueChart channels={data.channels} />
-          </div>
 
-          {/* Campaign Performance */}
-          <div className={card}>
-            <div className="mb-5 flex items-center gap-2">
-              <Megaphone className="h-4 w-4 text-primary" />
-              <h3 className="text-sm font-semibold text-foreground">Campaign Revenue</h3>
-              <span className="ml-auto text-xs text-muted-foreground">total raised per campaign</span>
-            </div>
-            <CampaignRevenueChart campaigns={data.campaigns} />
-          </div>
-
-          {/* Social Media Spotlight */}
-          <div className={card}>
-            <div className="mb-4 flex items-center gap-2">
-              <Share2 className="h-4 w-4 text-primary" />
-              <h3 className="text-sm font-semibold text-foreground">Social Media Spotlight</h3>
-              <span className="ml-auto rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
-                channel_source = SocialMedia
-              </span>
-            </div>
-            <SocialSpotlight data={data.socialMediaSpotlight} />
-            <p className="mt-4 text-xs text-muted-foreground">
-              Rankings below use the live `social_media_posts` table and are ordered by median donation value per post,
-              with median donation referrals shown as supporting context.
-            </p>
-          </div>
-
-          <div>
-            <div className="mb-3 flex items-center gap-2">
-              <Target className="h-4 w-4 text-primary" />
-              <h3 className="text-sm font-semibold text-foreground">Effectiveness Rankings</h3>
-            </div>
-            <div className="grid gap-4 xl:grid-cols-2">
-              <EffectivenessCard
-                title="Top Platforms"
-                subtitle="ranked by median revenue/post"
-                rows={effectiveness.platforms}
-                icon={<TrendingUp className="h-4 w-4 text-primary" />}
-              />
-              <EffectivenessCard
-                title="Best Days To Post"
-                subtitle="ranked by median revenue/post"
-                rows={effectiveness.daysOfWeek}
-                icon={<CalendarDays className="h-4 w-4 text-primary" />}
-              />
-              <EffectivenessCard
-                title="Top Content Topics"
-                subtitle="ranked by median revenue/post"
-                rows={effectiveness.contentTopics}
-                icon={<Megaphone className="h-4 w-4 text-primary" />}
-              />
-              <EffectivenessCard
-                title="Best Recurring Hashtags"
-                subtitle="non-campaign posts, min 20"
-                rows={effectiveness.recurringHashtags}
-                icon={<Hash className="h-4 w-4 text-primary" />}
-              />
-              <EffectivenessCard
-                title="Best Campaign Hashtags"
-                subtitle="campaign-tagged posts, min 15"
-                rows={effectiveness.campaignHashtags}
-                icon={<Hash className="h-4 w-4 text-primary" />}
-              />
-            </div>
-            {!data.effectiveness && (
-              <p className="mt-3 text-xs text-muted-foreground">
-                Detailed post rankings are temporarily unavailable while the backend catches up with the latest analytics schema.
+            <div className={card}>
+              <div className="mb-4 flex flex-wrap items-center gap-2">
+                <Share2 className="h-4 w-4 text-primary" />
+                <h3 className="text-sm font-semibold text-foreground">Social Media Spotlight</h3>
+                <span className="ml-auto rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+                  {selectedSocialWindow.label}
+                </span>
+              </div>
+              <SocialSpotlight data={data.socialMediaSpotlight} />
+              <p className="mt-4 text-xs text-muted-foreground">
+                This filter applies to the social media spotlight and the rankings below. Spotlight cards summarize social-media-sourced
+                donation activity, while the rankings use the live `social_media_posts` table and are ordered by median donation value per post.
               </p>
-            )}
-          </div>
+            </div>
+
+            <div>
+              <div className="mb-3 flex items-center gap-2">
+                <Target className="h-4 w-4 text-primary" />
+                <h3 className="text-sm font-semibold text-foreground">Social Media Rankings</h3>
+                <span className="ml-auto text-xs text-muted-foreground">{selectedSocialWindow.label}</span>
+              </div>
+              <div className="grid gap-4 xl:grid-cols-2">
+                <EffectivenessCard
+                  title="Top Platforms"
+                  subtitle="ranked by median revenue/post"
+                  rows={effectiveness.platforms}
+                  icon={<TrendingUp className="h-4 w-4 text-primary" />}
+                />
+                <EffectivenessCard
+                  title="Best Days To Post"
+                  subtitle="ranked by median revenue/post"
+                  rows={effectiveness.daysOfWeek}
+                  icon={<CalendarDays className="h-4 w-4 text-primary" />}
+                />
+                <EffectivenessCard
+                  title="Top Content Topics"
+                  subtitle="ranked by median revenue/post"
+                  rows={effectiveness.contentTopics}
+                  icon={<Megaphone className="h-4 w-4 text-primary" />}
+                />
+                <EffectivenessCard
+                  title="Best Recurring Hashtags"
+                  subtitle="non-campaign posts, min 20"
+                  rows={effectiveness.recurringHashtags}
+                  icon={<Hash className="h-4 w-4 text-primary" />}
+                />
+                <EffectivenessCard
+                  title="Best Campaign Hashtags"
+                  subtitle="campaign-tagged posts, min 15"
+                  rows={effectiveness.campaignHashtags}
+                  icon={<Hash className="h-4 w-4 text-primary" />}
+                />
+              </div>
+              {!data.effectiveness && (
+                <p className="mt-3 text-xs text-muted-foreground">
+                  Detailed post rankings are temporarily unavailable while the backend catches up with the latest analytics schema.
+                </p>
+              )}
+            </div>
+          </section>
+
+          <section className="space-y-5">
+            <div className="overflow-hidden rounded-2xl border bg-gradient-to-br from-amber-500/12 via-background to-orange-500/6">
+              <div className="px-5 py-5">
+                <div className="flex items-center gap-2 text-amber-700">
+                  <LineChart className="h-4 w-4" />
+                  <span className="text-xs font-semibold uppercase tracking-[0.24em]">Fundraising Performance</span>
+                </div>
+                <h3 className="mt-2 text-2xl font-semibold text-foreground">Campaign and channel performance</h3>
+                <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
+                  These charts stay focused on overall fundraising attribution so you can separate broad revenue performance
+                  from the more tactical social-media insights above.
+                </p>
+              </div>
+            </div>
+
+            <div className={card}>
+              <div className="mb-5 flex items-center gap-2">
+                <TrendingUp className="h-4 w-4 text-primary" />
+                <h3 className="text-sm font-semibold text-foreground">Channel Attribution</h3>
+                <span className="ml-auto text-xs text-muted-foreground">total raised per channel</span>
+              </div>
+              <ChannelRevenueChart channels={data.channels} />
+            </div>
+
+            <div className={card}>
+              <div className="mb-5 flex items-center gap-2">
+                <Megaphone className="h-4 w-4 text-primary" />
+                <h3 className="text-sm font-semibold text-foreground">Campaign Revenue</h3>
+                <span className="ml-auto text-xs text-muted-foreground">total raised per campaign</span>
+              </div>
+              <CampaignRevenueChart campaigns={data.campaigns} />
+            </div>
+          </section>
 
         </>
       )}
