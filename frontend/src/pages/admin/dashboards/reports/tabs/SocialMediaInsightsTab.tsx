@@ -5,6 +5,7 @@ import { MLInsightCard } from '../MLInsightCard'
 import { MetricsTable } from '../MetricsTable'
 import { ReportEmptyState } from '../ReportEmptyState'
 import { card } from '../../../shared/adminStyles'
+import { formatUsd } from '../../../../../utils/currency'
 
 function dayOfWeek(d: Date) {
   return d.getDay()
@@ -136,7 +137,7 @@ export function SocialMediaInsightsTab({ marketing, plannedPostsFiltered }: Prop
               </li>
               <li className="flex justify-between border-b border-border py-2">
                 <span className="text-muted-foreground">PHP</span>
-                <span className="font-semibold">₱{Math.round(spotlight.totalPhp).toLocaleString()}</span>
+                <span className="font-semibold">{formatUsd(spotlight.totalPhp)}</span>
               </li>
               <li className="flex justify-between border-b border-border py-2">
                 <span className="text-muted-foreground">Unique donors</span>

@@ -1,10 +1,8 @@
-using System.Data;
 using System.Text.Json.Serialization;
 using Dapper;
-using EbanHaven.Api.DataAccess;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
+using Npgsql;
 
 namespace EbanHaven.Api.Controllers;
 
@@ -62,8 +60,18 @@ file record UpgradePredictionResponse(
 [ApiController]
 [Route("api/donors")]
 [Authorize]
-public sealed class DonorChurnController(HavenDbContext db, IHttpClientFactory httpFactory) : ControllerBase
+public sealed class DonorChurnController : ControllerBase
 {
+    private readonly string _connStr;
+    private readonly IHttpClientFactory _httpFactory;
+
+    public DonorChurnController(IConfiguration config, IHttpClientFactory httpFactory)
+    {
+        _connStr = config.GetConnectionString("Supabase")
+                   ?? config.GetConnectionString("SupaBaseConnection")
+                   ?? throw new InvalidOperationException("Missing DB connection string");
+        _httpFactory = httpFactory;
+    }
     // Feature extraction for all supporters.
     // Tables: public.supporters (proper columns), public.donations (proper columns).
     // Only Monetary donations with a non-null amount contribute to financial features.
@@ -185,9 +193,10 @@ public sealed class DonorChurnController(HavenDbContext db, IHttpClientFactory h
         int limit = 25,
         CancellationToken ct = default)
     {
-        var conn = db.Database.GetDbConnection();
-        if (conn.State == ConnectionState.Closed)
-            await conn.OpenAsync(ct);
+        try
+        {
+        await using var conn = new NpgsqlConnection(_connStr);
+        await conn.OpenAsync(ct);
         var rows = (await conn.QueryAsync<dynamic>(BatchFeatureSql)).ToList();
 
         if (rows.Count == 0)
@@ -210,22 +219,22 @@ public sealed class DonorChurnController(HavenDbContext db, IHttpClientFactory h
             RelationshipType:        (string)(r.relationship_type   ?? "Unknown")
         )).ToList();
 
-        var http = httpFactory.CreateClient("MlService");
-        HttpResponseMessage response;
+        var http = _httpFactory.CreateClient("MlService");
+        HttpResponseMessage mlResponse;
         try
         {
-            response = await http.PostAsJsonAsync("/predict/donor-churn-batch", payloads, ct);
+            mlResponse = await http.PostAsJsonAsync("/predict/donor-churn-batch", payloads, ct);
         }
         catch (HttpRequestException ex)
         {
             return Problem(detail: $"ML service unavailable: {ex.Message}", statusCode: 502);
         }
 
-        if (!response.IsSuccessStatusCode)
-            return Problem(detail: await response.Content.ReadAsStringAsync(ct),
-                           statusCode: (int)response.StatusCode);
+        if (!mlResponse.IsSuccessStatusCode)
+            return Problem(detail: await mlResponse.Content.ReadAsStringAsync(ct),
+                           statusCode: (int)mlResponse.StatusCode);
 
-        var predictions = await response.Content
+        var predictions = await mlResponse.Content
             .ReadFromJsonAsync<List<ChurnPredictionResponse>>(ct);
 
         var atRisk = predictions!
@@ -235,6 +244,11 @@ public sealed class DonorChurnController(HavenDbContext db, IHttpClientFactory h
             .ToList();
 
         return Ok(atRisk);
+        }
+        catch (Exception ex)
+        {
+            return Problem(detail: ex.Message, statusCode: 500);
+        }
     }
 
     // ── GET /api/donors/{supporterId}/churn-risk ──────────────────────────────
@@ -242,9 +256,10 @@ public sealed class DonorChurnController(HavenDbContext db, IHttpClientFactory h
     [HttpGet("{supporterId:int}/churn-risk")]
     public async Task<IActionResult> GetChurnRisk(int supporterId, CancellationToken ct)
     {
-        var conn = db.Database.GetDbConnection();
-        if (conn.State == ConnectionState.Closed)
-            await conn.OpenAsync(ct);
+        try
+        {
+        await using var conn = new NpgsqlConnection(_connStr);
+        await conn.OpenAsync(ct);
         var row = await conn.QueryFirstOrDefaultAsync<dynamic>(
             SingleFeatureSql, new { SupporterId = supporterId });
 
@@ -268,23 +283,28 @@ public sealed class DonorChurnController(HavenDbContext db, IHttpClientFactory h
             RelationshipType:        (string)(row.relationship_type   ?? "Unknown")
         );
 
-        var http = httpFactory.CreateClient("MlService");
-        HttpResponseMessage response;
+        var http = _httpFactory.CreateClient("MlService");
+        HttpResponseMessage mlResponse;
         try
         {
-            response = await http.PostAsJsonAsync("/predict/donor-churn", payload, ct);
+            mlResponse = await http.PostAsJsonAsync("/predict/donor-churn", payload, ct);
         }
         catch (HttpRequestException ex)
         {
             return Problem(detail: $"ML service unavailable: {ex.Message}", statusCode: 502);
         }
 
-        if (!response.IsSuccessStatusCode)
-            return Problem(detail: await response.Content.ReadAsStringAsync(ct),
-                           statusCode: (int)response.StatusCode);
+        if (!mlResponse.IsSuccessStatusCode)
+            return Problem(detail: await mlResponse.Content.ReadAsStringAsync(ct),
+                           statusCode: (int)mlResponse.StatusCode);
 
-        var prediction = await response.Content.ReadFromJsonAsync<ChurnPredictionResponse>(ct);
+        var prediction = await mlResponse.Content.ReadFromJsonAsync<ChurnPredictionResponse>(ct);
         return Ok(prediction);
+        }
+        catch (Exception ex)
+        {
+            return Problem(detail: ex.Message, statusCode: 500);
+        }
     }
 
     // ── GET /api/donors/upgrade-candidates ──────────────────────────────────────

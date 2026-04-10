@@ -10,11 +10,12 @@ import type {
   EffectivenessRanking,
   MarketingAnalyticsSummary,
 } from '../../../api/adminTypes'
+import { formatUsd } from '../../../utils/currency'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function php(n: number) {
-  return `₱${n.toLocaleString('en-PH', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`
+  return formatUsd(n)
 }
 
 function pct(n: number) {

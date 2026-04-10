@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { formatUsd } from '../../../utils/currency'
 import {
   alertError,
   btnPrimary,
@@ -45,14 +46,9 @@ import {
   uniqSortedStrings,
 } from '../shared/adminDataTable/adminFormatters'
 
-function formatMoney(amount: number | null, code: string | null) {
+function formatMoney(amount: number | null, _code: string | null) {
   if (amount == null) return '—'
-  const c = (code ?? 'PHP').trim() || 'PHP'
-  try {
-    return new Intl.NumberFormat(undefined, { style: 'currency', currency: c }).format(amount)
-  } catch {
-    return `${amount} ${c}`
-  }
+  return formatUsd(amount)
 }
 
 function emptyFilters() {

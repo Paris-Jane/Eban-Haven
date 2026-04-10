@@ -17,6 +17,7 @@ import {
 } from '../../../api/admin'
 import { PUBLIC_CONTACT, SITE_DISPLAY_NAME } from '../../../site'
 import { alertError, btnPrimary, card, input, label, pageDesc, pageTitle, sectionFormTitle } from '../shared/adminStyles'
+import { formatUsd } from '../../../utils/currency'
 
 const toneOptions = ['Warm', 'Direct', 'Celebratory', 'Re-engagement'] as const
 const signatureStorageKey = 'email_hub_signature_v1'
@@ -76,12 +77,8 @@ function loadSentEmailLog(): SentEmailLogEntry[] {
   }
 }
 
-function formatMoney(amount: number, currencyCode: string) {
-  try {
-    return new Intl.NumberFormat(undefined, { style: 'currency', currency: currencyCode || 'PHP' }).format(amount)
-  } catch {
-    return `${amount} ${currencyCode || 'PHP'}`
-  }
+function formatMoney(amount: number, _currencyCode: string) {
+  return formatUsd(amount)
 }
 
 function formatDate(value: string | null) {

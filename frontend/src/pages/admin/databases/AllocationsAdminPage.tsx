@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { formatUsd } from '../../../utils/currency'
 import {
   alertError,
   btnPrimary,
@@ -45,11 +46,7 @@ import {
 } from '../shared/adminDataTable/adminFormatters'
 
 function formatMoneyPhp(amount: number) {
-  try {
-    return new Intl.NumberFormat(undefined, { style: 'currency', currency: 'PHP' }).format(amount)
-  } catch {
-    return String(amount)
-  }
+  return formatUsd(amount)
 }
 
 function emptyFilters() {
@@ -364,7 +361,7 @@ export function AllocationsAdminPage() {
             onChange={(s) => setFilters((f) => ({ ...f, programAreas: s }))}
           />
           <MinMaxFilter
-            labelText="Amount allocated (PHP)"
+            labelText="Amount allocated (USD)"
             min={filters.amountMin}
             max={filters.amountMax}
             onMin={(v) => setFilters((f) => ({ ...f, amountMin: v }))}

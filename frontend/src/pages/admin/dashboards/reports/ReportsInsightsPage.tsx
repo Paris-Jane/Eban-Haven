@@ -4,6 +4,7 @@
  * charts are server-filtered; today most filtering is client-side on loaded aggregates.
  */
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { formatUsd } from '../../../../utils/currency'
 import {
   getAllocations,
   getAtRiskDonors,
@@ -318,7 +319,7 @@ export function ReportsInsightsPage() {
       {
         id: 'don',
         label: 'Donations',
-        value: `₱${Math.round(currSum.php).toLocaleString()}`,
+        value: formatUsd(currSum.php),
         sublabel: `${currSum.count} gifts in selected months`,
         deltaPct: donationDeltaPct,
         tone: donationDeltaPct != null && donationDeltaPct < -5 ? 'negative' : 'neutral',

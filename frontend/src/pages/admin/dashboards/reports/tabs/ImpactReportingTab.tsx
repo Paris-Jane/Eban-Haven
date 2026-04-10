@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import { formatUsd } from '../../../../../utils/currency'
 import type { ReportsSummary, DonationAllocation } from '../../../../../api/adminTypes'
 import type { PublicImpactSnapshot } from '../../../../../api/impact'
 import { ChartCard, SimpleHorizontalBarChart } from '../ChartCard'
@@ -81,7 +82,7 @@ export function ImpactReportingTab({ reports, allocationsFiltered, impactSnapsho
           ) : (
             <SimpleHorizontalBarChart
               rows={programRows}
-              formatValue={(n) => `₱${Math.round(n).toLocaleString()}`}
+              formatValue={(n) => formatUsd(n)}
               ariaLabel="Program allocation"
             />
           )}

@@ -30,10 +30,9 @@ import {
   statCardSub,
   statCardValue,
 } from '../shared/adminStyles'
+import { formatUsd } from '../../../utils/currency'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-
-const moneyPhp = new Intl.NumberFormat(undefined, { style: 'currency', currency: 'PHP' })
 
 function relativeDate(dateStr: string) {
   const diff = Date.now() - new Date(dateStr).getTime()
@@ -201,7 +200,7 @@ export function DonorDashboardAdminPage() {
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <KpiCard
           label="Monetary Gifts (30 Days)"
-          value={moneyPhp.format(data.monetaryDonationsLast30DaysPhp)}
+          value={formatUsd(data.monetaryDonationsLast30DaysPhp)}
           sub="Total monetary donations this month"
           accent="bg-emerald-500"
           icon={TrendingUp}
@@ -215,7 +214,7 @@ export function DonorDashboardAdminPage() {
         />
         <KpiCard
           label="Avg Gift (Recent)"
-          value={avgGift != null ? moneyPhp.format(avgGift) : '—'}
+          value={avgGift != null ? formatUsd(avgGift) : '—'}
           sub={`Across ${data.recentDonations.filter((d) => d.amount != null).length} recorded gifts`}
           accent="bg-sky-500"
           icon={Gift}
@@ -266,7 +265,7 @@ export function DonorDashboardAdminPage() {
                     </div>
                     <div className="shrink-0 text-right">
                       <p className="font-semibold tabular-nums text-foreground">
-                        {d.amount != null ? moneyPhp.format(d.amount) : '—'}
+                        {d.amount != null ? formatUsd(d.amount) : '—'}
                       </p>
                       <p className="text-xs text-muted-foreground">{relativeDate(d.donationDate)}</p>
                     </div>
@@ -296,7 +295,7 @@ export function DonorDashboardAdminPage() {
                         <div className="flex items-center justify-between text-sm">
                           <span className="font-medium text-foreground">{d.supporterDisplayName}</span>
                           <span className="font-semibold tabular-nums text-foreground">
-                            {moneyPhp.format(d.amount!)}
+                            {formatUsd(d.amount!)}
                           </span>
                         </div>
                         <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
@@ -398,7 +397,7 @@ export function DonorDashboardAdminPage() {
                       <p className="text-xs text-muted-foreground">{stats.count} gift{stats.count !== 1 ? 's' : ''}</p>
                     </div>
                     <span className="shrink-0 font-semibold tabular-nums text-foreground">
-                      {moneyPhp.format(stats.total)}
+                      {formatUsd(stats.total)}
                     </span>
                   </li>
                 ))}

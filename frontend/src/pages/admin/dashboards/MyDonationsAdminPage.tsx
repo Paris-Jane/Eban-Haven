@@ -2,8 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { ChevronDown, ChevronUp, Heart } from 'lucide-react'
 import { getAllocations, getDonations, type Donation, type DonationAllocation } from '../../../api/admin'
 import { alertError, card, pageDesc, pageTitle } from '../shared/adminStyles'
-
-const moneyPhp = new Intl.NumberFormat(undefined, { style: 'currency', currency: 'PHP' })
+import { formatUsd } from '../../../utils/currency'
 
 const impactDescriptions: Record<string, string> = {
   general: 'Helped cover urgent day-to-day needs across the program, giving the team flexibility to respond where support was most needed.',
@@ -99,7 +98,7 @@ export function MyDonationsAdminPage() {
           <div className="grid gap-4 sm:grid-cols-3">
             <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
               <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Total donated</p>
-              <p className="mt-1 font-heading text-2xl font-bold text-primary">{moneyPhp.format(totalDonated)}</p>
+              <p className="mt-1 font-heading text-2xl font-bold text-primary">{formatUsd(totalDonated)}</p>
             </div>
             <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
               <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Donations made</p>
@@ -109,7 +108,7 @@ export function MyDonationsAdminPage() {
               <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Most recent</p>
               <p className="mt-1 text-sm font-medium text-foreground">
                 {mostRecentDonation
-                  ? `${moneyPhp.format(mostRecentDonation.amount ?? 0)} · ${new Date(mostRecentDonation.donationDate).toLocaleDateString()}`
+                  ? `${formatUsd(mostRecentDonation.amount ?? 0)} · ${new Date(mostRecentDonation.donationDate).toLocaleDateString()}`
                   : '—'}
               </p>
             </div>
@@ -148,7 +147,7 @@ export function MyDonationsAdminPage() {
                     <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Latest recorded allocation</p>
                     <p className="mt-2 text-sm font-medium text-foreground">
                       {mostRecentAllocation
-                        ? `${moneyPhp.format(mostRecentAllocation.amountAllocated)} to ${mostRecentAllocation.programArea}${
+                        ? `${formatUsd(mostRecentAllocation.amountAllocated)} to ${mostRecentAllocation.programArea}${
                             mostRecentAllocation.safehouseName ? ` at ${mostRecentAllocation.safehouseName}` : ''
                           }`
                         : 'No allocations recorded yet.'}
@@ -168,7 +167,7 @@ export function MyDonationsAdminPage() {
                             <p className="text-sm font-semibold text-foreground">{entry.programArea}</p>
                             <p className="mt-1 text-sm text-muted-foreground">{describeImpact(entry.programArea)}</p>
                           </div>
-                          <p className="text-sm font-semibold text-primary">{moneyPhp.format(entry.total)}</p>
+                          <p className="text-sm font-semibold text-primary">{formatUsd(entry.total)}</p>
                         </div>
                         <p className="mt-3 text-sm text-muted-foreground">
                           {entry.safehouses.size > 0
@@ -204,7 +203,7 @@ export function MyDonationsAdminPage() {
                       </p>
                     </div>
                     <div className="text-right">
-                      <p className="font-medium text-foreground">{moneyPhp.format(donation.amount ?? 0)}</p>
+                      <p className="font-medium text-foreground">{formatUsd(donation.amount ?? 0)}</p>
                       <p className="text-xs text-muted-foreground">{new Date(donation.donationDate).toLocaleString()}</p>
                     </div>
                   </li>

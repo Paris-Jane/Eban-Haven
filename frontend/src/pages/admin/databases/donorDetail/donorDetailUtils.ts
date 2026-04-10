@@ -1,15 +1,11 @@
 import type { Donation } from '../../../../api/adminTypes'
+import { formatUsd } from '../../../../utils/currency'
 
-export const moneyPhp = new Intl.NumberFormat(undefined, { style: 'currency', currency: 'PHP' })
+export const moneyPhp = { format: formatUsd }
 
 export function formatDonationAmount(donation: Donation) {
   if (donation.amount == null) return '—'
-  const currency = donation.currencyCode?.trim() || 'PHP'
-  try {
-    return new Intl.NumberFormat(undefined, { style: 'currency', currency }).format(donation.amount)
-  } catch {
-    return `${donation.amount} ${currency}`
-  }
+  return formatUsd(donation.amount)
 }
 
 export function formatDonationDate(value: string) {

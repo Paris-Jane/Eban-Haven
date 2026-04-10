@@ -1,4 +1,5 @@
 import type { ReportsSummary, DashboardSummary, MarketingAnalyticsSummary, SafehousePerformance } from '../../../../../api/adminTypes'
+import { formatUsd } from '../../../../../utils/currency'
 import { ChartCard, SimpleHorizontalBarChart, SimpleLineChart } from '../ChartCard'
 import { InsightsSummaryPanel, type InsightCallout } from '../InsightsSummaryPanel'
 import { ReportEmptyState } from '../ReportEmptyState'
@@ -132,7 +133,7 @@ export function OverviewReportTab({
       <div className="grid gap-4 lg:grid-cols-2">
         <ChartCard
           title="Donation trend (monetary)"
-          description="Monthly PHP from monetary gifts in the filtered window."
+          description="Monthly USD from monetary gifts in the filtered window."
           helperText="Backend aggregates monetary donations by calendar month. Filters apply to which months are shown."
         >
           {linePts.length === 0 ? (
@@ -140,7 +141,7 @@ export function OverviewReportTab({
           ) : (
             <SimpleLineChart
               points={linePts}
-              formatY={(n) => `₱${Math.round(n).toLocaleString()}`}
+              formatY={(n) => formatUsd(n)}
               ariaLabel="Donation monetary trend line chart"
             />
           )}
@@ -162,7 +163,7 @@ export function OverviewReportTab({
         </ChartCard>
 
         <ChartCard
-          title="Channel contribution (PHP)"
+          title="Channel contribution (USD)"
           description="Top acquisition channels from marketing analytics summary."
           helperText={marketing ? undefined : 'Marketing analytics unavailable — check API /marketing/summary.'}
         >
@@ -171,7 +172,7 @@ export function OverviewReportTab({
           ) : (
             <SimpleHorizontalBarChart
               rows={channelRows}
-              formatValue={(n) => `₱${Math.round(n).toLocaleString()}`}
+              formatValue={(n) => formatUsd(n)}
               ariaLabel="Donations by channel"
             />
           )}

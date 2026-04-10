@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { AtRiskDonors } from '../../../components/ml/AtRiskDonors'
+import { formatUsd } from '../../../utils/currency'
 import {
   alertError,
   btnPrimary,
@@ -147,7 +148,6 @@ export function DonorsPage() {
     }
   }
 
-  const money = new Intl.NumberFormat(undefined, { style: 'currency', currency: 'PHP' })
 
   return (
     <div className="space-y-10">
@@ -228,7 +228,7 @@ export function DonorsPage() {
           </label>
           {dType === 'Monetary' && (
             <label className={label}>
-              Amount (PHP)
+              Amount
               <input
                 type="number"
                 step="0.01"
@@ -331,7 +331,7 @@ export function DonorsPage() {
                     <td className="px-4 py-3">{d.donationType}</td>
                     <td className="px-4 py-3">
                       {d.amount != null && d.currencyCode === 'PHP'
-                        ? money.format(d.amount)
+                        ? formatUsd(d.amount)
                         : d.estimatedValue != null
                           ? `${d.estimatedValue} ${d.impactUnit ?? ''}`
                           : '—'}
@@ -369,7 +369,7 @@ export function DonorsPage() {
                   <td className="px-4 py-3">{a.donationId}</td>
                   <td className="px-4 py-3">{a.safehouseName ?? `#${a.safehouseId}`}</td>
                   <td className="px-4 py-3">{a.programArea}</td>
-                  <td className="px-4 py-3 font-medium text-primary">{money.format(a.amountAllocated)}</td>
+                  <td className="px-4 py-3 font-medium text-primary">{formatUsd(a.amountAllocated)}</td>
                 </tr>
               ))}
             </tbody>

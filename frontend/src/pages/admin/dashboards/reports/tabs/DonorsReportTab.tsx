@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import { formatUsd } from '../../../../../utils/currency'
 import type {
   ReportsSummary,
   MarketingAnalyticsSummary,
@@ -78,7 +79,7 @@ export function DonorsReportTab({
       key: label,
       label,
       value,
-      sublabel: 'Allocated PHP',
+      sublabel: 'Allocated',
     }))
 
   return (
@@ -107,13 +108,13 @@ export function DonorsReportTab({
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <ChartCard title="Donation trend over time" description="Monetary PHP by month (filtered window).">
+        <ChartCard title="Donation trend over time" description="Monetary USD by month (filtered window).">
           {linePts.length === 0 ? (
             <ReportEmptyState />
           ) : (
             <SimpleLineChart
               points={linePts}
-              formatY={(n) => `₱${Math.round(n).toLocaleString()}`}
+              formatY={(n) => formatUsd(n)}
               ariaLabel="Donation trend"
             />
           )}
@@ -142,19 +143,19 @@ export function DonorsReportTab({
           ) : (
             <SimpleHorizontalBarChart
               rows={channelRows}
-              formatValue={(n) => `₱${Math.round(n).toLocaleString()}`}
+              formatValue={(n) => formatUsd(n)}
               ariaLabel="Channels"
             />
           )}
         </ChartCard>
 
-        <ChartCard title="Campaign performance" description="Filtered campaigns by PHP raised.">
+        <ChartCard title="Campaign performance" description="Filtered campaigns by USD raised.">
           {campaignRows.length === 0 ? (
             <ReportEmptyState title="No campaigns in filter" />
           ) : (
             <SimpleHorizontalBarChart
               rows={campaignRows}
-              formatValue={(n) => `₱${Math.round(n).toLocaleString()}`}
+              formatValue={(n) => formatUsd(n)}
               ariaLabel="Campaigns"
             />
           )}
@@ -170,7 +171,7 @@ export function DonorsReportTab({
           ) : (
             <SimpleHorizontalBarChart
               rows={programRows}
-              formatValue={(n) => `₱${Math.round(n).toLocaleString()}`}
+              formatValue={(n) => formatUsd(n)}
               ariaLabel="Program areas"
             />
           )}

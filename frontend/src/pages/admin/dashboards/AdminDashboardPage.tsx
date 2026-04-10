@@ -34,8 +34,7 @@ import {
   statCardSub,
   statCardValue,
 } from '../shared/adminStyles'
-
-const moneyPhp = new Intl.NumberFormat(undefined, { style: 'currency', currency: 'PHP' })
+import { formatUsd } from '../../../utils/currency'
 
 function KpiCard({
   label,
@@ -210,7 +209,7 @@ export function AdminDashboardPage() {
         />
         <KpiCard
           label="Monetary gifts (30 d)"
-          value={moneyPhp.format(data.monetaryDonationsLast30DaysPhp)}
+          value={formatUsd(data.monetaryDonationsLast30DaysPhp)}
           accentClass="bg-emerald-500"
           icon={Heart}
         />
@@ -479,7 +478,7 @@ export function AdminDashboardPage() {
                     </p>
                   </div>
                   <span className="ml-3 shrink-0 font-medium tabular-nums text-foreground">
-                    {d.amount != null ? moneyPhp.format(d.amount) : '—'}
+                    {d.amount != null ? formatUsd(d.amount) : '—'}
                   </span>
                 </li>
               ))}
