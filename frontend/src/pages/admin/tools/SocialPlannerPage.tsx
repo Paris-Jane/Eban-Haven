@@ -676,10 +676,10 @@ export function SocialPlannerPage() {
                       <button
                         type="button"
                         onClick={() => setStartMode('quick')}
-                        className="flex flex-col gap-3 rounded-xl border border-border bg-background p-5 text-left transition-colors hover:border-primary/40 hover:bg-primary/5"
+                        className="flex flex-col gap-3 rounded-xl border border-border bg-background p-5 text-left transition-colors hover:border-primary/30 hover:bg-primary/5 hover:shadow-sm"
                       >
-                        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400">
-                          <Zap className="h-4 w-4" />
+                        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-100 text-amber-700">
+                          <Zap className="h-5 w-5" />
                         </div>
                         <div>
                           <p className="text-sm font-semibold text-foreground">Quick Prompt</p>
@@ -693,10 +693,10 @@ export function SocialPlannerPage() {
                       <button
                         type="button"
                         onClick={() => { setStartMode('brief'); setBriefOpen(true) }}
-                        className="flex flex-col gap-3 rounded-xl border border-border bg-background p-5 text-left transition-colors hover:border-primary/40 hover:bg-primary/5"
+                        className="flex flex-col gap-3 rounded-xl border border-primary/30 bg-primary/5 p-5 text-left transition-colors hover:border-primary/50 hover:bg-primary/10 hover:shadow-sm"
                       >
-                        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                          <Target className="h-4 w-4" />
+                        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-primary-foreground">
+                          <Target className="h-5 w-5" />
                         </div>
                         <div>
                           <p className="text-sm font-semibold text-foreground">Targeted Plan</p>
@@ -710,10 +710,10 @@ export function SocialPlannerPage() {
                       <button
                         type="button"
                         onClick={() => setStartMode('chat')}
-                        className="flex flex-col gap-3 rounded-xl border border-border bg-background p-5 text-left transition-colors hover:border-primary/40 hover:bg-primary/5"
+                        className="flex flex-col gap-3 rounded-xl border border-border bg-background p-5 text-left transition-colors hover:border-primary/30 hover:bg-primary/5 hover:shadow-sm"
                       >
-                        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
-                          <MessageCircle className="h-4 w-4" />
+                        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-muted text-muted-foreground">
+                          <MessageCircle className="h-5 w-5" />
                         </div>
                         <div>
                           <p className="text-sm font-semibold text-foreground">Just Chat</p>
@@ -989,31 +989,30 @@ export function SocialPlannerPage() {
                                         onClose={() => setImageSearchKey(null)}
                                       />
                                     )}
-                                    <div className="mt-3 grid gap-3 text-xs md:grid-cols-2">
-                                      <div>
-                                        <p className="font-semibold uppercase tracking-wide text-foreground">Caption</p>
-                                        <p className="mt-1 whitespace-pre-wrap leading-relaxed text-muted-foreground">{idea.caption}</p>
-                                      </div>
-                                      <div className="space-y-2">
-                                        <div>
-                                          <p className="font-semibold uppercase tracking-wide text-foreground">Best time</p>
-                                          <p className="mt-1 text-muted-foreground">{idea.bestTime || '—'}</p>
-                                        </div>
-                                        <div>
-                                          <p className="font-semibold uppercase tracking-wide text-foreground">CTA</p>
-                                          <p className="mt-1 text-muted-foreground">{idea.cta || '—'}</p>
-                                        </div>
-                                        {idea.hashtags.length > 0 && (
-                                          <div>
-                                            <p className="font-semibold uppercase tracking-wide text-foreground">Hashtags</p>
-                                            <p className="mt-1 text-muted-foreground">{idea.hashtags.map(normalizeHashtag).join(' ')}</p>
-                                          </div>
-                                        )}
-                                      </div>
-                                    </div>
-                                    {idea.whyItFits && (
-                                      <p className="mt-3 text-xs italic text-muted-foreground">{idea.whyItFits}</p>
+                                    {idea.caption && (
+                                      <p className="mt-3 line-clamp-3 text-xs leading-relaxed text-muted-foreground">
+                                        {idea.caption}
+                                      </p>
                                     )}
+                                    <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1.5 border-t border-border/50 pt-3 text-xs text-muted-foreground">
+                                      {idea.bestTime && (
+                                        <span className="flex items-center gap-1">
+                                          <Clock className="h-3 w-3 shrink-0" />
+                                          {idea.bestTime}
+                                        </span>
+                                      )}
+                                      {idea.cta && (
+                                        <span className="flex items-center gap-1">
+                                          <span className="font-medium text-foreground/70">CTA:</span> {idea.cta}
+                                        </span>
+                                      )}
+                                      {idea.hashtags.length > 0 && (
+                                        <span className="truncate text-muted-foreground/70">
+                                          {idea.hashtags.map(normalizeHashtag).slice(0, 4).join(' ')}
+                                          {idea.hashtags.length > 4 ? ' …' : ''}
+                                        </span>
+                                      )}
+                                    </div>
                                   </article>
                                 )
                               })}
