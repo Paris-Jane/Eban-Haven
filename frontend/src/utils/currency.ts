@@ -1,9 +1,14 @@
 // Fixed display rate: 1 USD ≈ 56 PHP
 // Amounts are stored in PHP in the database; this converts for display only.
+const USD_TO_PHP_RATE = 56
 const PHP_TO_USD_RATE = 1 / 56
 
 export function phpToUsd(phpAmount: number): number {
   return phpAmount * PHP_TO_USD_RATE
+}
+
+export function usdToPhp(usdAmount: number): number {
+  return usdAmount * USD_TO_PHP_RATE
 }
 
 const _moneyUsd = new Intl.NumberFormat(undefined, {

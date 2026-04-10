@@ -5,7 +5,9 @@ import { createMyDonation, getDonorDashboard } from '../../api/donor'
 import type { Donation, DonationAllocation, Supporter } from '../../api/adminTypes'
 import { SITE_DISPLAY_NAME } from '../../site'
 
-import { formatUsd } from '../../utils/currency'
+import { formatUsd, usdToPhp } from '../../utils/currency'
+
+const moneyUsd = new Intl.NumberFormat(undefined, { style: 'currency', currency: 'USD' })
 
 const impactDescriptions: Record<string, string> = {
   general: 'Helped cover urgent day-to-day needs across the program, giving the team flexibility to respond where support was most needed.',
@@ -36,7 +38,7 @@ export function DonorDashboardPage() {
   const [submitting, setSubmitting] = useState(false)
   const [impactOpen, setImpactOpen] = useState(false)
 
-  const amounts = [500, 1000, 2500, 5000] as const
+  const amounts = [500, 1000, 1500, 2000] as const
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -92,13 +94,13 @@ export function DonorDashboardPage() {
       setError('Your account is not yet linked to a supporter profile. Contact the team or register with the same email you use to give.')
       return
     }
-    const amt =
+    const amtUsd =
       customAmt.trim() !== ''
         ? parseFloat(customAmt)
         : selectedAmt != null
           ? selectedAmt
           : 0
-    if (!Number.isFinite(amt) || amt <= 0) {
+    if (!Number.isFinite(amtUsd) || amtUsd <= 0) {
       setError('Enter a valid amount.')
       return
     }
@@ -107,7 +109,8 @@ export function DonorDashboardPage() {
     try {
       await createMyDonation({
         donationType: 'Monetary',
-        amount: amt,
+        // Donations are stored in PHP; convert from the USD amount shown in the donor UI.
+        amount: usdToPhp(amtUsd),
         currencyCode: 'PHP',
         notes: message.trim() || `${designate}${message ? ` · ${message}` : ''}`,
         campaignName: designate || undefined,
@@ -255,7 +258,7 @@ export function DonorDashboardPage() {
                           : 'border-border hover:bg-muted'
                       }`}
                     >
-                      {formatUsd(a)}
+                      {moneyUsd.format(a)}
                     </button>
                   ))}
                 </div>
@@ -304,7 +307,7 @@ export function DonorDashboardPage() {
                 >
                   {submitting
                     ? 'Saving…'
-                    : `Donate ${formatUsd(customAmt ? parseFloat(customAmt) || 0 : selectedAmt ?? 0)}`}
+                    : `Donate ${moneyUsd.format(customAmt ? parseFloat(customAmt) || 0 : selectedAmt ?? 0)}`}
                 </button>
               </form>
 
