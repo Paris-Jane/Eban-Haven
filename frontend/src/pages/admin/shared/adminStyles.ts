@@ -11,6 +11,9 @@ export const label = 'block text-xs font-medium text-muted-foreground'
 export const input =
   'mt-1 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
 
+/** Optional: explicit sizing/alignment with global checkbox skin (see index.css `input[type='checkbox']`). */
+export const checkboxInput = 'h-4 w-4 shrink-0 align-middle'
+
 export const btnPrimary =
   'rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:pointer-events-none disabled:opacity-50'
 

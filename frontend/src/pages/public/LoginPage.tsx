@@ -436,7 +436,6 @@ export function LoginPage() {
                   type="checkbox"
                   checked={remember}
                   onChange={(e) => setRemember(e.target.checked)}
-                  className="rounded border-input"
                 />
                 Remember this device
               </label>

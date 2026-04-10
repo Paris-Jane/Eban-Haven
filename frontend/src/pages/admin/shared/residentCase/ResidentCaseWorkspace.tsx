@@ -64,7 +64,7 @@ import {
 } from './activityTimelineUi'
 import { CaseDrawer, EmptyState, SectionHeader, ToggleField } from './caseUi'
 import { deriveReadinessPrediction, deriveReadinessTier } from '../../../../components/ml/reintegrationReadinessShared'
-import { RESIDENT_GOAL_RING, RESIDENT_GOAL_SECTION, RESIDENT_SEMANTIC } from '../residentSemanticPalette'
+import { RESIDENT_GOAL_CHART, RESIDENT_GOAL_RING, RESIDENT_SEMANTIC } from '../residentSemanticPalette'
 
 function gf(fields: Record<string, string>, ...keys: string[]): string {
   for (const k of keys) {
@@ -771,17 +771,6 @@ export function ResidentCaseWorkspace({ residentId }: { residentId: number }) {
     return { good: good.slice(0, 3), watch: watch.slice(0, 3), risk: risk.slice(0, 3) }
   }, [emotionalCounts, inc, latestEducation, latestEducationPlan, latestHealth, previousEducation, previousHealth, proc, unresolvedIncidents.length, vis])
 
-  const criticalBackground = useMemo(
-    () =>
-      [
-        gf(fields, 'current_risk_level', 'currentRiskLevel') ? `Risk ${gf(fields, 'current_risk_level', 'currentRiskLevel')}` : '',
-        gf(fields, 'reintegration_status', 'reintegrationStatus') ? `Reintegration ${gf(fields, 'reintegration_status', 'reintegrationStatus')}` : '',
-        gf(fields, 'special_needs_diagnosis', 'specialNeedsDiagnosis') ? `Special needs: ${gf(fields, 'special_needs_diagnosis', 'specialNeedsDiagnosis')}` : '',
-        gf(fields, 'notes_restricted', 'notesRestricted') ? 'Restricted case notes present' : '',
-      ].filter(Boolean),
-    [fields],
-  )
-
   const recentConcerns = useMemo(
     () =>
       proc
@@ -1276,19 +1265,6 @@ export function ResidentCaseWorkspace({ residentId }: { residentId: number }) {
             </button>
           </div>
 
-          {criticalBackground.length > 0 ? (
-            <div className={`rounded-2xl border px-5 py-4 ${RESIDENT_SEMANTIC.warning.border} ${RESIDENT_SEMANTIC.warning.bgSoft}`}>
-              <p className="text-sm font-semibold text-foreground">Critical background</p>
-              <div className="mt-3 flex flex-wrap gap-2">
-                {criticalBackground.map((item) => (
-                  <span key={item} className="rounded-full bg-background px-3 py-1.5 text-sm text-foreground">
-                    {item}
-                  </span>
-                ))}
-              </div>
-            </div>
-          ) : null}
-
           <ProfileSection
             title="Identity & case basics"
             open={profileSections.identity}
@@ -1614,7 +1590,7 @@ function ProgressRing({
     <div className="flex flex-col items-center text-center" aria-label={`${label}, ${Math.round(normalized)} percent of target`}>
       <div className="relative h-[9.25rem] w-[9.25rem] shrink-0">
         <svg viewBox={`0 0 ${vb} ${vb}`} className="h-full w-full -rotate-90">
-          <circle cx={c} cy={c} r={radius} fill="none" className="stroke-[#d8e3e1]/90 dark:stroke-border/55" strokeWidth={sw} />
+          <circle cx={c} cy={c} r={radius} fill="none" className="stroke-[#CADBD9]/95 dark:stroke-border/55" strokeWidth={sw} />
           <circle
             cx={c}
             cy={c}
@@ -1698,6 +1674,20 @@ function DrillInStatCard({
       <p className={valueClass}>{value}</p>
       {detail ? (
         <p className="mt-2 max-w-[14rem] text-center text-xs leading-snug text-muted-foreground">{detail}</p>
+      ) : null}
+    </div>
+  )
+}
+
+/** Safety latest-visit row: small title, then one or two detail lines at the same prominent size. */
+function SafetyLatestVisitStatCard({ title, lines }: { title: string; lines: [string, string?] }) {
+  const [primary, secondary] = lines
+  return (
+    <div className="flex min-h-[10.5rem] flex-col items-center justify-center rounded-xl border border-border bg-card px-4 py-5 text-center">
+      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{title}</p>
+      <p className="mt-3 max-w-full break-words px-1 text-base font-semibold leading-snug text-foreground">{primary}</p>
+      {secondary ? (
+        <p className="mt-2 max-w-full break-words px-1 text-base font-semibold leading-snug text-foreground">{secondary}</p>
       ) : null}
     </div>
   )
@@ -1944,33 +1934,25 @@ function HealthGoalDrillIn({
         {
           key: 'gen',
           name: 'General health',
-          strokeClass: 'stroke-[#1a5f5c] dark:stroke-[#3dafa2]',
-          fillClass: 'fill-[#1a5f5c] dark:fill-[#3dafa2]',
-          legendClass: 'bg-[#1a5f5c] dark:bg-[#3dafa2]',
+          ...RESIDENT_GOAL_CHART.teal,
           values: chronological.map((r) => r.healthScore),
         },
         {
           key: 'nut',
           name: 'Nutrition',
-          strokeClass: 'stroke-[#c9a227] dark:stroke-[#e3bc2a]',
-          fillClass: 'fill-[#c9a227] dark:fill-[#e3bc2a]',
-          legendClass: 'bg-[#c9a227] dark:bg-[#e3bc2a]',
+          ...RESIDENT_GOAL_CHART.ochre,
           values: chronological.map((r) => r.nutritionScore),
         },
         {
           key: 'slp',
           name: 'Sleep quality',
-          strokeClass: 'stroke-[#243d52] dark:stroke-[#6b94a8]',
-          fillClass: 'fill-[#243d52] dark:fill-[#6b94a8]',
-          legendClass: 'bg-[#243d52] dark:bg-[#6b94a8]',
+          ...RESIDENT_GOAL_CHART.navy,
           values: chronological.map((r) => r.sleepQualityScore),
         },
         {
           key: 'en',
           name: 'Energy level',
-          strokeClass: 'stroke-[#d4a08c] dark:stroke-[#e8b8a8]',
-          fillClass: 'fill-[#c98a72] dark:fill-[#e8b8a8]',
-          legendClass: 'bg-[#d4a08c] dark:bg-[#e8b8a8]',
+          ...RESIDENT_GOAL_CHART.peach,
           values: chronological.map((r) => r.energyLevelScore),
         },
       ],
@@ -2099,11 +2081,7 @@ function HealthGoalDrillIn({
     <div className="space-y-5">
       <div className="grid gap-4 lg:grid-cols-[1.35fr_0.85fr]">
         <div className="rounded-lg border border-border/80 bg-white px-3 py-3 shadow-sm dark:bg-card">
-          <p
-            className={`font-sans text-xs font-semibold uppercase tracking-[0.14em] ${RESIDENT_GOAL_SECTION.wellbeing}`}
-          >
-            WELLBEING TREND
-          </p>
+          <p className="font-sans text-xs font-semibold uppercase tracking-[0.14em] text-foreground">WELLBEING TREND</p>
           {chartPack && hasAnyChartPoint ? (
             <div className="mt-2 font-sans">
               <SimpleMultiLineChart
@@ -2127,14 +2105,8 @@ function HealthGoalDrillIn({
           {latest ? (
             <>
               <div className="flex flex-wrap items-start justify-between gap-2 border-b border-border/55 pb-2">
-                <p
-                  className={`font-sans text-xs font-semibold uppercase tracking-[0.14em] ${RESIDENT_GOAL_SECTION.recapTitle}`}
-                >
-                  LATEST RECAP
-                </p>
-                <span
-                  className={`shrink-0 font-sans text-sm font-semibold tabular-nums ${RESIDENT_GOAL_SECTION.recapDate}`}
-                >
+                <p className="font-sans text-xs font-semibold uppercase tracking-[0.14em] text-foreground">LATEST RECAP</p>
+                <span className="shrink-0 font-sans text-sm font-semibold tabular-nums text-foreground">
                   {formatAdminDate(latest.recordDate)}
                 </span>
               </div>
@@ -2161,7 +2133,7 @@ function HealthGoalDrillIn({
 
       <div className="grid gap-3 md:grid-cols-3">
         <div className="flex min-h-[8.5rem] flex-col items-center justify-center rounded-xl border border-border bg-card px-4 py-6 text-center">
-          <p className={`text-xs font-semibold uppercase tracking-wide ${RESIDENT_GOAL_SECTION.dental}`}>Latest dental</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-foreground">Latest dental</p>
           {latestDental ? (
             <p className="mt-3 text-lg font-semibold tabular-nums text-foreground">{formatAdminDate(latestDental.recordDate)}</p>
           ) : (
@@ -2169,7 +2141,7 @@ function HealthGoalDrillIn({
           )}
         </div>
         <div className="flex min-h-[8.5rem] flex-col items-center justify-center rounded-xl border border-border bg-card px-4 py-6 text-center">
-          <p className={`text-xs font-semibold uppercase tracking-wide ${RESIDENT_GOAL_SECTION.medical}`}>Latest medical</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-foreground">Latest medical</p>
           {latestMedical ? (
             <p className="mt-3 text-lg font-semibold tabular-nums text-foreground">{formatAdminDate(latestMedical.recordDate)}</p>
           ) : (
@@ -2177,9 +2149,7 @@ function HealthGoalDrillIn({
           )}
         </div>
         <div className="flex min-h-[8.5rem] flex-col items-center justify-center rounded-xl border border-border bg-card px-4 py-6 text-center">
-          <p className={`text-xs font-semibold uppercase tracking-wide ${RESIDENT_GOAL_SECTION.psychological}`}>
-            Latest psychological
-          </p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-foreground">Latest psychological</p>
           {latestPsych ? (
             <p className="mt-3 text-lg font-semibold tabular-nums text-foreground">{formatAdminDate(latestPsych.recordDate)}</p>
           ) : (
@@ -2331,7 +2301,6 @@ function HealthGoalDrillIn({
                       <label className="flex cursor-pointer items-center gap-2">
                         <input
                           type="checkbox"
-                          className="h-4 w-4 rounded border-border"
                           checked={dentalCheckDraft}
                           onChange={(e) => setDentalCheckDraft(e.target.checked)}
                         />
@@ -2340,7 +2309,6 @@ function HealthGoalDrillIn({
                       <label className="flex cursor-pointer items-center gap-2">
                         <input
                           type="checkbox"
-                          className="h-4 w-4 rounded border-border"
                           checked={medicalCheckDraft}
                           onChange={(e) => setMedicalCheckDraft(e.target.checked)}
                         />
@@ -2349,7 +2317,6 @@ function HealthGoalDrillIn({
                       <label className="flex cursor-pointer items-center gap-2">
                         <input
                           type="checkbox"
-                          className="h-4 w-4 rounded border-border"
                           checked={psychCheckDraft}
                           onChange={(e) => setPsychCheckDraft(e.target.checked)}
                         />
@@ -2487,9 +2454,7 @@ function EducationGoalDrillIn({
         {
           key: 'att',
           name: 'Attendance',
-          strokeClass: 'stroke-teal-600 dark:stroke-teal-400',
-          fillClass: 'fill-teal-600 dark:fill-teal-400',
-          legendClass: 'bg-teal-600 dark:bg-teal-400',
+          ...RESIDENT_GOAL_CHART.teal,
           values: chronologicalEdu.map((r) =>
             r.attendanceRate != null && Number.isFinite(r.attendanceRate) ? r.attendanceRate * 100 : null,
           ),
@@ -2497,9 +2462,7 @@ function EducationGoalDrillIn({
         {
           key: 'prg',
           name: 'Program progress',
-          strokeClass: 'stroke-violet-500 dark:stroke-violet-400',
-          fillClass: 'fill-violet-500 dark:fill-violet-400',
-          legendClass: 'bg-violet-500',
+          ...RESIDENT_GOAL_CHART.navy,
           values: chronologicalEdu.map((r) =>
             r.progressPercent != null && Number.isFinite(r.progressPercent) ? r.progressPercent : null,
           ),
@@ -2622,7 +2585,7 @@ function EducationGoalDrillIn({
           Percent attendance and program progress by record date (when captured).
         </p>
         {eduChartPack && hasEduChartPoint ? (
-          <div className="mt-2">
+          <div className="mt-2 font-sans">
             <SimpleMultiLineChart
               labels={eduChartPack.labels}
               series={eduChartPack.series}
@@ -2631,6 +2594,7 @@ function EducationGoalDrillIn({
               yMin={0}
               yMax={100}
               variant="minimal"
+              compactTypography
               ariaLabel="Attendance and program progress over time"
             />
           </div>
@@ -3016,38 +2980,40 @@ function SafetyGoalDrillIn({
         <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Latest safety visit</p>
         {latestVisit ? (
           <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-            <DrillInStatCard label="Date" value={formatAdminDate(latestVisit.visitDate)} detail="Most recent visit on file" />
-            <DrillInStatCard
-              label="Location"
-              value={latestVisit.locationVisited || '—'}
-              valueTone="body"
-              detail={
+            <SafetyLatestVisitStatCard
+              title="Date"
+              lines={[formatAdminDate(latestVisit.visitDate), 'Most recent visit on file']}
+            />
+            <SafetyLatestVisitStatCard
+              title="Location"
+              lines={[
+                latestVisit.locationVisited || '—',
                 latestVisit.socialWorker?.trim()
                   ? `Social worker: ${latestVisit.socialWorker}`
-                  : 'Where the visit took place'
-              }
+                  : 'Where the visit took place',
+              ]}
             />
-            <DrillInStatCard
-              label="Visit type"
-              value={latestVisit.visitType || '—'}
-              detail={purposeSnippet(latestVisit.purpose) ?? 'Purpose of visit'}
+            <SafetyLatestVisitStatCard
+              title="Visit type"
+              lines={[latestVisit.visitType || '—', purposeSnippet(latestVisit.purpose) ?? 'Purpose of visit']}
             />
-            <DrillInStatCard
-              label="Safety concerns"
-              value={latestVisit.safetyConcernsNoted ? 'Yes' : 'No'}
-              detail={
+            <SafetyLatestVisitStatCard
+              title="Safety concerns"
+              lines={[
+                latestVisit.safetyConcernsNoted ? 'Yes' : 'No',
                 latestVisit.safetyConcernsNoted
                   ? 'Concern noted on this visit'
                   : latestVisit.followUpNeeded
                     ? 'Follow-up flagged'
-                    : 'No concern flags'
-              }
+                    : 'No concern flags',
+              ]}
             />
-            <DrillInStatCard
-              label="Outcome"
-              value={latestVisit.visitOutcome || '—'}
-              valueTone="body"
-              detail={purposeSnippet(latestVisit.observations, 80) ?? 'Visit outcome summary'}
+            <SafetyLatestVisitStatCard
+              title="Outcome"
+              lines={[
+                latestVisit.visitOutcome || '—',
+                purposeSnippet(latestVisit.observations, 80) ?? 'Visit outcome summary',
+              ]}
             />
           </div>
         ) : (

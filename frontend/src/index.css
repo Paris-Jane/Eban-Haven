@@ -101,6 +101,60 @@
   body {
     top: 0 !important;
   }
+
+  /*
+   * Native checkboxes — site palette (primary teal), not OS default blue.
+   * Uses theme tokens so :root[data-theme='ocean'] stays consistent.
+   */
+  input[type='checkbox'] {
+    -webkit-appearance: none;
+    appearance: none;
+    box-sizing: border-box;
+    flex-shrink: 0;
+    width: 1rem;
+    height: 1rem;
+    margin: 0;
+    cursor: pointer;
+    vertical-align: middle;
+    border-radius: 0.25rem;
+    border: 1px solid var(--color-border);
+    background-color: var(--color-background);
+    transition:
+      background-color 0.15s ease,
+      border-color 0.15s ease,
+      box-shadow 0.15s ease;
+  }
+
+  input[type='checkbox']:checked {
+    border-color: var(--color-primary);
+    background-color: var(--color-primary);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E");
+    background-size: 0.7rem 0.7rem;
+    background-position: center;
+    background-repeat: no-repeat;
+  }
+
+  input[type='checkbox']:focus-visible {
+    outline: none;
+    box-shadow:
+      0 0 0 2px var(--color-background),
+      0 0 0 4px var(--color-ring);
+  }
+
+  input[type='checkbox']:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+  }
+
+  input[type='checkbox']:checked:disabled {
+    opacity: 0.45;
+  }
+
+  @media (forced-colors: active) {
+    input[type='checkbox'] {
+      all: revert;
+    }
+  }
 }
 
 .google-translate-host {

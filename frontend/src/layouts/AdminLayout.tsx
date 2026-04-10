@@ -3,7 +3,6 @@ import { Link, NavLink, Outlet } from 'react-router-dom'
 import {
   BarChart3,
   Bot,
-  Coins,
   Layers,
   LayoutDashboard,
   LineChart,
@@ -12,8 +11,6 @@ import {
   PanelLeftClose,
   PanelLeft,
   Star,
-  TrendingUp,
-  UserCheck,
   X,
 } from 'lucide-react'
 import { logoutAndReload } from '../api/auth'
@@ -41,14 +38,12 @@ const navGroups: NavGroup[] = [
     title: 'All',
     items: [
       { to: '/admin', label: 'Admin Dashboard', icon: LayoutDashboard, end: true },
-      { to: '/admin/my-donations', label: 'My Donations', icon: Coins },
       { to: '/admin/reports', label: 'Reports & Insights', icon: BarChart3 },
     ],
   },
   {
     title: 'Residents',
     items: [
-      { to: '/admin/social-worker-dashboard', label: 'Social Worker Dashboard', icon: UserCheck },
       { to: '/admin/resident-information', label: 'Resident Information', icon: Layers },
       { to: '/admin/reintigration-readiness', label: 'Reintigration Readiness', icon: Star },
     ],
@@ -56,7 +51,6 @@ const navGroups: NavGroup[] = [
   {
     title: 'Funding',
     items: [
-      { to: '/admin/donor-dashboard', label: 'Donor Dashboard', icon: TrendingUp },
       { to: '/admin/donor-all', label: 'Donor Information', icon: Layers },
       { to: '/admin/email-hub', label: 'Donor Outreach', icon: Mail },
     ],

@@ -57,17 +57,33 @@ export type ResidentSemanticKey = keyof typeof RESIDENT_SEMANTIC
  * Resident Goals tab — donut-inspired accents (teal, navy, ochre, peach). No white strokes on rings.
  * Aligns with goal summary cards and wellbeing chart series.
  */
+/** Goal progress rings — palette aligned with resident Goals doughnut (teal / navy / ochre). */
 export const RESIDENT_GOAL_RING: Record<'health' | 'education' | 'safety', string> = {
-  health: 'stroke-[#1a5f5c] dark:stroke-[#3dafa2]',
-  education: 'stroke-[#243d52] dark:stroke-[#6b94a8]',
-  safety: 'stroke-[#c9a227] dark:stroke-[#e3bc2a]',
+  health: 'stroke-[#3D6D66] dark:stroke-[#5a9e94]',
+  education: 'stroke-[#2D424D] dark:stroke-[#5a7582]',
+  safety: 'stroke-[#E09E4E] dark:stroke-[#f0b565]',
 }
 
-export const RESIDENT_GOAL_SECTION = {
-  wellbeing: 'text-[#1a5f5c] dark:text-[#5fd4c4]',
-  recapTitle: 'text-[#243d52] dark:text-[#8ab4c8]',
-  recapDate: 'text-[#1a6b7a] dark:text-[#5fd4c4]',
-  dental: 'text-[#1a5f5c] dark:text-[#5fd4c4]',
-  medical: 'text-[#243d52] dark:text-[#8ab4c8]',
-  psychological: 'text-[#b8860b] dark:text-[#e3bc2a]',
+/** Chart series / accents — teal, navy, ochre, peach from the same palette. */
+export const RESIDENT_GOAL_CHART = {
+  teal: {
+    strokeClass: 'stroke-[#3D6D66] dark:stroke-[#5a9e94]',
+    fillClass: 'fill-[#3D6D66] dark:fill-[#5a9e94]',
+    legendClass: 'bg-[#3D6D66] dark:bg-[#5a9e94]',
+  },
+  navy: {
+    strokeClass: 'stroke-[#2D424D] dark:stroke-[#5a7582]',
+    fillClass: 'fill-[#2D424D] dark:fill-[#5a7582]',
+    legendClass: 'bg-[#2D424D] dark:bg-[#5a7582]',
+  },
+  ochre: {
+    strokeClass: 'stroke-[#E09E4E] dark:stroke-[#f0b565]',
+    fillClass: 'fill-[#E09E4E] dark:fill-[#f0b565]',
+    legendClass: 'bg-[#E09E4E] dark:bg-[#f0b565]',
+  },
+  peach: {
+    strokeClass: 'stroke-[#E8A87C] dark:stroke-[#f0c4a8]',
+    fillClass: 'fill-[#d9946a] dark:fill-[#f0c4a8]',
+    legendClass: 'bg-[#E8A87C] dark:bg-[#f0c4a8]',
+  },
 } as const

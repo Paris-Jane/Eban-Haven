@@ -800,7 +800,6 @@ export function EmailHubPage() {
                           type="checkbox"
                           checked={preferAi}
                           onChange={(event) => setPreferAi(event.target.checked)}
-                          className="h-4 w-4 rounded border-border"
                         />
                         Try AI first, then fall back to template
                       </label>
