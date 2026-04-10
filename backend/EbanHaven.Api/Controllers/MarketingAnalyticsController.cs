@@ -356,6 +356,11 @@ public sealed class MarketingAnalyticsController(
     private static string SocialPostWindowClause(SocialWindowSpec window, string prefix = "WHERE") =>
         window.StartUtc is null ? string.Empty : $"{prefix} created_at >= @WindowStartUtc AND created_at < @WindowEndUtc";
 
+    private static string SocialPostHashtagClause(SocialWindowSpec window) =>
+        window.StartUtc is null
+            ? "WHERE 1=1"
+            : "WHERE created_at >= @WindowStartUtc AND created_at < @WindowEndUtc";
+
     private static string BuildSocialSpotlightSql(SocialWindowSpec window) =>
         $$"""
         SELECT
@@ -458,7 +463,7 @@ public sealed class MarketingAnalyticsController(
                 COALESCE(click_throughs, 0) AS click_throughs
             FROM social_media_posts
             CROSS JOIN LATERAL regexp_split_to_table(COALESCE(hashtags, ''), '\s*,\s*') AS tag
-            {{SocialPostWindowClause(window)}}
+            {{SocialPostHashtagClause(window)}}
               AND NULLIF(TRIM(tag), '') IS NOT NULL
               AND NULLIF(TRIM(COALESCE(campaign_name, '')), '') IS NULL
         )
@@ -491,7 +496,7 @@ public sealed class MarketingAnalyticsController(
                 COALESCE(click_throughs, 0) AS click_throughs
             FROM social_media_posts
             CROSS JOIN LATERAL regexp_split_to_table(COALESCE(hashtags, ''), '\s*,\s*') AS tag
-            {{SocialPostWindowClause(window)}}
+            {{SocialPostHashtagClause(window)}}
               AND NULLIF(TRIM(tag), '') IS NOT NULL
               AND NULLIF(TRIM(COALESCE(campaign_name, '')), '') IS NOT NULL
         )
