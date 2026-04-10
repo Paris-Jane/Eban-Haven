@@ -2,12 +2,14 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import ReactMarkdown from 'react-markdown'
 import {
   ArrowLeft,
+  Bell,
   Bot,
   CalendarClock,
-  CheckCheck,
   ChevronDown,
   ChevronUp,
   Clock,
+  Heart,
+  Home,
   Image,
   LoaderCircle,
   MessageCircle,
@@ -75,19 +77,19 @@ const starterPrompts = [
   {
     title: 'Shelter awareness',
     description: 'Create 3 Facebook posts about safe shelter and reintegration support this week.',
-    icon: '🏠',
+    Icon: Home,
   },
   {
     title: 'Awareness campaign',
     description: 'Plan 4 Facebook content ideas for Sexual Assault Awareness Month with captions and best posting times.',
-    icon: '📣',
+    Icon: Bell,
   },
   {
     title: 'Donor education',
     description: 'Draft a short Facebook campaign for donor education with post, story, and video options.',
-    icon: '❤️',
+    Icon: Heart,
   },
-] as const
+]
 
 const contentTypeOptions = ['Post', 'Story', 'Video'] as const
 const platformOptions = ['Facebook', 'Instagram'] as const
@@ -146,6 +148,29 @@ function StepBadge({ n, label, active }: { n: number; label: string; active?: bo
         {n}
       </span>
       <span className={active ? 'font-semibold' : ''}>{label}</span>
+    </div>
+  )
+}
+
+function PlatformIcon({ platform }: { platform: string }) {
+  const lp = platform.toLowerCase()
+  if (lp === 'instagram') {
+    return (
+      <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-gradient-to-br from-purple-500 via-pink-500 to-orange-400">
+        <span className="text-[9px] font-bold leading-none text-white">IG</span>
+      </div>
+    )
+  }
+  if (lp === 'facebook') {
+    return (
+      <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-blue-600">
+        <span className="text-[10px] font-bold leading-none text-white">f</span>
+      </div>
+    )
+  }
+  return (
+    <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-primary/10">
+      <span className="text-[9px] font-bold leading-none text-primary">{platform[0]?.toUpperCase() ?? '?'}</span>
     </div>
   )
 }
@@ -373,6 +398,7 @@ export function SocialPlannerPage() {
   const [startMode, setStartMode] = useState<StartMode>('pick')
   const [editingPost, setEditingPost] = useState<PlannedSocialPost | null>(null)
   const [deletingId, setDeletingId] = useState<number | null>(null)
+  const [expandedPostId, setExpandedPostId] = useState<number | null>(null)
   const [imageSearchKey, setImageSearchKey] = useState<string | null>(null)
   const [brief, setBrief] = useState({
     goal: '',
@@ -695,7 +721,7 @@ export function SocialPlannerPage() {
                         onClick={() => setStartMode('quick')}
                         className="flex flex-col gap-3 rounded-xl border border-border bg-background p-5 text-left transition-colors hover:border-primary/30 hover:bg-primary/5 hover:shadow-sm"
                       >
-                        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-100 text-amber-700">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
                           <Zap className="h-5 w-5" />
                         </div>
                         <div>
@@ -765,11 +791,15 @@ export function SocialPlannerPage() {
                           type="button"
                           disabled={loading}
                           onClick={() => void submitPrompt(p.description)}
-                          className="flex flex-col gap-2 rounded-xl border border-border bg-background p-4 text-left transition-colors hover:border-primary/40 hover:bg-primary/5 disabled:opacity-50"
+                          className="flex flex-col gap-3 rounded-xl border border-border bg-background p-4 text-left transition-colors hover:border-primary/30 hover:bg-primary/5 hover:shadow-sm disabled:opacity-50"
                         >
-                          <span className="text-xl">{p.icon}</span>
-                          <span className="text-sm font-semibold text-foreground">{p.title}</span>
-                          <span className="text-xs leading-relaxed text-muted-foreground">{p.description}</span>
+                          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10">
+                            <p.Icon className="h-4 w-4 text-primary" />
+                          </div>
+                          <div>
+                            <span className="text-sm font-semibold text-foreground">{p.title}</span>
+                            <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{p.description}</p>
+                          </div>
                         </button>
                       ))}
                     </div>
@@ -1120,19 +1150,20 @@ export function SocialPlannerPage() {
 
         {/* ── Right: Saved queue ── */}
         <aside>
-          <div className={`${card} space-y-4`}>
-            <div className="flex items-center justify-between gap-2">
+          <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+            {/* Queue header */}
+            <div className="flex items-center justify-between gap-2 px-5 py-4">
               <div>
                 <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground">
                   <CalendarClock className="h-4 w-4 text-primary" />
                   Saved queue
                 </h3>
                 <p className="mt-0.5 text-xs text-muted-foreground">
-                  Generated posts saved here. Mark ready, then schedule to Facebook.
+                  Click a post to expand details and publish.
                 </p>
               </div>
               {plannedPosts.length > 0 && (
-                <span className="shrink-0 rounded-full bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary">
+                <span className="shrink-0 rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary">
                   {plannedPosts.length}
                 </span>
               )}
@@ -1140,7 +1171,7 @@ export function SocialPlannerPage() {
 
             {/* Status filter pills */}
             {statusOptions.length > 1 && (
-              <div className="flex flex-wrap gap-1.5">
+              <div className="flex flex-wrap gap-1.5 border-t border-border px-5 pb-3 pt-3">
                 {statusOptions.map((s) => (
                   <button
                     key={s}
@@ -1160,13 +1191,13 @@ export function SocialPlannerPage() {
 
             {/* Post list */}
             {loadingPlanned ? (
-              <div className="flex items-center gap-2 py-6 text-sm text-muted-foreground">
+              <div className="flex items-center gap-2 border-t border-border px-5 py-8 text-sm text-muted-foreground">
                 <LoaderCircle className="h-4 w-4 animate-spin" />
                 Loading saved posts…
               </div>
             ) : filteredPosts.length === 0 ? (
-              <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-border py-10 text-center">
-                <Plus className="h-7 w-7 text-muted-foreground/40" />
+              <div className="flex flex-col items-center gap-3 border-t border-border px-5 py-10 text-center">
+                <Plus className="h-7 w-7 text-muted-foreground/30" />
                 <div>
                   <p className="text-sm font-medium text-foreground">No saved posts yet</p>
                   <p className="mt-1 text-xs text-muted-foreground">
@@ -1175,153 +1206,154 @@ export function SocialPlannerPage() {
                 </div>
               </div>
             ) : (
-              <div className="space-y-3">
-                {filteredPosts.map((post) => (
-                  <article key={post.id} className="rounded-xl border border-border bg-background p-4">
-                    <div className="flex flex-wrap items-start justify-between gap-2">
-                      <p className="text-sm font-semibold leading-snug text-foreground">{post.title}</p>
-                      <div className="flex items-center gap-1.5">
-                        <StatusBadge status={post.status} />
-                        {/* Edit button */}
-                        <button
-                          type="button"
-                          title="Edit post"
-                          className="rounded-md p-1 text-muted-foreground hover:bg-muted/50 hover:text-foreground"
-                          onClick={() => setEditingPost(post)}
-                        >
-                          <Pencil className="h-3.5 w-3.5" />
-                        </button>
-                        {/* Delete button / confirm */}
-                        {deletingId === post.id ? (
-                          <div className="flex items-center gap-1">
-                            <button
-                              type="button"
-                              onClick={() => void deletePost(post.id)}
-                              disabled={savingIds.has(`delete-${post.id}`)}
-                              className="rounded-md bg-destructive px-2 py-0.5 text-[10px] font-semibold text-white disabled:opacity-50"
-                            >
-                              {savingIds.has(`delete-${post.id}`) ? '…' : 'Delete'}
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setDeletingId(null)}
-                              className="rounded-md border border-border px-2 py-0.5 text-[10px] font-medium text-muted-foreground hover:bg-muted/50"
-                            >
-                              Cancel
-                            </button>
+              <div className="divide-y divide-border border-t border-border">
+                {filteredPosts.map((post) => {
+                  const isExpanded = expandedPostId === post.id
+                  const queueKey = `queue-${post.id}`
+                  return (
+                    <div key={post.id}>
+                      {/* Collapsed row */}
+                      <button
+                        type="button"
+                        className="flex w-full items-center gap-3 px-5 py-3.5 text-left transition-colors hover:bg-muted/30"
+                        onClick={() => setExpandedPostId(isExpanded ? null : post.id)}
+                      >
+                        <PlatformIcon platform={post.platform} />
+                        <p className="flex-1 truncate text-sm font-semibold text-foreground">
+                          {post.contentType}: {post.title}
+                        </p>
+                        <div className="flex shrink-0 items-center gap-1.5">
+                          <StatusBadge status={post.status} />
+                          <ChevronDown className={`h-3.5 w-3.5 text-muted-foreground transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                        </div>
+                      </button>
+
+                      {/* Expanded details */}
+                      {isExpanded && (
+                        <div className="border-t border-border/50 bg-muted/20 px-5 py-4">
+                          {/* Action row */}
+                          <div className="mb-3 flex items-center justify-between gap-2">
+                            <div className="flex gap-2">
+                              <button
+                                type="button"
+                                className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-2.5 py-1.5 text-xs font-medium text-foreground hover:bg-muted/50"
+                                onClick={() => setEditingPost(post)}
+                              >
+                                <Pencil className="h-3 w-3" />
+                                Edit
+                              </button>
+                              {deletingId === post.id ? (
+                                <div className="flex items-center gap-1">
+                                  <button
+                                    type="button"
+                                    onClick={() => void deletePost(post.id)}
+                                    disabled={savingIds.has(`delete-${post.id}`)}
+                                    className="rounded-md bg-destructive px-2 py-1 text-[10px] font-semibold text-white disabled:opacity-50"
+                                  >
+                                    {savingIds.has(`delete-${post.id}`) ? '…' : 'Delete'}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => setDeletingId(null)}
+                                    className="rounded-md border border-border px-2 py-1 text-[10px] font-medium text-muted-foreground hover:bg-muted/50"
+                                  >
+                                    Cancel
+                                  </button>
+                                </div>
+                              ) : (
+                                <button
+                                  type="button"
+                                  className="rounded-md p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                                  onClick={() => setDeletingId(post.id)}
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </button>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-2">
+                              {post.imageIdea && (
+                                <button
+                                  type="button"
+                                  onClick={() => setImageSearchKey(imageSearchKey === queueKey ? null : queueKey)}
+                                  className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-2.5 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+                                >
+                                  <Image className="h-3 w-3" />
+                                  {imageSearchKey === queueKey ? 'Hide photos' : 'Find photos'}
+                                </button>
+                              )}
+                              <button
+                                type="button"
+                                className={`${btnPrimary} inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs disabled:opacity-50`}
+                                onClick={() => void sendToFacebook(post)}
+                                disabled={savingIds.has(`facebook-${post.id}`)}
+                              >
+                                {savingIds.has(`facebook-${post.id}`)
+                                  ? <LoaderCircle className="h-3 w-3 animate-spin" />
+                                  : <SendHorizonal className="h-3 w-3" />}
+                                Publish
+                              </button>
+                            </div>
                           </div>
-                        ) : (
-                          <button
-                            type="button"
-                            title="Delete post"
-                            className="rounded-md p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
-                            onClick={() => setDeletingId(post.id)}
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                    <div className="mt-1.5 flex flex-wrap gap-1.5">
-                      <CategoryBadge>{post.platform}</CategoryBadge>
-                      <Badge variant="info">{post.contentType}</Badge>
-                    </div>
 
-                    {post.caption && (
-                      <p className="mt-3 line-clamp-3 text-xs leading-relaxed text-muted-foreground">
-                        {post.caption}
-                      </p>
-                    )}
+                          {/* Image search */}
+                          {imageSearchKey === queueKey && post.imageIdea && (
+                            <div className="mb-3">
+                              {post.imageIdea && (
+                                <p className="mb-2 text-xs text-muted-foreground/70 italic">"{post.imageIdea}"</p>
+                              )}
+                              <ImageSearchPanel
+                                query={post.imageIdea}
+                                onClose={() => setImageSearchKey(null)}
+                              />
+                            </div>
+                          )}
 
-                    {post.imageIdea && (
-                      <div className="mt-2 flex items-center gap-2">
-                        <p className="flex items-center gap-1.5 text-xs text-muted-foreground/70"><Image className="h-3 w-3 shrink-0" />{post.imageIdea}</p>
-                        <button
-                            type="button"
-                            onClick={() => {
-                              const k = `queue-${post.id}`
-                              setImageSearchKey(imageSearchKey === k ? null : k)
-                            }}
-                            className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-0.5 text-[10px] font-medium text-muted-foreground hover:bg-muted/50 hover:text-foreground"
-                          >
-                            <Image className="h-3 w-3" />
-                            {imageSearchKey === `queue-${post.id}` ? 'Hide images' : 'Find images'}
-                          </button>
-                      </div>
-                    )}
+                          {/* Caption */}
+                          {post.caption && (
+                            <p className="text-sm leading-relaxed text-foreground/80">
+                              {post.caption}
+                            </p>
+                          )}
 
-                    {imageSearchKey === `queue-${post.id}` && post.imageIdea && (
-                      <ImageSearchPanel
-                        query={post.imageIdea}
-                        onClose={() => setImageSearchKey(null)}
-                      />
-                    )}
+                          {/* Hashtags */}
+                          {post.hashtags.length > 0 && (
+                            <p className="mt-2 text-xs italic text-muted-foreground/70">
+                              {post.hashtags.join(' ')}
+                            </p>
+                          )}
 
-                    <div className="mt-2 space-y-1 text-xs text-muted-foreground">
-                      {post.suggestedTime && (
-                        <p className="flex items-center gap-1.5">
-                          <Clock className="h-3 w-3 shrink-0 text-muted-foreground/60" />
-                          Suggested: {post.suggestedTime}
-                        </p>
-                      )}
-                      {post.scheduledForUtc && (
-                        <p className="flex items-center gap-1.5">
-                          <CalendarClock className="h-3 w-3 shrink-0 text-muted-foreground/60" />
-                          Scheduled: {toUserFacingDate(post.scheduledForUtc)}
-                        </p>
+                          {/* Time row */}
+                          {(post.suggestedTime || post.scheduledForUtc) && (
+                            <>
+                              <div className="my-3 border-t border-border/50" />
+                              <div className="flex flex-wrap gap-4 text-xs text-muted-foreground">
+                                {post.suggestedTime && (
+                                  <span className="flex items-center gap-1.5">
+                                    <Clock className="h-3 w-3 shrink-0" />
+                                    {post.suggestedTime}
+                                  </span>
+                                )}
+                                {post.scheduledForUtc && (
+                                  <span className="flex items-center gap-1.5">
+                                    <CalendarClock className="h-3 w-3 shrink-0" />
+                                    {toUserFacingDate(post.scheduledForUtc)}
+                                  </span>
+                                )}
+                              </div>
+                            </>
+                          )}
+
+                          {/* Scheduling error */}
+                          {post.schedulingError && (
+                            <p className="mt-3 rounded-lg bg-destructive/10 px-2 py-1.5 text-xs text-destructive">
+                              {post.schedulingError}
+                            </p>
+                          )}
+                        </div>
                       )}
                     </div>
-
-                    {post.hashtags.length > 0 && (
-                      <p className="mt-2 text-xs text-muted-foreground/70">{post.hashtags.join(' ')}</p>
-                    )}
-
-                    {post.schedulingError && (
-                      <p className="mt-2 rounded-lg bg-destructive/10 px-2 py-1.5 text-xs text-destructive">
-                        ⚠ {post.schedulingError}
-                      </p>
-                    )}
-
-                    <div className="mt-3 flex flex-wrap gap-2 border-t border-border/50 pt-3">
-                      <button
-                        type="button"
-                        title="Mark as ready to publish"
-                        className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-2.5 py-1.5 text-xs font-medium text-foreground hover:bg-muted/50 disabled:opacity-50"
-                        onClick={() => void markReady(post)}
-                        disabled={savingIds.has(`ready-${post.id}`) || post.status === 'Ready'}
-                      >
-                        {savingIds.has(`ready-${post.id}`)
-                          ? <LoaderCircle className="h-3.5 w-3.5 animate-spin" />
-                          : <CheckCheck className="h-3.5 w-3.5" />}
-                        Mark ready
-                      </button>
-                      <button
-                        type="button"
-                        title="Add to schedule queue"
-                        className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-2.5 py-1.5 text-xs font-medium text-foreground hover:bg-muted/50 disabled:opacity-50"
-                        onClick={() => void requestSchedule(post)}
-                        disabled={savingIds.has(`schedule-${post.id}`)}
-                      >
-                        {savingIds.has(`schedule-${post.id}`)
-                          ? <LoaderCircle className="h-3.5 w-3.5 animate-spin" />
-                          : <CalendarClock className="h-3.5 w-3.5" />}
-                        Queue
-                      </button>
-                      <button
-                        type="button"
-                        title="Publish to Facebook now"
-                        className={`${btnPrimary} inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs disabled:opacity-50`}
-                        onClick={() => void sendToFacebook(post)}
-                        disabled={savingIds.has(`facebook-${post.id}`)}
-                      >
-                        {savingIds.has(`facebook-${post.id}`)
-                          ? <LoaderCircle className="h-3.5 w-3.5 animate-spin" />
-                          : <SendHorizonal className="h-3.5 w-3.5" />}
-                        Publish
-                      </button>
-                    </div>
-                  </article>
-                ))}
+                  )
+                })}
               </div>
             )}
           </div>
