@@ -84,7 +84,7 @@ _HIGHER_IS_BETTER = {
 }
 
 _FEATURE_LABELS: dict[str, str] = {
-    "days_in_program":          "Time in program",
+    "days_in_program":          "Time in Program",
     "current_risk_level":       "Current risk level",
     "reintegration_type":       "Reintegration type",
     "case_status":              "Case status",
