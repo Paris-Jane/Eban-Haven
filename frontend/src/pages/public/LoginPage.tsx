@@ -35,7 +35,16 @@ const acquisitionChannels = [
 const cardClass = 'rounded-2xl border border-border bg-background/80 p-5'
 const inputClass =
   'mt-1.5 w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
-const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID?.trim() ?? ''
+/** Vercel/env pastes sometimes include wrapping quotes — Google treats that as invalid_client. */
+function normalizeGoogleClientId(raw: string | undefined): string {
+  const s = raw?.trim() ?? ''
+  if (s.length >= 2 && ((s.startsWith('"') && s.endsWith('"')) || (s.startsWith("'") && s.endsWith("'")))) {
+    return s.slice(1, -1).trim()
+  }
+  return s
+}
+
+const googleClientId = normalizeGoogleClientId(import.meta.env.VITE_GOOGLE_CLIENT_ID)
 
 type RelationshipValue = (typeof relationshipOptions)[number]['value']
 
@@ -209,8 +218,8 @@ function GoogleAuthBlock(props: {
   if (!googleClientId) {
     return (
       <div className="rounded-xl border border-dashed border-border bg-muted/40 px-4 py-3 text-sm text-muted-foreground">
-        Google sign-{mode === 'login' ? 'in' : 'up'} can be enabled by setting `VITE_GOOGLE_CLIENT_ID` in the
-        frontend and `GoogleAuth:ClientId` in the API.
+        Google sign-{mode === 'login' ? 'in' : 'up'} can be enabled by setting `VITE_GOOGLE_CLIENT_ID` (Vercel /
+        `.env`) to match `Authentication:Google:ClientId` on the API.
       </div>
     )
   }
