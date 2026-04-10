@@ -282,6 +282,10 @@ public sealed class AdminController(ILighthouseRepository repo) : ControllerBase
         {
             return repo.DeleteSupporter(id) ? NoContent() : NotFound();
         }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { error = "Delete could not be executed.", detail = ex.Message });
+        }
         catch (DbUpdateException ex)
         {
             return Conflict(new

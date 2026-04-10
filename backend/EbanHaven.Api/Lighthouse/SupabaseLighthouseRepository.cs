@@ -744,13 +744,15 @@ public sealed class SupabaseLighthouseRepository(HavenDbContext db) : ILighthous
             if (!string.IsNullOrWhiteSpace(email))
             {
                 var normalized = email.ToLowerInvariant();
-                var donorProfiles = db.Profiles
-                    .Where(p =>
-                        p.Email != null &&
-                        p.Email.ToLower() == normalized &&
-                        string.Equals(p.Role, "donor", StringComparison.OrdinalIgnoreCase))
+                // Role filter must run in-memory: PostgreSQL `app_role` enum + StringComparison often breaks SQL translation.
+                var matchingProfiles = db.Profiles
+                    .Where(p => p.Email != null && p.Email.ToLower() == normalized)
                     .ToList();
-                db.Profiles.RemoveRange(donorProfiles);
+                foreach (var p in matchingProfiles)
+                {
+                    if (string.Equals(p.Role, "donor", StringComparison.OrdinalIgnoreCase))
+                        db.Profiles.Remove(p);
+                }
             }
 
             db.SaveChanges();
