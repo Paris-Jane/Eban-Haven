@@ -58,6 +58,7 @@ export {
   listHealthRecords,
   createHealthRecord,
   patchHealthRecord,
+  deleteHealthRecord,
   listIncidentReports,
   createIncidentReport,
   patchIncidentReport,

@@ -14,6 +14,8 @@ import {
   listEducationRecords,
   listHealthRecords,
   listIncidentReports,
+  patchHealthRecord,
+  deleteHealthRecord,
   patchIncidentReport,
   patchResident,
   type EducationRecord,
@@ -31,7 +33,7 @@ import { BooleanBadge, CategoryBadge, ReintegrationBadge, RiskBadge, StatusBadge
 import { formatAdminDate } from '../adminDataTable/adminFormatters'
 import { AdminDeleteModal } from '../adminDataTable/AdminDeleteModal'
 import { CASE_STATUSES, RISK_LEVELS, SEX_OPTIONS } from './caseConstants'
-import { SimpleLineChart } from '../../dashboards/reports/ChartCard'
+import { SimpleLineChart, SimpleMultiLineChart } from '../../dashboards/reports/ChartCard'
 import { EducationSection, HealthSection, HomeVisitDrawer, ProcessRecordingDrawer } from './CareProgressContent'
 import { PlansTabContent } from './PlansTabContent'
 import { SessionWorkflowDrawer } from './SessionWorkflowDrawer'
@@ -1142,12 +1144,9 @@ export function ResidentCaseWorkspace({ residentId }: { residentId: number }) {
                     }`}
                   >
                     <ProgressRing label={goal.label} progress={percentage(goal.current, goal.target)}>
-                      <div className="text-lg font-semibold tabular-nums text-foreground">{goal.currentLabel}</div>
+                      <div className="text-xl font-semibold tabular-nums text-foreground">{goal.currentLabel}</div>
                     </ProgressRing>
-                    <div className="mt-4 flex items-center justify-between gap-3">
-                      <p className="text-xs uppercase tracking-wide text-muted-foreground">{goal.label.replace(' goal', '')}</p>
-                      <TrendBadge trend={currentStateCards[goal.key].trend} />
-                    </div>
+                    <p className="mt-4 text-xs uppercase tracking-wide text-muted-foreground">{goal.label.replace(' goal', '')}</p>
                   </button>
                 ))}
               </div>
@@ -1162,6 +1161,7 @@ export function ResidentCaseWorkspace({ residentId }: { residentId: number }) {
                     visitRows={vis}
                     incidentRows={inc}
                     relatedPlan={expandedGoal === 'health' ? latestHealthPlan : expandedGoal === 'education' ? latestEducationPlan : latestSafetyPlan}
+                    onReload={load}
                     onAddHealth={() => bumpCreate('health')}
                     onAddEducation={() => bumpCreate('education')}
                     onLogIncident={() => bumpCreate('incident')}
@@ -1612,28 +1612,30 @@ function SummaryTile({ label, value }: { label: string; value: string | number }
 
 function ProgressRing({ label, progress, children }: { label: string; progress: number; children: ReactNode }) {
   const normalized = Math.max(0, Math.min(progress, 100))
-  const radius = 22
+  const radius = 36
   const circumference = 2 * Math.PI * radius
   const dashOffset = circumference * (1 - normalized / 100)
+  const vb = 88
+  const c = vb / 2
   return (
     <div className="flex flex-col items-center text-center">
-      <div className="relative h-16 w-16 shrink-0">
-        <svg viewBox="0 0 52 52" className="h-16 w-16 -rotate-90">
-          <circle cx="26" cy="26" r={radius} fill="none" stroke="currentColor" strokeOpacity="0.14" strokeWidth="4" />
+      <div className="relative h-[7.5rem] w-[7.5rem] shrink-0">
+        <svg viewBox={`0 0 ${vb} ${vb}`} className="h-full w-full -rotate-90">
+          <circle cx={c} cy={c} r={radius} fill="none" stroke="currentColor" strokeOpacity="0.14" strokeWidth="5" />
           <circle
-            cx="26"
-            cy="26"
+            cx={c}
+            cy={c}
             r={radius}
             fill="none"
             stroke="currentColor"
-            strokeWidth="4"
+            strokeWidth="5"
             strokeLinecap="round"
             strokeDasharray={circumference}
             strokeDashoffset={dashOffset}
             className="text-primary"
           />
         </svg>
-        <div className="absolute inset-0 grid place-items-center text-center">{children}</div>
+        <div className="absolute inset-0 grid place-items-center px-1 text-center">{children}</div>
       </div>
       <p className="mt-3 text-sm font-semibold text-foreground">{label}</p>
       <p className="mt-1 text-[11px] uppercase tracking-wide text-muted-foreground">{Math.round(normalized)}% of target</p>
@@ -1691,6 +1693,7 @@ function GoalDrillIn({
   visitRows,
   incidentRows,
   relatedPlan,
+  onReload,
   onAddHealth,
   onAddEducation,
   onLogIncident,
@@ -1706,6 +1709,7 @@ function GoalDrillIn({
   visitRows: HomeVisitation[]
   incidentRows: JsonTableRow[]
   relatedPlan: InterventionPlan | null
+  onReload: () => Promise<void>
   onAddHealth: () => void
   onAddEducation: () => void
   onLogIncident: () => void
@@ -1720,6 +1724,7 @@ function GoalDrillIn({
         data={data}
         healthRows={healthRows}
         relatedPlan={relatedPlan}
+        onReload={onReload}
         onAddHealth={onAddHealth}
         onOpenHealth={onOpenHealth}
       />
@@ -1811,72 +1816,236 @@ function GoalDrillIn({
   )
 }
 
+function stripHealthStatusPrefix(text: string): string {
+  return text.replace(/^\s*health\s*status\s*:\s*/i, '').trim()
+}
+
+function healthStatusCategory(notes: string | null | undefined): 'stable' | 'improving' | 'declining' | 'unknown' {
+  const t = stripHealthStatusPrefix(notes ?? '').toLowerCase()
+  if (/\bimproving\b/.test(t)) return 'improving'
+  if (/\bdeclining\b/.test(t)) return 'declining'
+  if (/\bstable\b/.test(t)) return 'stable'
+  return 'unknown'
+}
+
+function appointmentStatusChipText(notes: string | null | undefined): string {
+  const raw = stripHealthStatusPrefix((notes ?? '').trim())
+  if (!raw) return 'No status'
+  const firstLine = raw.split('\n')[0]?.trim() ?? ''
+  return firstLine.length > 42 ? `${firstLine.slice(0, 42)}…` : firstLine
+}
+
+function appointmentStatusChipClass(category: ReturnType<typeof healthStatusCategory>): string {
+  if (category === 'improving') return 'bg-emerald-500/15 text-emerald-800 dark:text-emerald-200'
+  if (category === 'declining') return 'bg-destructive/15 text-destructive'
+  return 'bg-amber-500/15 text-amber-950 dark:text-amber-100'
+}
+
+function RecapScoreCell({ label, valueNum }: { label: string; valueNum: number | null }) {
+  const tone =
+    valueNum == null || !Number.isFinite(valueNum) ? 'neutral' : valueNum < 3 ? 'low' : valueNum > 4.2 ? 'high' : 'mid'
+  return (
+    <div className="rounded-lg border border-border/70 bg-background px-3 py-2">
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-[11px] uppercase tracking-wide text-muted-foreground">{label}</p>
+        {tone === 'low' ? <span className="h-2 w-2 shrink-0 rounded-full bg-destructive" title="Below 3" /> : null}
+        {tone === 'high' ? <span className="h-2 w-2 shrink-0 rounded-full bg-emerald-500" title="Above 4.2" /> : null}
+      </div>
+      <p
+        className={`mt-1 text-sm font-medium tabular-nums ${
+          tone === 'low'
+            ? 'text-destructive'
+            : tone === 'high'
+              ? 'text-emerald-600 dark:text-emerald-400'
+              : 'text-foreground'
+        }`}
+      >
+        {valueNum != null && Number.isFinite(valueNum) ? valueNum.toFixed(1) : '—'}
+      </p>
+    </div>
+  )
+}
+
 function HealthGoalDrillIn({
   data,
   healthRows,
   relatedPlan,
+  onReload,
   onAddHealth,
   onOpenHealth,
 }: {
   data: GoalCardData
   healthRows: HealthRecord[]
   relatedPlan: InterventionPlan | null
+  onReload: () => Promise<void>
   onAddHealth: () => void
   onOpenHealth: (id: number) => void
 }) {
   const [selectedId, setSelectedId] = useState<number | null>(null)
-  const sortedRows = byNewestDate(healthRows, (row) => row.recordDate)
+  const [apptSearch, setApptSearch] = useState('')
+  const [apptFilter, setApptFilter] = useState<'all' | 'stable' | 'improving' | 'declining'>('all')
+  const [notesDraft, setNotesDraft] = useState('')
+  const [savingNotes, setSavingNotes] = useState(false)
+  const [notesErr, setNotesErr] = useState<string | null>(null)
+  const [deleteHealthId, setDeleteHealthId] = useState<number | null>(null)
+  const [deleting, setDeleting] = useState(false)
+
+  const sortedRows = useMemo(() => byNewestDate(healthRows, (row) => row.recordDate), [healthRows])
   const latest = sortedRows[0] ?? null
-  const selected = sortedRows.find((row) => row.id === selectedId) ?? latest
 
-  const chartPoints = sortedRows
-    .slice()
-    .reverse()
-    .map((row) => ({
-      label: new Date(row.recordDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-      value: row.healthScore ?? 0,
-    }))
-    .filter((row) => Number.isFinite(row.value))
+  const chronological = useMemo(
+    () => [...healthRows].sort((a, b) => new Date(a.recordDate).getTime() - new Date(b.recordDate).getTime()),
+    [healthRows],
+  )
 
-  const latestAppointmentChips = [
-    latest?.dentalCheckupDone ? { label: 'Last dental', row: latest } : null,
-    latest?.medicalCheckupDone ? { label: 'Last medical', row: latest } : null,
-    latest?.psychologicalCheckupDone ? { label: 'Last psych', row: latest } : null,
-  ].filter(Boolean) as { label: string; row: HealthRecord }[]
+  const chartPack = useMemo(() => {
+    if (chronological.length === 0) return null
+    const labels = chronological.map((row) =>
+      new Date(row.recordDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+    )
+    return {
+      labels,
+      series: [
+        {
+          key: 'gen',
+          name: 'General health',
+          strokeClass: 'stroke-primary',
+          fillClass: 'fill-primary',
+          legendClass: 'bg-primary',
+          values: chronological.map((r) => r.healthScore),
+        },
+        {
+          key: 'nut',
+          name: 'Nutrition',
+          strokeClass: 'stroke-amber-600',
+          fillClass: 'fill-amber-600',
+          legendClass: 'bg-amber-600',
+          values: chronological.map((r) => r.nutritionScore),
+        },
+        {
+          key: 'slp',
+          name: 'Sleep quality',
+          strokeClass: 'stroke-sky-600',
+          fillClass: 'fill-sky-600',
+          legendClass: 'bg-sky-600',
+          values: chronological.map((r) => r.sleepQualityScore),
+        },
+        {
+          key: 'en',
+          name: 'Energy level',
+          strokeClass: 'stroke-violet-600',
+          fillClass: 'fill-violet-600',
+          legendClass: 'bg-violet-600',
+          values: chronological.map((r) => r.energyLevelScore),
+        },
+      ],
+    }
+  }, [chronological])
+
+  const hasAnyChartPoint = useMemo(
+    () =>
+      chartPack?.series.some((s) => s.values.some((v) => v != null && Number.isFinite(v))) ?? false,
+    [chartPack],
+  )
+
+  const latestDental = useMemo(
+    () => sortedRows.find((r) => r.dentalCheckupDone === true) ?? null,
+    [sortedRows],
+  )
+  const latestMedical = useMemo(
+    () => sortedRows.find((r) => r.medicalCheckupDone === true) ?? null,
+    [sortedRows],
+  )
+  const latestPsych = useMemo(
+    () => sortedRows.find((r) => r.psychologicalCheckupDone === true) ?? null,
+    [sortedRows],
+  )
+
+  const appointmentRowsFiltered = useMemo(() => {
+    let list = sortedRows
+    if (apptSearch.trim()) {
+      const s = apptSearch.trim().toLowerCase()
+      list = list.filter(
+        (r) =>
+          (r.notes ?? '').toLowerCase().includes(s) ||
+          formatAdminDate(r.recordDate).toLowerCase().includes(s),
+      )
+    }
+    if (apptFilter !== 'all') {
+      list = list.filter((r) => {
+        const c = healthStatusCategory(r.notes)
+        if (apptFilter === 'stable') return c === 'stable' || c === 'unknown'
+        return c === apptFilter
+      })
+    }
+    if (selectedId != null && !list.some((r) => r.id === selectedId)) {
+      const sel = sortedRows.find((r) => r.id === selectedId)
+      if (sel) list = [sel, ...list]
+    }
+    return list
+  }, [sortedRows, apptSearch, apptFilter, selectedId])
+
+  useEffect(() => {
+    if (selectedId == null) {
+      setNotesDraft('')
+      return
+    }
+    const r = sortedRows.find((x) => x.id === selectedId)
+    setNotesDraft(r?.notes ?? '')
+    setNotesErr(null)
+  }, [selectedId, sortedRows])
+
+  async function saveNotesForRow(id: number) {
+    setNotesErr(null)
+    setSavingNotes(true)
+    try {
+      await patchHealthRecord(id, { notes: notesDraft.trim() })
+      await onReload()
+    } catch (e) {
+      setNotesErr(e instanceof Error ? e.message : 'Save failed')
+    } finally {
+      setSavingNotes(false)
+    }
+  }
 
   return (
     <div className="space-y-5">
       <div className="grid gap-5 lg:grid-cols-[1.4fr_0.8fr]">
         <div className="rounded-xl border border-border bg-background px-4 py-4">
           <p className="text-sm font-semibold text-foreground">Health</p>
-          {chartPoints.length > 0 ? (
+          {chartPack && hasAnyChartPoint ? (
             <div className="mt-4">
-              <SimpleLineChart
-                points={chartPoints}
+              <SimpleMultiLineChart
+                labels={chartPack.labels}
+                series={chartPack.series}
                 formatY={(n) => n.toFixed(1)}
-                height={220}
-                ariaLabel="Health score trend"
+                height={240}
+                yMin={1}
+                yMax={5}
+                ariaLabel="Wellbeing scores over time"
               />
             </div>
           ) : (
-            <EmptyState title="No health scores yet" />
+            <EmptyState title="No wellbeing scores yet" />
           )}
         </div>
 
         <div className="rounded-xl border border-border bg-muted/20 px-4 py-4">
           <p className="text-sm font-semibold text-foreground">Latest recap</p>
           {latest ? (
-            <div className="mt-3 space-y-2 text-sm">
+            <div className="mt-3 space-y-3 text-sm">
               <p className="font-medium text-foreground">{formatAdminDate(latest.recordDate)}</p>
               <p className="text-muted-foreground">Overall score {data.currentLabel}</p>
-              <div className="grid gap-2">
+              <div className="grid grid-cols-2 gap-2">
+                <RecapScoreCell label="General health" valueNum={latest.healthScore} />
+                <RecapScoreCell label="Nutrition score" valueNum={latest.nutritionScore} />
+                <RecapScoreCell label="Sleep quality" valueNum={latest.sleepQualityScore} />
+                <RecapScoreCell label="Energy level" valueNum={latest.energyLevelScore} />
+              </div>
+              <div className="grid gap-2 border-t border-border/60 pt-3">
                 <MiniMetric label="Weight" value={latest.weightKg != null ? `${latest.weightKg} kg` : '—'} />
                 <MiniMetric label="Height" value={latest.heightCm != null ? `${latest.heightCm} cm` : '—'} />
                 <MiniMetric label="BMI" value={latest.bmi != null ? latest.bmi.toFixed(1) : '—'} />
-                <MiniMetric label="Nutrition" value={latest.nutritionScore != null ? latest.nutritionScore.toFixed(1) : '—'} />
-                <MiniMetric label="Sleep" value={latest.sleepQualityScore != null ? latest.sleepQualityScore.toFixed(1) : '—'} />
-                <MiniMetric label="Energy" value={latest.energyLevelScore != null ? latest.energyLevelScore.toFixed(1) : '—'} />
-                <MiniMetric label="General health" value={latest.healthScore != null ? latest.healthScore.toFixed(1) : '—'} />
               </div>
             </div>
           ) : (
@@ -1885,44 +2054,66 @@ function HealthGoalDrillIn({
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-3">
-        {latestAppointmentChips.length > 0 ? (
-          latestAppointmentChips.map((chip) => (
-            <button
-              key={chip.label}
-              type="button"
-              onClick={() => setSelectedId(chip.row.id)}
-              className={`rounded-xl border px-4 py-3 text-left transition-colors ${
-                selected?.id === chip.row.id ? 'border-primary bg-primary/5' : 'border-border bg-card hover:bg-muted/30'
-              }`}
-            >
-              <p className="text-xs uppercase tracking-wide text-muted-foreground">{chip.label}</p>
-              <p className="mt-1 text-sm font-medium text-foreground">{formatAdminDate(chip.row.recordDate)}</p>
-            </button>
-          ))
-        ) : (
-          <span className="text-sm text-muted-foreground">No recent appointment dates recorded.</span>
-        )}
+      <div className="grid gap-3 md:grid-cols-3">
+        <div className="rounded-xl border border-border bg-card px-4 py-3">
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Latest dental</p>
+          {latestDental ? (
+            <p className="mt-2 text-sm font-medium text-foreground">{formatAdminDate(latestDental.recordDate)}</p>
+          ) : (
+            <p className="mt-2 text-sm text-muted-foreground">No checkup flagged yet</p>
+          )}
+        </div>
+        <div className="rounded-xl border border-border bg-card px-4 py-3">
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Latest medical</p>
+          {latestMedical ? (
+            <p className="mt-2 text-sm font-medium text-foreground">{formatAdminDate(latestMedical.recordDate)}</p>
+          ) : (
+            <p className="mt-2 text-sm text-muted-foreground">No checkup flagged yet</p>
+          )}
+        </div>
+        <div className="rounded-xl border border-border bg-card px-4 py-3">
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Latest psychological</p>
+          {latestPsych ? (
+            <p className="mt-2 text-sm font-medium text-foreground">{formatAdminDate(latestPsych.recordDate)}</p>
+          ) : (
+            <p className="mt-2 text-sm text-muted-foreground">No checkup flagged yet</p>
+          )}
+        </div>
       </div>
 
-      {selected ? (
-        <div className="rounded-xl border border-border bg-muted/20 px-4 py-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <p className="text-sm font-semibold text-foreground">{formatAdminDate(selected.recordDate)}</p>
-              <p className="mt-1 text-sm text-muted-foreground">{healthStatusLabel(selected.notes)}</p>
-            </div>
-            <InlineActionButton onClick={() => onOpenHealth(selected.id)}>Open full record</InlineActionButton>
-          </div>
-          {selected.notes ? <p className="mt-3 whitespace-pre-wrap text-sm text-foreground">{selected.notes}</p> : null}
-        </div>
-      ) : null}
-
       <div className="space-y-2">
-        <div className="flex items-center justify-between gap-3">
-          <p className="text-sm font-semibold text-foreground">Appointment notes</p>
-          <InlineActionButton onClick={onAddHealth}>Add health record</InlineActionButton>
+        <div className="flex flex-wrap items-end gap-2">
+          <div className="min-w-[10rem] flex-1">
+            <label className={label} htmlFor="appt-notes-search">
+              Search
+            </label>
+            <input
+              id="appt-notes-search"
+              type="search"
+              className={input}
+              value={apptSearch}
+              onChange={(e) => setApptSearch(e.target.value)}
+              placeholder="Notes or date…"
+            />
+          </div>
+          <label className={label}>
+            Filter
+            <select
+              className={input}
+              value={apptFilter}
+              onChange={(e) => setApptFilter(e.target.value as typeof apptFilter)}
+            >
+              <option value="all">All</option>
+              <option value="stable">Stable / other</option>
+              <option value="improving">Improving</option>
+              <option value="declining">Declining</option>
+            </select>
+          </label>
+          <InlineActionButton onClick={onAddHealth}>Add</InlineActionButton>
         </div>
+
+        <p className="text-sm font-semibold text-foreground">Appointment notes</p>
+
         {relatedPlan ? (
           <div className="rounded-xl bg-muted/20 px-4 py-4">
             <div className="flex flex-wrap items-center gap-2">
@@ -1932,49 +2123,109 @@ function HealthGoalDrillIn({
             <p className="mt-2 text-sm text-foreground">{relatedPlan.planDescription}</p>
           </div>
         ) : null}
+
+        {notesErr ? <div className={alertError}>{notesErr}</div> : null}
+
         {sortedRows.length === 0 ? (
           <EmptyState title="No appointments yet" />
         ) : (
-          sortedRows.map((row) => (
-            <button
-              key={row.id}
-              type="button"
-              onClick={() => setSelectedId((value) => (value === row.id ? null : row.id))}
-              className="w-full rounded-xl border border-border bg-card px-4 py-3 text-left hover:bg-muted/30"
-            >
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="font-medium text-foreground">{formatAdminDate(row.recordDate)}</span>
-                  <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary">
-                    Score {row.healthScore != null ? row.healthScore.toFixed(1) : '—'}
-                  </span>
-                  <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">
-                    {healthStatusLabel(row.notes)}
-                  </span>
-                </div>
-                <span className="text-sm text-muted-foreground">{selectedId === row.id ? 'Hide' : 'Open'}</span>
+          appointmentRowsFiltered.map((row) => {
+            const cat = healthStatusCategory(row.notes)
+            return (
+              <div
+                key={row.id}
+                className={`w-full rounded-xl border bg-card px-4 py-3 ${selectedId === row.id ? 'border-primary' : 'border-border'}`}
+              >
+                <button
+                  type="button"
+                  className="w-full text-left hover:opacity-95"
+                  onClick={() => setSelectedId((value) => (value === row.id ? null : row.id))}
+                >
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-medium text-foreground">{formatAdminDate(row.recordDate)}</span>
+                      <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">
+                        Score {row.healthScore != null ? row.healthScore.toFixed(1) : '—'}
+                      </span>
+                      <span
+                        className={`rounded-full px-2.5 py-1 text-xs font-medium ${appointmentStatusChipClass(cat)}`}
+                      >
+                        {appointmentStatusChipText(row.notes)}
+                      </span>
+                    </div>
+                    <span className="text-sm text-muted-foreground">{selectedId === row.id ? 'Hide' : 'Open'}</span>
+                  </div>
+                </button>
+                {selectedId === row.id ? (
+                  <div className="mt-4 space-y-4 border-t border-border/60 pt-4">
+                    <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                      <MiniMetric label="Nutrition" value={row.nutritionScore != null ? row.nutritionScore.toFixed(1) : '—'} />
+                      <MiniMetric label="Sleep" value={row.sleepQualityScore != null ? row.sleepQualityScore.toFixed(1) : '—'} />
+                      <MiniMetric label="Energy" value={row.energyLevelScore != null ? row.energyLevelScore.toFixed(1) : '—'} />
+                      <MiniMetric label="BMI" value={row.bmi != null ? row.bmi.toFixed(1) : '—'} />
+                      <MiniMetric label="Dental" value={row.dentalCheckupDone ? 'Done' : '—'} />
+                      <MiniMetric label="Medical" value={row.medicalCheckupDone ? 'Done' : '—'} />
+                      <MiniMetric label="Psych" value={row.psychologicalCheckupDone ? 'Done' : '—'} />
+                    </div>
+                    <div>
+                      <label className={label}>
+                        Notes
+                        <textarea
+                          className={input}
+                          rows={5}
+                          value={notesDraft}
+                          onChange={(e) => setNotesDraft(e.target.value)}
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                      </label>
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          className={btnPrimary}
+                          disabled={savingNotes}
+                          onClick={() => void saveNotesForRow(row.id)}
+                        >
+                          {savingNotes ? 'Saving…' : 'Save notes'}
+                        </button>
+                        <InlineActionButton onClick={() => onOpenHealth(row.id)}>Full record</InlineActionButton>
+                        <button
+                          type="button"
+                          className="rounded-lg border border-destructive/50 px-3 py-2 text-sm font-medium text-destructive hover:bg-destructive/10"
+                          onClick={() => setDeleteHealthId(row.id)}
+                        >
+                          Delete…
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ) : null}
               </div>
-              {selectedId === row.id ? (
-                <div className="mt-4 grid gap-4 lg:grid-cols-[0.9fr_1.1fr]">
-                  <div className="grid gap-2 sm:grid-cols-2">
-                    <MiniMetric label="Nutrition" value={row.nutritionScore != null ? row.nutritionScore.toFixed(1) : '—'} />
-                    <MiniMetric label="Sleep" value={row.sleepQualityScore != null ? row.sleepQualityScore.toFixed(1) : '—'} />
-                    <MiniMetric label="Energy" value={row.energyLevelScore != null ? row.energyLevelScore.toFixed(1) : '—'} />
-                    <MiniMetric label="BMI" value={row.bmi != null ? row.bmi.toFixed(1) : '—'} />
-                    <MiniMetric label="Dental" value={row.dentalCheckupDone ? 'Done' : '—'} />
-                    <MiniMetric label="Medical" value={row.medicalCheckupDone ? 'Done' : '—'} />
-                    <MiniMetric label="Psych" value={row.psychologicalCheckupDone ? 'Done' : '—'} />
-                  </div>
-                  <div className="rounded-lg bg-muted/20 px-4 py-3">
-                    <p className="text-xs uppercase tracking-wide text-muted-foreground">Notes</p>
-                    <p className="mt-2 whitespace-pre-wrap text-sm text-foreground">{row.notes || 'No notes recorded.'}</p>
-                  </div>
-                </div>
-              ) : null}
-            </button>
-          ))
+            )
+          })
         )}
       </div>
+
+      <AdminDeleteModal
+        open={deleteHealthId != null}
+        title="Delete this health record?"
+        body="This removes the wellbeing row from health_wellbeing_records. This cannot be undone."
+        loading={deleting}
+        onCancel={() => setDeleteHealthId(null)}
+        onConfirm={async () => {
+          if (deleteHealthId == null) return
+          setDeleting(true)
+          try {
+            await deleteHealthRecord(deleteHealthId)
+            setDeleteHealthId(null)
+            setSelectedId(null)
+            await onReload()
+          } catch (e) {
+            setNotesErr(e instanceof Error ? e.message : 'Delete failed')
+          } finally {
+            setDeleting(false)
+          }
+        }}
+      />
     </div>
   )
 }
@@ -2244,6 +2495,9 @@ function SafetyGoalDrillIn({
                     {row.location !== '—' ? ` · ${row.location}` : ''}
                   </span>
                   <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">{row.chip}</span>
+                  {row.detail.outcome !== '—' ? (
+                    <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary">{row.detail.outcome}</span>
+                  ) : null}
                 </div>
                 <span className="text-sm text-muted-foreground">{expandedKey === row.key ? 'Hide' : 'Open'}</span>
               </div>
@@ -2281,14 +2535,6 @@ function MiniMetric({ label, value }: { label: string; value: string }) {
       <p className="mt-1 text-sm font-medium text-foreground">{value}</p>
     </div>
   )
-}
-
-function healthStatusLabel(notes: string | null | undefined): string {
-  const value = (notes ?? '').trim()
-  if (!value) return 'No status'
-  const firstLine = value.split('\n')[0]?.trim() ?? ''
-  const firstSentence = firstLine.split('.').find(Boolean)?.trim() ?? firstLine
-  return firstSentence.length > 28 ? `${firstSentence.slice(0, 28)}…` : firstSentence
 }
 
 function TimelineRow({

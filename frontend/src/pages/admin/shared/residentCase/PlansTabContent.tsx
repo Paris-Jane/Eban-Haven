@@ -159,8 +159,8 @@ export function PlansTabContent({
         description={
           descriptionOverride ??
           (layout === 'workspace'
-            ? 'Intervention plans grouped by urgency and status — link activities from the timeline to plans when reviewing progress.'
-            : 'Case conference plans, targets, and status for this resident.')
+            ? 'Review user goals and current progress.'
+            : 'Review user goals and current progress.')
         }
         actions={<QuickActionButton onClick={() => setCreateOpen(true)}>{addLabel}</QuickActionButton>}
       />

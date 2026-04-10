@@ -93,6 +93,109 @@ export function SimpleLineChart({
   )
 }
 
+/** Multiple series sharing the same x-axis labels (e.g. wellbeing scores over time). Skips null gaps per series. */
+export function SimpleMultiLineChart({
+  labels,
+  series,
+  formatY,
+  height = 220,
+  ariaLabel,
+  yMin,
+  yMax,
+}: {
+  labels: string[]
+  series: {
+    key: string
+    name: string
+    strokeClass: string
+    fillClass: string
+    legendClass: string
+    values: (number | null)[]
+  }[]
+  formatY: (n: number) => string
+  height?: number
+  ariaLabel: string
+  yMin?: number
+  yMax?: number
+}) {
+  if (labels.length === 0) return null
+  const flat = series.flatMap((s) => s.values.filter((v): v is number => v != null && Number.isFinite(v)))
+  const minV = yMin ?? (flat.length ? Math.min(...flat, 1) : 1)
+  const maxV = yMax ?? (flat.length ? Math.max(...flat, 5) : 5)
+  const span = Math.max(maxV - minV, 0.01)
+  const w = 400
+  const pad = 28
+  const innerW = w - pad * 2
+  const innerH = height - pad * 2
+  const n = labels.length
+
+  function xAt(i: number) {
+    return pad + (n <= 1 ? innerW / 2 : (i / (n - 1)) * innerW)
+  }
+  function yAt(val: number) {
+    return pad + innerH - ((val - minV) / span) * innerH
+  }
+
+  return (
+    <div className="space-y-3">
+      <svg viewBox={`0 0 ${w} ${height}`} className="h-auto w-full" role="img" aria-label={ariaLabel}>
+        <title>{ariaLabel}</title>
+        <text x={pad} y={16} className="fill-muted-foreground text-[10px]">
+          {formatY(maxV)} – {formatY(minV)}
+        </text>
+        {series.map((s) => {
+          const segments: string[] = []
+          let d = ''
+          for (let i = 0; i < n; i++) {
+            const v = s.values[i]
+            if (v == null || !Number.isFinite(v)) {
+              if (d) {
+                segments.push(d)
+                d = ''
+              }
+              continue
+            }
+            const x = xAt(i)
+            const y = yAt(v)
+            d += d === '' ? `M ${x} ${y}` : ` L ${x} ${y}`
+          }
+          if (d) segments.push(d)
+          return segments.map((pathD, segIdx) => (
+            <path
+              key={`${s.key}-${segIdx}`}
+              d={pathD}
+              fill="none"
+              strokeWidth="2.2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className={s.strokeClass}
+            />
+          ))
+        })}
+        {series.map((s) =>
+          s.values.map((v, i) => {
+            if (v == null || !Number.isFinite(v)) return null
+            return <circle key={`${s.key}-pt-${i}`} cx={xAt(i)} cy={yAt(v)} r="3.5" className={s.fillClass} />
+          }),
+        )}
+        {labels.map((lab, i) => (
+          <text key={`${lab}-${i}`} x={xAt(i)} y={height - 6} textAnchor="middle" className="fill-muted-foreground text-[8px]">
+            {lab}
+          </text>
+        ))}
+      </svg>
+      <ul className="flex flex-wrap gap-x-4 gap-y-1 text-[11px]" aria-label="Legend">
+        {series.map((s) => (
+          <li key={s.key} className="flex items-center gap-1.5">
+            <span className={`h-2 w-4 shrink-0 rounded-sm ${s.legendClass}`} />
+            <span className="text-muted-foreground">{s.name}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+}
+
 type BarRow = { key: string; label: string; value: number; sublabel?: string }
 
 export function SimpleHorizontalBarChart({

@@ -71,6 +71,7 @@ public sealed class LighthouseDataStoreAdapter(LighthouseDataStore inner) : ILig
         bool? dentalCheckupDone, bool? psychologicalCheckupDone, string? notes, DateOnly? recordDate,
         string? extendedJson = null) =>
         throw new NotImplementedException();
+    public bool DeleteHealthRecord(int id) => throw new NotImplementedException();
 
     public IReadOnlyList<IncidentReportDto> ListIncidentReports(int? residentId) => throw new NotImplementedException();
     public IncidentReportDto CreateIncidentReport(int residentId, int? safehouseId, DateOnly incidentDate, string incidentType,

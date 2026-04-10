@@ -64,6 +64,7 @@ public interface ILighthouseRepository
         double? energyLevelScore, double? heightCm, double? weightKg, double? bmi, bool? medicalCheckupDone,
         bool? dentalCheckupDone, bool? psychologicalCheckupDone, string? notes, DateOnly? recordDate,
         string? extendedJson = null);
+    bool DeleteHealthRecord(int id);
 
     IReadOnlyList<IncidentReportDto> ListIncidentReports(int? residentId);
     IncidentReportDto CreateIncidentReport(int residentId, int? safehouseId, DateOnly incidentDate, string incidentType,

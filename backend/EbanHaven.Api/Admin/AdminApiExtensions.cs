@@ -370,6 +370,9 @@ public static class AdminApiExtensions
                 body.DentalCheckupDone, body.PsychologicalCheckupDone, body.Notes, date, body.ExtendedJson);
             return u is null ? Results.NotFound() : Results.Ok(u);
         });
+
+        admin.MapDelete("/health-records/{id:int}", (int id, ILighthouseRepository repo) =>
+            repo.DeleteHealthRecord(id) ? Results.NoContent() : Results.NotFound());
     }
 
     private static object LegacyCaseFromSummary(ResidentSummaryDto r) => new

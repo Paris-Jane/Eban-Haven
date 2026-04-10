@@ -1176,6 +1176,15 @@ public sealed class SupabaseLighthouseRepository(HavenDbContext db) : ILighthous
             NullIfEmpty(row.ExtendedJson));
     }
 
+    public bool DeleteHealthRecord(int id)
+    {
+        var row = db.HealthWellbeingRecords.FirstOrDefault(x => x.HealthRecordId == id);
+        if (row is null) return false;
+        db.HealthWellbeingRecords.Remove(row);
+        db.SaveChanges();
+        return true;
+    }
+
     // ── Incident Reports ──────────────────────────────────────────────────────
 
     private static IncidentReportDto ToIncidentDto(DataAccess.Entities.IncidentReport r) =>

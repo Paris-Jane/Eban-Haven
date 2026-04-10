@@ -4,7 +4,6 @@ import { card } from '../adminStyles'
 import { formatAdminDate } from '../adminDataTable/adminFormatters'
 import { CategoryBadge, StatusBadge } from '../adminDataTable/AdminBadges'
 import { EducationSection, HealthSection } from './CareProgressContent'
-import { PlansTabContent } from './PlansTabContent'
 import { EmptyState, QuickActionButton, RecordCardRow, SearchField, SectionHeader } from './caseUi'
 
 type GoalKey = 'health' | 'education' | 'safety'
@@ -101,8 +100,8 @@ function GoalCircle({
   onClick: () => void
 }) {
   const ratio = metric.current == null || metric.target <= 0 ? 0 : clamp(metric.current / metric.target, 0, 1)
-  const size = 134
-  const radius = 48
+  const size = 176
+  const radius = 62
   const circumference = 2 * Math.PI * radius
   const dash = circumference * (1 - ratio)
 
@@ -131,8 +130,8 @@ function GoalCircle({
               className="text-primary"
             />
           </svg>
-          <div className="-mt-[5.8rem] flex h-[7rem] w-[7rem] flex-col items-center justify-center text-center">
-            <div className="text-2xl font-semibold tabular-nums text-foreground">
+          <div className="-mt-[7.6rem] flex h-[9.25rem] w-[9.25rem] flex-col items-center justify-center text-center">
+            <div className="text-3xl font-semibold tabular-nums text-foreground">
               {metric.key === 'education'
                 ? metric.current != null
                   ? metric.current.toFixed(2)
@@ -152,7 +151,6 @@ function GoalCircle({
             {' · '}
             Goal: {metric.targetLabel}
           </p>
-          <p className="mt-2 text-xs text-muted-foreground">{metric.sourceNote}</p>
           {metric.plan ? (
             <div className="mt-3 flex flex-wrap items-center gap-2">
               <CategoryBadge>{metric.plan.planCategory}</CategoryBadge>
@@ -395,16 +393,7 @@ export function GoalsTabContent({
             )}
           </div>
 
-          <PlansTabContent
-            residentId={residentId}
-            plans={plans}
-            onReload={onReload}
-            openCreateSignal={openCreateSignals.plan}
-            categoryFilter="Safety"
-            titleOverride="Safety goals"
-            descriptionOverride="Safety-related intervention plans tied to this resident."
-            addLabel="Add safety goal"
-          />
+
         </div>
       ) : null}
     </div>

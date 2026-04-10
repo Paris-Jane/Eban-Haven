@@ -660,6 +660,14 @@ export async function patchHealthRecord(
   )
 }
 
+export async function deleteHealthRecord(id: number): Promise<void> {
+  const res = await apiFetch(`${base}/health-records/${id}`, { method: 'DELETE' })
+  if (!res.ok) {
+    const t = await res.text().catch(() => '')
+    throw new Error(t || `Delete failed (${res.status})`)
+  }
+}
+
 export async function listIncidentReports(residentId?: number): Promise<T.IncidentReport[]> {
   const qs = residentId ? `?residentId=${residentId}` : ''
   return parseJson<T.IncidentReport[]>(await apiFetch(`${base}/incident-reports${qs}`))
