@@ -150,37 +150,19 @@ function StepBadge({ n, label, active }: { n: number; label: string; active?: bo
   )
 }
 
-function InstagramIcon({ className }: { className?: string }) {
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-      <rect x="2" y="2" width="20" height="20" rx="5" ry="5" />
-      <circle cx="12" cy="12" r="4" />
-      <line x1="17.5" y1="6.5" x2="17.51" y2="6.5" />
-    </svg>
-  )
-}
-
-function FacebookIcon({ className }: { className?: string }) {
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-      <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z" />
-    </svg>
-  )
-}
-
 function PlatformIcon({ platform }: { platform: string }) {
   const lp = platform.toLowerCase()
   if (lp === 'instagram') {
     return (
-      <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-gradient-to-br from-purple-500 via-pink-500 to-orange-400 text-white">
-        <InstagramIcon className="h-3.5 w-3.5" />
+      <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-gradient-to-br from-purple-500 via-pink-500 to-orange-400">
+        <span className="text-[9px] font-bold leading-none text-white">IG</span>
       </div>
     )
   }
   if (lp === 'facebook') {
     return (
-      <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-blue-600 text-white">
-        <FacebookIcon className="h-3.5 w-3.5" />
+      <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-blue-600">
+        <span className="text-[10px] font-bold leading-none text-white">f</span>
       </div>
     )
   }
@@ -1235,70 +1217,68 @@ export function SocialPlannerPage() {
                       {/* Expanded details */}
                       {isExpanded && (
                         <div className="border-t border-border/50 bg-muted/20 px-5 py-4">
-                          {/* Action row: Edit, Delete, Find photos, Publish */}
-                          <div className="mb-3 flex flex-wrap items-center gap-2">
-                            <button
-                              type="button"
-                              className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-2.5 py-1.5 text-xs font-medium text-foreground hover:bg-muted/50"
-                              onClick={() => setEditingPost(post)}
-                            >
-                              <Pencil className="h-3 w-3" />
-                              Edit
-                            </button>
-                            {deletingId === post.id ? (
-                              <div className="flex items-center gap-1">
-                                <button
-                                  type="button"
-                                  onClick={() => void deletePost(post.id)}
-                                  disabled={savingIds.has(`delete-${post.id}`)}
-                                  className="rounded-md bg-destructive px-2.5 py-1.5 text-xs font-semibold text-white disabled:opacity-50"
-                                >
-                                  {savingIds.has(`delete-${post.id}`) ? '…' : 'Confirm delete'}
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => setDeletingId(null)}
-                                  className="rounded-md border border-border px-2.5 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted/50"
-                                >
-                                  Cancel
-                                </button>
-                              </div>
-                            ) : (
+                          {/* Action row */}
+                          <div className="mb-3 flex items-center justify-between gap-2">
+                            <div className="flex gap-2">
                               <button
                                 type="button"
-                                className="inline-flex items-center gap-1.5 rounded-lg border border-destructive/30 px-2.5 py-1.5 text-xs font-medium text-destructive hover:bg-destructive/10"
-                                onClick={() => setDeletingId(post.id)}
+                                className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-2.5 py-1.5 text-xs font-medium text-foreground hover:bg-muted/50"
+                                onClick={() => setEditingPost(post)}
                               >
-                                <Trash2 className="h-3 w-3" />
-                                Delete
+                                <Pencil className="h-3 w-3" />
+                                Edit
                               </button>
-                            )}
-                            {post.imageIdea && (
+                              {deletingId === post.id ? (
+                                <div className="flex items-center gap-1">
+                                  <button
+                                    type="button"
+                                    onClick={() => void deletePost(post.id)}
+                                    disabled={savingIds.has(`delete-${post.id}`)}
+                                    className="rounded-md bg-destructive px-2 py-1 text-[10px] font-semibold text-white disabled:opacity-50"
+                                  >
+                                    {savingIds.has(`delete-${post.id}`) ? '…' : 'Delete'}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => setDeletingId(null)}
+                                    className="rounded-md border border-border px-2 py-1 text-[10px] font-medium text-muted-foreground hover:bg-muted/50"
+                                  >
+                                    Cancel
+                                  </button>
+                                </div>
+                              ) : (
+                                <button
+                                  type="button"
+                                  className="rounded-md p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                                  onClick={() => setDeletingId(post.id)}
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </button>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-2">
+                              {post.imageIdea && (
+                                <button
+                                  type="button"
+                                  onClick={() => setImageSearchKey(imageSearchKey === queueKey ? null : queueKey)}
+                                  className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-2.5 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+                                >
+                                  <Image className="h-3 w-3" />
+                                  {imageSearchKey === queueKey ? 'Hide photos' : 'Find photos'}
+                                </button>
+                              )}
                               <button
                                 type="button"
-                                onClick={() => setImageSearchKey(imageSearchKey === queueKey ? null : queueKey)}
-                                className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-2.5 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+                                className={`${btnPrimary} inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs disabled:opacity-50`}
+                                onClick={() => void sendToFacebook(post)}
+                                disabled={savingIds.has(`facebook-${post.id}`)}
                               >
-                                <Image className="h-3 w-3" />
-                                {imageSearchKey === queueKey ? 'Hide photos' : 'Find photos'}
+                                {savingIds.has(`facebook-${post.id}`)
+                                  ? <LoaderCircle className="h-3 w-3 animate-spin" />
+                                  : <SendHorizonal className="h-3 w-3" />}
+                                Publish
                               </button>
-                            )}
-                            <button
-                              type="button"
-                              className={`${btnPrimary} ml-auto inline-flex items-center gap-1.5 px-3 py-2 text-xs disabled:opacity-50`}
-                              onClick={() =>
-                                void runLockedPlannedPostUpdate(
-                                  `facebook-${post.id}`,
-                                  'Failed to schedule to Facebook.',
-                                  () => schedulePlannedSocialPostToFacebook(post.id),
-                                )}
-                              disabled={savingIds.has(`facebook-${post.id}`)}
-                            >
-                              {savingIds.has(`facebook-${post.id}`)
-                                ? <LoaderCircle className="h-3.5 w-3.5 animate-spin" />
-                                : <SendHorizonal className="h-3.5 w-3.5" />}
-                              Publish
-                            </button>
+                            </div>
                           </div>
 
                           {/* Image search */}
