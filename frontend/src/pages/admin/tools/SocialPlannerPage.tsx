@@ -6,6 +6,7 @@ import {
   CheckCheck,
   ChevronDown,
   ChevronUp,
+  Clock,
   Image,
   LoaderCircle,
   MessageCircle,
@@ -139,11 +140,11 @@ async function fetchPexelsImages(query: string): Promise<PexelsPhoto[]> {
 
 function StepBadge({ n, label, active }: { n: number; label: string; active?: boolean }) {
   return (
-    <div className={`flex items-center gap-2 text-xs font-medium ${active ? 'text-foreground' : 'text-muted-foreground'}`}>
-      <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${active ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>
+    <div className={`flex items-center gap-2 text-xs font-medium transition-colors ${active ? 'text-foreground' : 'text-muted-foreground/60'}`}>
+      <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[10px] font-bold ring-1 transition-all ${active ? 'bg-primary text-primary-foreground ring-primary/30 shadow-sm' : 'bg-background text-muted-foreground ring-border'}`}>
         {n}
       </span>
-      {label}
+      <span className={active ? 'font-semibold' : ''}>{label}</span>
     </div>
   )
 }
@@ -604,15 +605,17 @@ export function SocialPlannerPage() {
       )}
 
       {/* Header */}
-      <div>
-        <h2 className={pageTitle}>Marketing Support</h2>
-        <p className={pageDesc}>Use the AI copilot to plan social media content, then save and schedule posts.</p>
+      <div className="flex flex-col gap-4">
+        <div className="border-l-4 border-primary pl-4">
+          <h2 className={pageTitle}>Marketing Support</h2>
+          <p className={pageDesc}>Use the AI copilot to plan social media content, then save and schedule posts.</p>
+        </div>
         {/* Step strip */}
-        <div className="mt-4 flex flex-wrap items-center gap-2 rounded-xl border border-border bg-muted/30 px-4 py-3">
+        <div className="flex flex-wrap items-center gap-3 rounded-xl border border-border bg-card px-5 py-3.5 shadow-sm">
           <StepBadge n={1} label="Describe your goal" active={!showChatView} />
-          <span className="text-muted-foreground/40">→</span>
+          <div className="h-px w-6 bg-border" />
           <StepBadge n={2} label="Review AI-generated posts" active={showChatView && !loading} />
-          <span className="text-muted-foreground/40">→</span>
+          <div className="h-px w-6 bg-border" />
           <StepBadge n={3} label="Save & schedule" active={plannedPosts.length > 0} />
         </div>
       </div>
@@ -692,7 +695,7 @@ export function SocialPlannerPage() {
                         onClick={() => { setStartMode('brief'); setBriefOpen(true) }}
                         className="flex flex-col gap-3 rounded-xl border border-border bg-background p-5 text-left transition-colors hover:border-primary/40 hover:bg-primary/5"
                       >
-                        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-violet-100 text-violet-600 dark:bg-violet-900/30 dark:text-violet-400">
+                        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
                           <Target className="h-4 w-4" />
                         </div>
                         <div>
@@ -709,7 +712,7 @@ export function SocialPlannerPage() {
                         onClick={() => setStartMode('chat')}
                         className="flex flex-col gap-3 rounded-xl border border-border bg-background p-5 text-left transition-colors hover:border-primary/40 hover:bg-primary/5"
                       >
-                        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400">
+                        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
                           <MessageCircle className="h-4 w-4" />
                         </div>
                         <div>
@@ -969,7 +972,7 @@ export function SocialPlannerPage() {
                                     </div>
                                     {idea.imageIdea && (
                                       <div className="mt-2 flex items-center gap-2">
-                                        <p className="text-xs text-muted-foreground">📷 {idea.imageIdea}</p>
+                                        <p className="flex items-center gap-1.5 text-xs text-muted-foreground"><Image className="h-3 w-3 shrink-0 text-muted-foreground/60" />{idea.imageIdea}</p>
                                         <button
                                             type="button"
                                             onClick={() => setImageSearchKey(imageSearchKey === ideaKey ? null : ideaKey)}
@@ -1216,7 +1219,7 @@ export function SocialPlannerPage() {
 
                     {post.imageIdea && (
                       <div className="mt-2 flex items-center gap-2">
-                        <p className="text-xs text-muted-foreground/70">📷 {post.imageIdea}</p>
+                        <p className="flex items-center gap-1.5 text-xs text-muted-foreground/70"><Image className="h-3 w-3 shrink-0" />{post.imageIdea}</p>
                         <button
                             type="button"
                             onClick={() => {
@@ -1238,9 +1241,19 @@ export function SocialPlannerPage() {
                       />
                     )}
 
-                    <div className="mt-2 space-y-0.5 text-xs text-muted-foreground">
-                      {post.suggestedTime && <p>⏰ Suggested: {post.suggestedTime}</p>}
-                      {post.scheduledForUtc && <p>📅 Scheduled: {toUserFacingDate(post.scheduledForUtc)}</p>}
+                    <div className="mt-2 space-y-1 text-xs text-muted-foreground">
+                      {post.suggestedTime && (
+                        <p className="flex items-center gap-1.5">
+                          <Clock className="h-3 w-3 shrink-0 text-muted-foreground/60" />
+                          Suggested: {post.suggestedTime}
+                        </p>
+                      )}
+                      {post.scheduledForUtc && (
+                        <p className="flex items-center gap-1.5">
+                          <CalendarClock className="h-3 w-3 shrink-0 text-muted-foreground/60" />
+                          Scheduled: {toUserFacingDate(post.scheduledForUtc)}
+                        </p>
+                      )}
                     </div>
 
                     {post.hashtags.length > 0 && (
