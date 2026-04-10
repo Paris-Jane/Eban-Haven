@@ -1,6 +1,6 @@
 {
   "model_name": "donor_upgrade_propensity_lr",
-  "model_version": "1.0.0",
+  "model_version": "1.1.0",
   "target": "YoY giving increase (most_recent_year_total > prior_year_total)",
   "labeling_strategy": "Per donor: most recent consecutive calendar-year pair",
   "feature_columns": [
@@ -27,12 +27,16 @@
   ],
   "roc_auc_loo": 0.7164,
   "f1_loo": 0.6667,
-  "best_threshold": 0.6258,
+  "best_threshold": 0.6241,
   "n_training_samples": 37,
   "n_positive": 18,
   "n_negative": 19,
   "cv_strategy": "LeaveOneOut",
   "trained_on": "2026-04-09",
   "currency": "PHP",
-  "data_warning": "Trained on 37 labeled donors. Retrain with GradientBoostingClassifier when N > 100."
+  "data_source": "azure_postgresql",
+  "primary_data_source": "azure_postgresql",
+  "fallback_data_source": "csv_snapshot",
+  "data_source_role": "primary",
+  "data_warning": "Primary training source is the live Azure PostgreSQL database. This run used Azure PostgreSQL and trained on 37 labeled donors. Retrain with GradientBoostingClassifier when N > 100."
 }

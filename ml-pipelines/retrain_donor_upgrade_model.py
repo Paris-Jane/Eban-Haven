@@ -222,9 +222,13 @@ def main() -> None:
         "trained_on": pd.Timestamp.utcnow().strftime("%Y-%m-%d"),
         "currency": "PHP",
         "data_source": data_source,
+        "primary_data_source": "azure_postgresql",
+        "fallback_data_source": "csv_snapshot",
+        "data_source_role": "primary" if data_source == "azure_postgresql" else "fallback_only",
         "data_warning": (
-            f"Trained on {len(df_model)} labeled donors from the "
-            f"{'live Azure PostgreSQL database' if data_source == 'azure_postgresql' else 'committed CSV snapshot'}. "
+            f"Primary training source is the live Azure PostgreSQL database. "
+            f"This artifact was trained on {len(df_model)} labeled donors from the "
+            f"{'live Azure PostgreSQL database' if data_source == 'azure_postgresql' else 'committed CSV snapshot fallback'}. "
             "Retrain with GradientBoostingClassifier when N > 100."
         ),
     }

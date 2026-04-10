@@ -1,5 +1,5 @@
 {
-  "model_name": "reintegration_readiness_rf",
+  "model_name": "reintegration_readiness_gbm",
   "model_version": "4.0.0",
   "target": "reintegration_status == Completed among residents with >= 540 observed days or completed exit",
   "labeling_strategy": "Mature-cohort readiness model using enriched resident aggregates",
@@ -25,20 +25,20 @@
     "pct_plans_achieved",
     "active_plan_count"
   ],
-  "best_threshold": 0.398,
+  "best_threshold": 0.0616,
   "roc_auc_test": 0.4,
-  "f0_5_test": 0.4545,
-  "precision_test": 0.4286,
-  "recall_test": 0.6,
-  "cv_roc_auc_mean": 0.4756,
-  "cv_f1_mean": 0.3361,
+  "f0_5_test": 0.4878,
+  "precision_test": 0.4444,
+  "recall_test": 0.8,
+  "cv_roc_auc_mean": 0.33,
+  "cv_f1_mean": 0.1,
   "n_training_samples": 48,
   "n_positive_total": 19,
   "n_negative_total": 29,
   "observation_horizon_days": 540,
   "benchmark_medians": {
     "age_at_entry": 17.0,
-    "days_in_program": 914.0692,
+    "days_in_program": 914.1549,
     "total_sessions": 46.0,
     "pct_progress_noted": 0.9434,
     "pct_concerns_flagged": 0.2432,
@@ -53,5 +53,8 @@
     "pct_plans_achieved": 0.0,
     "active_plan_count": 3.0
   },
-  "data_source": "csv_snapshot"
+  "data_source": "azure_postgresql",
+  "primary_data_source": "azure_postgresql",
+  "fallback_data_source": "csv_snapshot",
+  "data_source_role": "primary"
 }

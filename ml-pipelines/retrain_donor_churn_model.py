@@ -369,6 +369,13 @@ def main() -> None:
         "cv_strategy": "StratifiedKFold(5) + RandomizedSearchCV on training set",
         "cv_roc_auc_mean": round(best["best_cv_roc_auc"], 4),
         "data_source": data_source,
+        "primary_data_source": "azure_postgresql",
+        "fallback_data_source": "csv_snapshot",
+        "data_source_role": "primary" if data_source == "azure_postgresql" else "fallback_only",
+        "data_source_note": (
+            "Azure PostgreSQL is the intended primary training source. "
+            "The committed CSV snapshot exists only so the notebook and retraining script remain executable offline."
+        ),
         "model_candidates": {
             name: {
                 k: (

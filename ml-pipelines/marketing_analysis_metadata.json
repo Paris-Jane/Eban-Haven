@@ -1,54 +1,58 @@
 {
   "pipeline_version": "1.0.0",
   "last_run": "2026-04-09",
-  "n_observations": 234,
-  "r_squared": 0.0246,
+  "n_observations": 239,
+  "r_squared": 0.0218,
   "campaign_lift": {
-    "coefficient": 0.0623,
-    "ci_lower": -0.123,
-    "ci_upper": 0.2476,
-    "p_value": 0.5098,
-    "pct_effect": 6.43,
+    "coefficient": 0.0286,
+    "ci_lower": -0.1815,
+    "ci_upper": 0.2387,
+    "p_value": 0.7896,
+    "pct_effect": 2.9,
     "significant": false
   },
   "channel_effects": [
     {
       "channel": "Campaign",
-      "coefficient": 0.0015,
-      "ci_lower": -0.2543,
-      "ci_upper": 0.2574,
-      "p_value": 0.9906,
-      "pct_effect": 0.15,
+      "coefficient": 0.1838,
+      "ci_lower": -0.1498,
+      "ci_upper": 0.5175,
+      "p_value": 0.2802,
+      "pct_effect": 20.18,
       "significant": false
     },
     {
       "channel": "Event",
-      "coefficient": 0.0192,
-      "ci_lower": -0.2532,
-      "ci_upper": 0.2916,
-      "p_value": 0.8901,
-      "pct_effect": 1.94,
+      "coefficient": 0.1962,
+      "ci_lower": -0.1467,
+      "ci_upper": 0.539,
+      "p_value": 0.2621,
+      "pct_effect": 21.67,
       "significant": false
     },
     {
       "channel": "PartnerReferral",
-      "coefficient": 0.0188,
-      "ci_lower": -0.3241,
-      "ci_upper": 0.3616,
-      "p_value": 0.9146,
-      "pct_effect": 1.89,
+      "coefficient": 0.1953,
+      "ci_lower": -0.2066,
+      "ci_upper": 0.5971,
+      "p_value": 0.3409,
+      "pct_effect": 21.56,
       "significant": false
     },
     {
       "channel": "SocialMedia",
-      "coefficient": 0.0288,
-      "ci_lower": -0.2518,
-      "ci_upper": 0.3094,
-      "p_value": 0.8405,
-      "pct_effect": 2.92,
+      "coefficient": 0.214,
+      "ci_lower": -0.1385,
+      "ci_upper": 0.5666,
+      "p_value": 0.234,
+      "pct_effect": 23.87,
       "significant": false
     }
   ],
+  "data_source": "azure_postgresql",
+  "primary_data_source": "azure_postgresql",
+  "fallback_data_source": "csv_snapshot",
+  "data_source_role": "primary",
   "social_media_spotlight": {
     "channel_source_donations": 43,
     "channel_source_total_php": 43590.98,
@@ -57,7 +61,7 @@
     "channel_source_unique_donors": 29,
     "acquired_via_social_donors": 13,
     "avg_ltv_social_acquired_php": 5610.78,
-    "avg_ltv_all_donors_php": 4223.24,
-    "mann_whitney_p_value": 0.6954
+    "avg_ltv_all_donors_php": 4185.32,
+    "mann_whitney_p_value": 0.5946
   }
 }

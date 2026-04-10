@@ -399,9 +399,9 @@ def fit_final_model(best_name: str, X: pd.DataFrame, y: pd.Series) -> Pipeline:
 def main() -> None:
     df, source = load_dataset_from_environment(prompt_if_missing=True)
     data_warning = (
-        "Trained on the live Azure PostgreSQL case-management database."
+        "Primary training source is the live Azure PostgreSQL case-management database. This artifact was trained on that primary source."
         if source == "azure_postgresql"
-        else "Trained on the committed CSV snapshot because no live DB connection was provided."
+        else "Primary training source is Azure PostgreSQL; this run used the committed CSV snapshot fallback because no live DB connection was provided."
     )
 
     X = df[FEATURE_COLS].copy()
@@ -441,6 +441,10 @@ def main() -> None:
         "n_negative_total": int((1 - y).sum()),
         "observation_horizon_days": OBS_HORIZON_DAYS,
         "class_balance_positive_rate": round(float(y.mean()), 4),
+        "data_source": source,
+        "primary_data_source": "azure_postgresql",
+        "fallback_data_source": "csv_snapshot",
+        "data_source_role": "primary" if source == "azure_postgresql" else "fallback_only",
         "model_candidates": {
             name: {metric: round(value, 4) for metric, value in metrics.items()}
             for name, metrics in results.items()
