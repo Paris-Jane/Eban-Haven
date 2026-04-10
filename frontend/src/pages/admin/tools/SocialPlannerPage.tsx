@@ -150,19 +150,41 @@ function StepBadge({ n, label, active }: { n: number; label: string; active?: bo
   )
 }
 
+/** Legacy Lucide paths — `Facebook` / `Instagram` are not exported from lucide-react 1.x. */
+function InstagramBrandIcon({ className }: { className?: string }) {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden>
+      <rect x="2" y="2" width="20" height="20" rx="5" ry="5" />
+      <circle cx="12" cy="12" r="4" />
+      <line x1="17.5" y1="6.5" x2="17.51" y2="6.5" />
+    </svg>
+  )
+}
+
+function FacebookBrandIcon({ className }: { className?: string }) {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden>
+      <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z" />
+    </svg>
+  )
+}
+
+const platformIconShell =
+  'flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-200'
+
 function PlatformIcon({ platform }: { platform: string }) {
   const lp = platform.toLowerCase()
   if (lp === 'instagram') {
     return (
-      <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-gradient-to-br from-purple-500 via-pink-500 to-orange-400">
-        <span className="text-[9px] font-bold leading-none text-white">IG</span>
+      <div className={platformIconShell}>
+        <InstagramBrandIcon className="h-3.5 w-3.5" />
       </div>
     )
   }
   if (lp === 'facebook') {
     return (
-      <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-blue-600">
-        <span className="text-[10px] font-bold leading-none text-white">f</span>
+      <div className={platformIconShell}>
+        <FacebookBrandIcon className="h-3.5 w-3.5" />
       </div>
     )
   }
@@ -714,9 +736,9 @@ export function SocialPlannerPage() {
                       <button
                         type="button"
                         onClick={() => { setStartMode('brief'); setBriefOpen(true) }}
-                        className="flex flex-col gap-3 rounded-xl border border-primary/30 bg-primary/5 p-5 text-left transition-colors hover:border-primary/50 hover:bg-primary/10 hover:shadow-sm"
+                        className="flex flex-col gap-3 rounded-xl border border-border bg-background p-5 text-left transition-colors hover:border-primary/30 hover:bg-primary/5 hover:shadow-sm"
                       >
-                        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#f9f2e6] text-amber-600">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
                           <Target className="h-5 w-5" />
                         </div>
                         <div>
@@ -733,7 +755,7 @@ export function SocialPlannerPage() {
                         onClick={() => setStartMode('chat')}
                         className="flex flex-col gap-3 rounded-xl border border-border bg-background p-5 text-left transition-colors hover:border-primary/30 hover:bg-primary/5 hover:shadow-sm"
                       >
-                        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#f9f2e6] text-amber-600">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
                           <MessageCircle className="h-5 w-5" />
                         </div>
                         <div>

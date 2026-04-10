@@ -184,6 +184,28 @@ function findLatestPlan(plans: InterventionPlan[], categories: string[]): Interv
   )
 }
 
+type EducationExtendedLite = {
+  programName: string
+  courseName: string
+  attendanceStatus: string
+}
+
+function parseEducationExtendedLite(json: string | null | undefined): EducationExtendedLite {
+  if (!json?.trim()) {
+    return { programName: '', courseName: '', attendanceStatus: '' }
+  }
+  try {
+    const parsed = JSON.parse(json) as Partial<EducationExtendedLite>
+    return {
+      programName: parsed.programName ?? '',
+      courseName: parsed.courseName ?? '',
+      attendanceStatus: parsed.attendanceStatus ?? '',
+    }
+  } catch {
+    return { programName: '', courseName: '', attendanceStatus: '' }
+  }
+}
+
 function toneClass(tone: 'danger' | 'warning' | 'default' | 'success') {
   if (tone === 'danger') return 'bg-destructive/10 text-destructive'
   if (tone === 'warning') return 'bg-amber-500/15 text-amber-900 dark:text-amber-100'
@@ -1704,16 +1726,32 @@ function GoalDrillIn({
     )
   }
 
+  if (goal === 'education') {
+    return (
+      <EducationGoalDrillIn
+        educationRows={educationRows}
+        relatedPlan={relatedPlan}
+        onAddEducation={onAddEducation}
+        onOpenEducation={onOpenEducation}
+      />
+    )
+  }
+
+  if (goal === 'safety') {
+    return (
+      <SafetyGoalDrillIn
+        visitRows={visitRows}
+        incidentRows={incidentRows}
+        relatedPlan={relatedPlan}
+        onLogIncident={onLogIncident}
+        onOpenIncident={onOpenIncident}
+        onOpenVisit={onOpenVisit}
+      />
+    )
+  }
+
   const rows =
-    goal === 'education'
-        ? byNewestDate(educationRows, (row) => row.recordDate).slice(0, 3).map((row) => ({
-            key: `e-${row.id}`,
-            title: formatAdminDate(row.recordDate),
-            body: row.notes || 'Education record',
-            meta: row.attendanceRate != null ? `Attendance ${attendanceLabel(row.attendanceRate)}` : 'No attendance',
-            onOpen: () => onOpenEducation(row.id),
-          }))
-        : [
+    [
             ...incidentRows.slice(0, 3).map((row) => ({
               key: `i-${row.id}`,
               title: row.fields.incident_type || 'Incident',
@@ -1767,7 +1805,6 @@ function GoalDrillIn({
         )}
       </div>
       <div className="flex flex-wrap gap-2">
-        {goal === 'education' ? <InlineActionButton onClick={onAddEducation}>Add education record</InlineActionButton> : null}
         {goal === 'safety' ? <InlineActionButton onClick={onLogIncident}>Log incident</InlineActionButton> : null}
       </div>
     </div>
@@ -1931,6 +1968,301 @@ function HealthGoalDrillIn({
                   <div className="rounded-lg bg-muted/20 px-4 py-3">
                     <p className="text-xs uppercase tracking-wide text-muted-foreground">Notes</p>
                     <p className="mt-2 whitespace-pre-wrap text-sm text-foreground">{row.notes || 'No notes recorded.'}</p>
+                  </div>
+                </div>
+              ) : null}
+            </button>
+          ))
+        )}
+      </div>
+    </div>
+  )
+}
+
+function EducationGoalDrillIn({
+  educationRows,
+  relatedPlan,
+  onAddEducation,
+  onOpenEducation,
+}: {
+  educationRows: EducationRecord[]
+  relatedPlan: InterventionPlan | null
+  onAddEducation: () => void
+  onOpenEducation: (id: number) => void
+}) {
+  const [selectedId, setSelectedId] = useState<number | null>(null)
+  const sortedRows = byNewestDate(educationRows, (row) => row.recordDate)
+  const latest = sortedRows[0] ?? null
+  const distinctCourses = new Set(
+    sortedRows
+      .map((row) => {
+        const ext = parseEducationExtendedLite(row.extendedJson)
+        return ext.courseName || row.schoolName || ''
+      })
+      .filter(Boolean),
+  ).size
+  const latestProgress = latest?.progressPercent ?? null
+  const latestAttendance = latest?.attendanceRate ?? null
+
+  const chartPoints = sortedRows
+    .slice()
+    .reverse()
+    .filter((row) => row.attendanceRate != null)
+    .map((row) => ({
+      label: new Date(row.recordDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+      value: (row.attendanceRate ?? 0) * 100,
+    }))
+
+  return (
+    <div className="space-y-5">
+      <div className="rounded-xl border border-border bg-background px-4 py-4">
+        <p className="text-sm font-semibold text-foreground">Education</p>
+        {chartPoints.length > 0 ? (
+          <div className="mt-4">
+            <SimpleLineChart
+              points={chartPoints}
+              formatY={(n) => `${Math.round(n)}%`}
+              height={220}
+              ariaLabel="Attendance trend"
+            />
+          </div>
+        ) : (
+          <EmptyState title="No attendance data yet" />
+        )}
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-3">
+        <MiniMetric label="Total courses" value={String(distinctCourses || sortedRows.length || 0)} />
+        <MiniMetric label="Progress" value={latestProgress != null ? `${latestProgress}%` : '—'} />
+        <MiniMetric label="Attendance" value={latestAttendance != null ? `${Math.round(latestAttendance * 100)}%` : '—'} />
+      </div>
+
+      <div className="space-y-2">
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-sm font-semibold text-foreground">Records</p>
+          <div className="flex flex-wrap gap-2">
+            <InlineActionButton onClick={onAddEducation}>Add education record</InlineActionButton>
+          </div>
+        </div>
+        {relatedPlan ? (
+          <div className="rounded-xl bg-muted/20 px-4 py-4">
+            <div className="flex flex-wrap items-center gap-2">
+              <CategoryBadge>{relatedPlan.planCategory}</CategoryBadge>
+              <StatusBadge status={relatedPlan.status} />
+            </div>
+            <p className="mt-2 text-sm text-foreground">{relatedPlan.planDescription}</p>
+          </div>
+        ) : null}
+        {sortedRows.length === 0 ? (
+          <EmptyState title="No education records yet" />
+        ) : (
+          sortedRows.map((row) => {
+            const ext = parseEducationExtendedLite(row.extendedJson)
+            const status = ext.attendanceStatus || row.enrollmentStatus || row.completionStatus || 'No status'
+            return (
+              <button
+                key={row.id}
+                type="button"
+                onClick={() => setSelectedId((value) => (value === row.id ? null : row.id))}
+                className="w-full rounded-xl border border-border bg-card px-4 py-3 text-left hover:bg-muted/30"
+              >
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="font-medium text-foreground">{formatAdminDate(row.recordDate)}</span>
+                    <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary">
+                      Attend {row.attendanceRate != null ? `${Math.round(row.attendanceRate * 100)}%` : '—'}
+                    </span>
+                    <span className="rounded-full bg-emerald-500/10 px-2.5 py-1 text-xs font-medium text-emerald-700 dark:text-emerald-300">
+                      Progress {row.progressPercent != null ? `${Math.round(row.progressPercent)}%` : '—'}
+                    </span>
+                  </div>
+                  <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">{status}</span>
+                </div>
+                {selectedId === row.id ? (
+                  <div className="mt-4 grid gap-4 lg:grid-cols-[0.9fr_1.1fr]">
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      <MiniMetric label="School" value={row.schoolName || '—'} />
+                      <MiniMetric label="Level" value={row.educationLevel || '—'} />
+                      <MiniMetric label="Program" value={ext.programName || '—'} />
+                      <MiniMetric label="Course" value={ext.courseName || '—'} />
+                      <MiniMetric label="Enrollment" value={row.enrollmentStatus || '—'} />
+                      <MiniMetric label="Completion" value={row.completionStatus || '—'} />
+                    </div>
+                    <div className="rounded-lg bg-muted/20 px-4 py-3">
+                      <div className="flex flex-wrap gap-2">
+                        <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">{status}</span>
+                      </div>
+                      <p className="mt-3 whitespace-pre-wrap text-sm text-foreground">{row.notes || 'No notes recorded.'}</p>
+                      <div className="mt-4">
+                        <InlineActionButton onClick={() => onOpenEducation(row.id)}>Open full record</InlineActionButton>
+                      </div>
+                    </div>
+                  </div>
+                ) : null}
+              </button>
+            )
+          })
+        )}
+      </div>
+    </div>
+  )
+}
+
+function SafetyGoalDrillIn({
+  visitRows,
+  incidentRows,
+  relatedPlan,
+  onLogIncident,
+  onOpenIncident,
+  onOpenVisit,
+}: {
+  visitRows: HomeVisitation[]
+  incidentRows: JsonTableRow[]
+  relatedPlan: InterventionPlan | null
+  onLogIncident: () => void
+  onOpenIncident: (row: JsonTableRow) => void
+  onOpenVisit: (row: HomeVisitation) => void
+}) {
+  const [search, setSearch] = useState('')
+  const [filter, setFilter] = useState<'all' | 'visit' | 'incident'>('all')
+  const [expandedKey, setExpandedKey] = useState<string | null>(null)
+
+  const latestVisit = byNewestDate(visitRows, (row) => row.visitDate)[0] ?? null
+
+  const safetyRecords = useMemo(() => {
+    const visitItems = visitRows
+      .filter((row) => row.safetyConcernsNoted || row.followUpNeeded)
+      .map((row) => ({
+        key: `visit-${row.id}`,
+        type: 'visit' as const,
+        sort: new Date(row.visitDate).getTime(),
+        date: row.visitDate,
+        location: row.locationVisited || '—',
+        chip: row.visitType || 'Visit',
+        detail: {
+          type: row.visitType || 'Visit',
+          location: row.locationVisited || '—',
+          status: row.safetyConcernsNoted ? 'Safety concern' : row.followUpNeeded ? 'Follow-up needed' : 'Stable',
+          outcome: row.visitOutcome || '—',
+          notes: row.followUpNotes || row.observations || row.purpose || 'No notes recorded.',
+          worker: row.socialWorker,
+        },
+        onOpen: () => onOpenVisit(row),
+      }))
+
+    const incidentItems = incidentRows.map((row) => ({
+      key: `incident-${row.id}`,
+      type: 'incident' as const,
+      sort: new Date(row.fields.incident_date ?? '').getTime(),
+      date: row.fields.incident_date ?? '',
+      location: row.fields.safehouse_id ? `Safehouse ${row.fields.safehouse_id}` : '—',
+      chip: row.fields.incident_type || 'Incident',
+      detail: {
+        type: row.fields.incident_type || 'Incident',
+        location: row.fields.safehouse_id ? `Safehouse ${row.fields.safehouse_id}` : '—',
+        status: (row.fields.resolved ?? '').toLowerCase() === 'true' ? 'Resolved' : 'Open',
+        outcome: row.fields.response_taken || row.fields.severity || '—',
+        notes: row.fields.description || 'No notes recorded.',
+        worker: row.fields.reported_by || '—',
+      },
+      onOpen: () => onOpenIncident(row),
+    }))
+
+    return [...visitItems, ...incidentItems]
+      .sort((a, b) => b.sort - a.sort)
+      .filter((row) => (filter === 'all' ? true : row.type === filter))
+      .filter((row) => {
+        const q = search.trim().toLowerCase()
+        if (!q) return true
+        return `${row.location} ${row.chip} ${row.detail.notes} ${row.detail.status}`.toLowerCase().includes(q)
+      })
+  }, [filter, incidentRows, onOpenIncident, onOpenVisit, search, visitRows])
+
+  return (
+    <div className="space-y-5">
+      <div className="rounded-xl border border-border bg-background px-4 py-4">
+        <p className="text-sm font-semibold text-foreground">Safety</p>
+        {latestVisit ? (
+          <div className="mt-4 grid gap-4 md:grid-cols-[1fr_1fr_0.8fr_1fr_1fr]">
+            <MiniMetric label="Date" value={formatAdminDate(latestVisit.visitDate)} />
+            <MiniMetric label="Location" value={latestVisit.locationVisited || '—'} />
+            <MiniMetric label="Type" value={latestVisit.visitType || '—'} />
+            <MiniMetric label="Safety concerns" value={latestVisit.safetyConcernsNoted ? 'Yes' : 'No'} />
+            <MiniMetric label="Outcome" value={latestVisit.visitOutcome || '—'} />
+          </div>
+        ) : (
+          <EmptyState title="No recent safety visit" />
+        )}
+      </div>
+
+      <div className="space-y-2">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <p className="text-sm font-semibold text-foreground">Records</p>
+          <div className="flex flex-wrap gap-2">
+            <input
+              type="search"
+              className="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search"
+            />
+            <select
+              className="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
+              value={filter}
+              onChange={(e) => setFilter(e.target.value as 'all' | 'visit' | 'incident')}
+            >
+              <option value="all">All</option>
+              <option value="visit">Visits</option>
+              <option value="incident">Incidents</option>
+            </select>
+            <InlineActionButton onClick={onLogIncident}>Add</InlineActionButton>
+          </div>
+        </div>
+        {relatedPlan ? (
+          <div className="rounded-xl bg-muted/20 px-4 py-4">
+            <div className="flex flex-wrap items-center gap-2">
+              <CategoryBadge>{relatedPlan.planCategory}</CategoryBadge>
+              <StatusBadge status={relatedPlan.status} />
+            </div>
+            <p className="mt-2 text-sm text-foreground">{relatedPlan.planDescription}</p>
+          </div>
+        ) : null}
+        {safetyRecords.length === 0 ? (
+          <EmptyState title="No safety records yet" />
+        ) : (
+          safetyRecords.map((row) => (
+            <button
+              key={row.key}
+              type="button"
+              onClick={() => setExpandedKey((value) => (value === row.key ? null : row.key))}
+              className="w-full rounded-xl border border-border bg-card px-4 py-3 text-left hover:bg-muted/30"
+            >
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="font-medium text-foreground">
+                    {formatAdminDate(row.date)}
+                    {row.location !== '—' ? ` · ${row.location}` : ''}
+                  </span>
+                  <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">{row.chip}</span>
+                </div>
+                <span className="text-sm text-muted-foreground">{expandedKey === row.key ? 'Hide' : 'Open'}</span>
+              </div>
+              {expandedKey === row.key ? (
+                <div className="mt-4 grid gap-4 lg:grid-cols-[0.9fr_1.1fr]">
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    <MiniMetric label="Date" value={formatAdminDate(row.date)} />
+                    <MiniMetric label="Location" value={row.detail.location} />
+                    <MiniMetric label="Type" value={row.detail.type} />
+                    <MiniMetric label="Status" value={row.detail.status} />
+                    <MiniMetric label="Outcome" value={row.detail.outcome} />
+                    <MiniMetric label="Worker" value={row.detail.worker} />
+                  </div>
+                  <div className="rounded-lg bg-muted/20 px-4 py-3">
+                    <p className="text-xs uppercase tracking-wide text-muted-foreground">Details</p>
+                    <p className="mt-2 whitespace-pre-wrap text-sm text-foreground">{row.detail.notes}</p>
+                    <div className="mt-4">
+                      <InlineActionButton onClick={row.onOpen}>Open full record</InlineActionButton>
+                    </div>
                   </div>
                 </div>
               ) : null}
