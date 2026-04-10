@@ -1,8 +1,8 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
-using System.Net.Http.Json;
 using EbanHaven.Api.Auth;
+using Google.Apis.Auth;
 using EbanHaven.Api.Configuration;
 using EbanHaven.Api.DataAccess;
 using EbanHaven.Api.DataAccess.Entities;
@@ -20,7 +20,6 @@ namespace EbanHaven.Api.Controllers;
 public sealed class AuthController(
     HavenDbContext db,
     IConfiguration config,
-    IHttpClientFactory httpClientFactory,
     IOptions<GoogleAuthOptions> googleAuthOptions,
     IOptions<IdentityOptions> identityOptions) : ControllerBase
 {
@@ -115,30 +114,34 @@ public sealed class AuthController(
         if (string.IsNullOrWhiteSpace(body.Credential))
             return BadRequest(new { error = "Google credential is required." });
 
-        var client = httpClientFactory.CreateClient("GoogleOAuth");
-        using var response = await client.GetAsync($"/tokeninfo?id_token={Uri.EscapeDataString(body.Credential.Trim())}");
-        if (!response.IsSuccessStatusCode)
+        GoogleJsonWebSignature.Payload payload;
+        try
+        {
+            payload = await GoogleJsonWebSignature.ValidateAsync(
+                body.Credential.Trim(),
+                new GoogleJsonWebSignature.ValidationSettings
+                {
+                    Audience = [clientId],
+                });
+        }
+        catch (InvalidJwtException)
+        {
             return StatusCode(StatusCodes.Status401Unauthorized, new { error = "Google authentication could not be verified." });
+        }
 
-        var tokenInfo = await response.Content.ReadFromJsonAsync<GoogleTokenInfo>();
-        if (tokenInfo is null)
-            return StatusCode(StatusCodes.Status401Unauthorized, new { error = "Google authentication returned an invalid payload." });
-
-        if (!string.Equals(tokenInfo.Audience, clientId, StringComparison.Ordinal))
-            return StatusCode(StatusCodes.Status401Unauthorized, new { error = "Google authentication was issued for a different client." });
-        if (!string.Equals(tokenInfo.EmailVerified, "true", StringComparison.OrdinalIgnoreCase))
+        if (!payload.EmailVerified)
             return StatusCode(StatusCodes.Status401Unauthorized, new { error = "Your Google email address must be verified." });
-        if (string.IsNullOrWhiteSpace(tokenInfo.Email))
+        if (string.IsNullOrWhiteSpace(payload.Email))
             return StatusCode(StatusCodes.Status401Unauthorized, new { error = "Google authentication did not include an email address." });
 
         var mode = string.Equals(body.Mode, "register", StringComparison.OrdinalIgnoreCase) ? "register" : "login";
-        var email = tokenInfo.Email.Trim().ToLowerInvariant();
+        var email = payload.Email.Trim().ToLowerInvariant();
 
         var profile = await db.Profiles.FirstOrDefaultAsync(p => p.Email != null && p.Email.ToLower() == email);
         if (profile is null && mode == "login")
             return NotFound(new { error = "No donor account exists for this Google email yet. Use Google sign up first." });
 
-        var displayName = string.IsNullOrWhiteSpace(tokenInfo.Name) ? email : tokenInfo.Name.Trim();
+        var displayName = string.IsNullOrWhiteSpace(payload.Name) ? email : payload.Name.Trim();
 
         if (profile is null)
         {
@@ -238,12 +241,3 @@ public sealed class AuthController(
 }
 
 public sealed record GoogleAuthRequest(string Credential, string? Mode);
-
-internal sealed class GoogleTokenInfo
-{
-    public string? Aud { get; init; }
-    public string? Email { get; init; }
-    public string? EmailVerified { get; init; }
-    public string? Name { get; init; }
-    public string? Audience => Aud;
-}
