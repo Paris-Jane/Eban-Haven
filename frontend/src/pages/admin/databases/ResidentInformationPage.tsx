@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { ResidentsPage } from './ResidentsPage'
 import { ProcessRecordingsPage } from './ProcessRecordingsPage'
 import { HomeVisitationsAdminPage } from './HomeVisitationsAdminPage'
@@ -15,6 +15,16 @@ const tabs: { id: Tab; label: string }[] = [
 
 export function ResidentInformationPage() {
   const [active, setActive] = useState<Tab>('residents')
+  const [visited, setVisited] = useState<Record<Tab, boolean>>({
+    residents: true,
+    'process-recordings': false,
+    'home-visitations': false,
+    'case-conferences': false,
+  })
+
+  useEffect(() => {
+    setVisited((current) => (current[active] ? current : { ...current, [active]: true }))
+  }, [active])
 
   return (
     <div className="space-y-6">
@@ -36,10 +46,26 @@ export function ResidentInformationPage() {
         ))}
       </div>
 
-      {active === 'residents' && <ResidentsPage />}
-      {active === 'process-recordings' && <ProcessRecordingsPage />}
-      {active === 'home-visitations' && <HomeVisitationsAdminPage />}
-      {active === 'case-conferences' && <CaseConferencesAdminPage />}
+      {visited.residents && (
+        <div className={active === 'residents' ? 'block' : 'hidden'} aria-hidden={active !== 'residents'}>
+          <ResidentsPage />
+        </div>
+      )}
+      {visited['process-recordings'] && (
+        <div className={active === 'process-recordings' ? 'block' : 'hidden'} aria-hidden={active !== 'process-recordings'}>
+          <ProcessRecordingsPage />
+        </div>
+      )}
+      {visited['home-visitations'] && (
+        <div className={active === 'home-visitations' ? 'block' : 'hidden'} aria-hidden={active !== 'home-visitations'}>
+          <HomeVisitationsAdminPage />
+        </div>
+      )}
+      {visited['case-conferences'] && (
+        <div className={active === 'case-conferences' ? 'block' : 'hidden'} aria-hidden={active !== 'case-conferences'}>
+          <CaseConferencesAdminPage />
+        </div>
+      )}
     </div>
   )
 }
