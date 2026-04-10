@@ -219,11 +219,13 @@ function EffectivenessCard({
   subtitle,
   rows,
   icon,
+  emptyLabel,
 }: {
   title: string
   subtitle: string
   rows: EffectivenessRanking[]
   icon: ReactNode
+  emptyLabel?: string
 }) {
   const leader = rows[0]
 
@@ -234,7 +236,7 @@ function EffectivenessCard({
         <h3 className="text-sm font-semibold text-foreground">{title}</h3>
         <span className="ml-auto text-xs text-muted-foreground">{subtitle}</span>
       </div>
-      <EffectivenessChart rows={rows} emptyLabel="No ranking data available yet." />
+      <EffectivenessChart rows={rows} emptyLabel={emptyLabel ?? 'No ranking data available yet.'} />
       {leader && (
         <p className="mt-4 text-xs text-muted-foreground">
           <span className="font-medium text-foreground">{leader.label}</span> currently leads, with a typical post generating{' '}
@@ -276,6 +278,10 @@ export function MarketingAnalyticsPage() {
     campaignHashtags: [],
   }
   const selectedSocialWindow = SOCIAL_WINDOW_OPTIONS.find((option) => option.value === socialWindow) ?? SOCIAL_WINDOW_OPTIONS[0]
+  const recurringHashtagEmptyLabel =
+    socialWindow === 'all'
+      ? 'No recurring hashtag data is available yet.'
+      : `No recurring hashtags met the 20-post minimum for ${selectedSocialWindow.label}. Try All Time for a broader view.`
 
   return (
     <div className="space-y-8">
@@ -393,12 +399,7 @@ export function MarketingAnalyticsPage() {
                   subtitle="non-campaign posts, min 20"
                   rows={effectiveness.recurringHashtags}
                   icon={<Hash className="h-4 w-4 text-primary" />}
-                />
-                <EffectivenessCard
-                  title="Best Campaign Hashtags"
-                  subtitle="campaign-tagged posts, min 15"
-                  rows={effectiveness.campaignHashtags}
-                  icon={<Hash className="h-4 w-4 text-primary" />}
+                  emptyLabel={recurringHashtagEmptyLabel}
                 />
               </div>
               {!data.effectiveness && (
