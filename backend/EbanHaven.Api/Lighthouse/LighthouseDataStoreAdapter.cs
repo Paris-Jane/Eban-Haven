@@ -40,7 +40,7 @@ public sealed class LighthouseDataStoreAdapter(LighthouseDataStore inner) : ILig
         inner.CreateInterventionPlan(residentId, planCategory, planDescription, status, targetDate, caseConferenceDate, targetValue, servicesProvided);
     public InterventionPlanDto? PatchInterventionPlan(int id, PatchInterventionPlanDto patch) => inner.PatchInterventionPlan(id, patch);
 
-    public bool DeleteSupporter(int id) => throw new NotImplementedException();
+    public bool DeleteSupporter(int id) => inner.DeleteSupporter(id);
     public SupporterDto? PatchSupporterFields(int id, IReadOnlyDictionary<string, string?> fields) => throw new NotImplementedException();
     public bool DeleteDonation(int id) => throw new NotImplementedException();
     public DonationDto? PatchDonationFields(int id, IReadOnlyDictionary<string, string?> fields) => throw new NotImplementedException();

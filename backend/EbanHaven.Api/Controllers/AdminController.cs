@@ -276,8 +276,21 @@ public sealed class AdminController(ILighthouseRepository repo) : ControllerBase
         repo.DeleteInterventionPlan(id) ? NoContent() : NotFound();
 
     [HttpDelete("supporters/{id:int}")]
-    public IActionResult DeleteSupporter(int id) =>
-        repo.DeleteSupporter(id) ? NoContent() : NotFound();
+    public IActionResult DeleteSupporter(int id)
+    {
+        try
+        {
+            return repo.DeleteSupporter(id) ? NoContent() : NotFound();
+        }
+        catch (DbUpdateException ex)
+        {
+            return Conflict(new
+            {
+                error = "Could not delete this supporter. Another table may still reference this record or the linked login profile.",
+                detail = ex.InnerException?.Message ?? ex.Message,
+            });
+        }
+    }
 
     [HttpPatch("supporters/{id:int}/fields")]
     public IActionResult PatchSupporterFields(int id, [FromBody] Dictionary<string, string?> body)

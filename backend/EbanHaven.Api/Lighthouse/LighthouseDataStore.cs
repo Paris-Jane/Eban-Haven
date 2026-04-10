@@ -369,6 +369,26 @@ public sealed class LighthouseDataStore
         }
     }
 
+    public bool DeleteSupporter(int id)
+    {
+        lock (_lock)
+        {
+            var supporterRow = _supporters.FirstOrDefault(x => GetInt(x, "supporter_id") == id);
+            if (supporterRow is null) return false;
+            var donationIds = _donations
+                .Where(d => GetInt(d, "supporter_id") == id)
+                .Select(d => GetInt(d, "donation_id"))
+                .ToHashSet();
+            if (donationIds.Count > 0)
+            {
+                _allocations.RemoveAll(a => donationIds.Contains(GetInt(a, "donation_id")));
+                _donations.RemoveAll(d => GetInt(d, "supporter_id") == id);
+            }
+            _supporters.Remove(supporterRow);
+            return true;
+        }
+    }
+
     public IReadOnlyList<DonationDto> ListDonations(int? supporterId)
     {
         lock (_lock)

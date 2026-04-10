@@ -717,11 +717,51 @@ public sealed class SupabaseLighthouseRepository(HavenDbContext db) : ILighthous
 
     public bool DeleteSupporter(int id)
     {
-        var row = db.Supporters.FirstOrDefault(x => x.SupporterId == id);
-        if (row is null) return false;
-        db.Supporters.Remove(row);
-        db.SaveChanges();
-        return true;
+        using var tx = db.Database.BeginTransaction();
+        try
+        {
+            var row = db.Supporters.FirstOrDefault(x => x.SupporterId == id);
+            if (row is null)
+            {
+                tx.Rollback();
+                return false;
+            }
+
+            var email = row.Email?.Trim();
+            var donationIds = db.Donations.Where(d => d.SupporterId == id).Select(d => d.DonationId).ToList();
+            if (donationIds.Count > 0)
+            {
+                var inKind = db.InKindDonationItems.Where(i => donationIds.Contains(i.DonationId));
+                db.InKindDonationItems.RemoveRange(inKind);
+                var allocs = db.DonationAllocations.Where(a => donationIds.Contains(a.DonationId));
+                db.DonationAllocations.RemoveRange(allocs);
+                var dons = db.Donations.Where(d => donationIds.Contains(d.DonationId));
+                db.Donations.RemoveRange(dons);
+            }
+
+            db.Supporters.Remove(row);
+
+            if (!string.IsNullOrWhiteSpace(email))
+            {
+                var normalized = email.ToLowerInvariant();
+                var donorProfiles = db.Profiles
+                    .Where(p =>
+                        p.Email != null &&
+                        p.Email.ToLower() == normalized &&
+                        string.Equals(p.Role, "donor", StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+                db.Profiles.RemoveRange(donorProfiles);
+            }
+
+            db.SaveChanges();
+            tx.Commit();
+            return true;
+        }
+        catch
+        {
+            tx.Rollback();
+            throw;
+        }
     }
 
     public SupporterDto? PatchSupporterFields(int id, IReadOnlyDictionary<string, string?> fields)
