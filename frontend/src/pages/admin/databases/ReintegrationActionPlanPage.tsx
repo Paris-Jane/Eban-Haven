@@ -822,7 +822,7 @@ export function ReintegrationActionPlanPage() {
               {sortedEducation.slice(0, 8).map((record) => {
                 const extra = parseExtendedJson<EducationExtended>(record.extendedJson)
                 const detailRows = compactFieldRows([
-                  { label: 'School / programme', value: record.schoolName ?? extra?.programName },
+                  { label: 'School / program', value: record.schoolName ?? extra?.programName },
                   { label: 'Course', value: extra?.courseName },
                   { label: 'Level', value: record.educationLevel ?? extra?.educationLevel },
                   { label: 'Enrollment status', value: record.enrollmentStatus ?? extra?.attendanceStatus },

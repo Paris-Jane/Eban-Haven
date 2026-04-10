@@ -1,13 +1,8 @@
 import { useMemo, useState } from 'react'
-import { ChevronDown, Play, Plus } from 'lucide-react'
-import { btnPrimary, card } from '../adminStyles'
+import { ChevronDown } from 'lucide-react'
+import { card } from '../adminStyles'
 import { RESIDENT_SEMANTIC } from '../residentSemanticPalette'
 import { CategoryBadge, ReintegrationBadge, RiskBadge, StatusBadge } from '../adminDataTable/AdminBadges'
-
-type ActivityType = {
-  id: 'counseling' | 'visit' | 'incident' | 'health' | 'education' | 'plan'
-  label: string
-}
 
 type ReadinessSummary = {
   percent: number
@@ -31,12 +26,9 @@ type Props = {
   presentAge?: string
   lengthOfStay?: string
   readiness: ReadinessSummary | null
+  /** When false, hide readiness % and navigation (e.g. resident already reintegrated). */
+  showReintegrationPanel: boolean
   onOpenReadiness: () => void
-  onToggleAddMenu: () => void
-  onStartSession: () => void
-  addMenuOpen: boolean
-  activityTypes: readonly ActivityType[]
-  onSelectActivity: (kind: ActivityType['id']) => void
 }
 
 export function ResidentCaseHeader({
@@ -53,12 +45,8 @@ export function ResidentCaseHeader({
   presentAge,
   lengthOfStay,
   readiness,
+  showReintegrationPanel,
   onOpenReadiness,
-  onToggleAddMenu,
-  onStartSession,
-  addMenuOpen,
-  activityTypes,
-  onSelectActivity,
 }: Props) {
   const [detailsOpen, setDetailsOpen] = useState(false)
 
@@ -87,7 +75,6 @@ export function ResidentCaseHeader({
 
   return (
     <div className="grid gap-4 lg:grid-cols-[minmax(0,3fr)_minmax(0,1fr)] lg:items-stretch">
-      {/* Identity — mirrors donor profile card */}
       <div className={`${card} flex min-h-0 min-w-0 flex-col`}>
         <div className="flex min-h-0 flex-1 flex-col justify-center gap-3 sm:min-h-[7.5rem]">
           <div className="flex flex-wrap items-start justify-between gap-3">
@@ -142,70 +129,44 @@ export function ResidentCaseHeader({
             </dl>
           </div>
         ) : null}
-
-        <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-border pt-4">
-          <div className="relative flex flex-wrap gap-2">
-            <button
-              type="button"
-              className="inline-flex items-center gap-2 rounded-lg border border-border px-3.5 py-2 text-sm font-medium text-foreground hover:bg-muted/50"
-              onClick={onToggleAddMenu}
-            >
-              <Plus className="h-4 w-4" />
-              Add
-            </button>
-            <button type="button" className={`${btnPrimary} inline-flex items-center gap-2`} onClick={onStartSession}>
-              <Play className="h-4 w-4" />
-              Start session
-            </button>
-
-            {addMenuOpen ? (
-              <div className="absolute left-0 top-full z-40 mt-2 min-w-[15rem] space-y-1 rounded-xl border border-border bg-card py-2 shadow-lg">
-                {activityTypes.map((activity) => (
-                  <button
-                    key={activity.id}
-                    type="button"
-                    className="block w-full px-4 py-2 text-left text-sm text-foreground hover:bg-muted"
-                    onClick={() => onSelectActivity(activity.id)}
-                  >
-                    {activity.label}
-                  </button>
-                ))}
-              </div>
-            ) : null}
-          </div>
-        </div>
       </div>
 
-      {/* Status + reintegration readiness — mirrors donor status / insights column */}
       <div className={`${card} flex h-full min-h-0 min-w-0 flex-col gap-4`}>
         <div className="flex flex-wrap items-center gap-2 text-sm text-foreground">
           <span className="font-medium text-muted-foreground">Case status:</span>
           {caseStatus ? <StatusBadge status={caseStatus} /> : <span className="text-muted-foreground">—</span>}
         </div>
 
-        <div className="border-t border-border pt-3">
-          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Reintegration readiness</p>
-          <div
-            className={`mt-3 rounded-lg border px-4 py-4 ${readinessPanelClass(readiness?.tone)}`}
-            title={readiness?.topImprovement ? `Top focus: ${readiness.topImprovement}` : undefined}
-          >
-            <p className="text-3xl font-semibold tabular-nums text-foreground sm:text-4xl">
-              {readiness != null ? `${readiness.percent}%` : '—'}
+        {showReintegrationPanel ? (
+          <>
+            <div className="border-t border-border pt-3">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Reintegration readiness</p>
+              <button
+                type="button"
+                onClick={onOpenReadiness}
+                className={`group mt-3 w-full rounded-lg border px-4 py-4 text-left transition-colors hover:bg-muted/30 ${readinessPanelClass(readiness?.tone)}`}
+                title={readiness?.topImprovement ? `Top focus: ${readiness.topImprovement}` : 'Open reintegration readiness'}
+              >
+                <p className="text-3xl font-semibold tabular-nums text-foreground sm:text-4xl">
+                  {readiness != null ? `${readiness.percent}%` : '—'}
+                </p>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  {readiness != null ? `${readiness.label} · ${readiness.prediction}` : 'Open the readiness page to view the full assessment.'}
+                </p>
+                {readiness?.topImprovement ? (
+                  <p className="mt-2 line-clamp-2 text-xs leading-relaxed text-muted-foreground">Top focus: {readiness.topImprovement}</p>
+                ) : null}
+                <p className="mt-3 text-sm font-medium text-primary group-hover:underline">Open reintegration readiness →</p>
+              </button>
+            </div>
+          </>
+        ) : (
+          <div className="border-t border-border pt-3">
+            <p className="text-sm text-muted-foreground">
+              Reintegration readiness scores are hidden for residents who have already completed reintegration.
             </p>
-            <p className="mt-2 text-sm text-muted-foreground">
-              {readiness != null ? `${readiness.label} · ${readiness.prediction}` : 'Open the readiness page to view the full assessment.'}
-            </p>
-            {readiness?.topImprovement ? (
-              <p className="mt-2 line-clamp-2 text-xs leading-relaxed text-muted-foreground">Top focus: {readiness.topImprovement}</p>
-            ) : null}
           </div>
-        </div>
-
-        <div className="mt-auto border-t border-border pt-3">
-          <button type="button" className={`${btnPrimary} block w-full text-center`} onClick={onOpenReadiness}>
-            Open reintegration readiness
-          </button>
-        </div>
+        )}
       </div>
     </div>
   )

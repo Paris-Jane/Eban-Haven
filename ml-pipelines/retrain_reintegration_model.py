@@ -424,7 +424,7 @@ def main() -> None:
         "target": f"reintegration_status == Completed among residents with >= {OBS_HORIZON_DAYS} observed days or completed exit",
         "labeling_strategy": (
             f"Mature-cohort readiness model: positives are completed reintegrations; "
-            f"negatives are residents with at least {OBS_HORIZON_DAYS} days in programme who have not completed."
+            f"negatives are residents with at least {OBS_HORIZON_DAYS} days in program who have not completed."
         ),
         "feature_columns": FEATURE_COLS,
         "categorical_features": CAT_COLS,

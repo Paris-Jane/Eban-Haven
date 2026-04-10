@@ -57,3 +57,10 @@ export const PLAN_STATUSES = ['Open', 'In Progress', 'Achieved', 'On Hold', 'Clo
 export const CASE_STATUSES = ['Active', 'Inactive', 'Closed', 'Open', 'On Hold'] as const
 export const RISK_LEVELS = ['Low', 'Medium', 'High', 'Critical'] as const
 export const SEX_OPTIONS = ['F', 'M', 'Other', 'Unknown'] as const
+
+/** Hide ML reintegration % / cohort-style UI when the resident has already completed reintegration. */
+export function isResidentReintegrated(reintegrationStatus: string | undefined): boolean {
+  const s = (reintegrationStatus ?? '').trim().toLowerCase()
+  if (!s) return false
+  return s.includes('complete') || s.includes('reintegrated') || s.includes('achieved')
+}

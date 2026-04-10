@@ -363,7 +363,7 @@ export function buildProfileNextSteps(params: {
   if (overduePlans.length > OVERDUE_PLAN_PREVIEW) {
     out.push({
       id: 'more-overdue-plans',
-      text: `View ${overduePlans.length - OVERDUE_PLAN_PREVIEW} more overdue plan(s) on Plans & goals`,
+      text: `View ${overduePlans.length - OVERDUE_PLAN_PREVIEW} more overdue plan(s) on Goals`,
       action: { kind: 'tab', tab: 'plans' },
     })
   }

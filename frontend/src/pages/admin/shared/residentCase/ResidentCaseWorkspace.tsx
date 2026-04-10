@@ -18,6 +18,7 @@ import {
   deleteEducationRecord,
   patchHealthRecord,
   deleteHealthRecord,
+  patchHomeVisitation,
   patchIncidentReport,
   patchResident,
   type EducationRecord,
@@ -34,8 +35,8 @@ import { alertError, btnPrimary, input, label } from '../adminStyles'
 import { BooleanBadge, CategoryBadge } from '../adminDataTable/AdminBadges'
 import { formatAdminDate } from '../adminDataTable/adminFormatters'
 import { AdminDeleteModal } from '../adminDataTable/AdminDeleteModal'
-import { CASE_STATUSES, RISK_LEVELS, SEX_OPTIONS } from './caseConstants'
-import { SimpleLineChart, SimpleMultiLineChart } from '../../dashboards/reports/ChartCard'
+import { CASE_STATUSES, isResidentReintegrated, RISK_LEVELS, SEX_OPTIONS } from './caseConstants'
+import { SimpleMultiLineChart } from '../../dashboards/reports/ChartCard'
 import { EducationSection, HealthSection, HomeVisitDrawer, ProcessRecordingDrawer } from './CareProgressContent'
 import { PlansTabContent } from './PlansTabContent'
 import { SessionWorkflowDrawer } from './SessionWorkflowDrawer'
@@ -51,7 +52,6 @@ import {
 } from './caseWorkspaceModel'
 import {
   ActivityActiveFilterChips,
-  ActivityAdvancedFiltersDrawer,
   ActivityTabToolbar,
   ActivityTimelineRow,
   ALL_TIMELINE_KINDS,
@@ -78,7 +78,7 @@ function gf(fields: Record<string, string>, ...keys: string[]): string {
 const TAB_LABELS: { k: MainWorkspaceTab; label: string }[] = [
   { k: 'overview', label: 'Overview' },
   { k: 'activity', label: 'Activity' },
-  { k: 'plans', label: 'Plans & goals' },
+  { k: 'plans', label: 'Goals' },
   { k: 'profile', label: 'Profile' },
 ]
 
@@ -249,7 +249,6 @@ export function ResidentCaseWorkspace({ residentId }: { residentId: number }) {
 
   const [profileOpen, setProfileOpen] = useState(false)
   const [profileSaving, setProfileSaving] = useState(false)
-  const [addMenuOpen, setAddMenuOpen] = useState(false)
   const [sessionWorkflowOpen, setSessionWorkflowOpen] = useState(false)
   const [profileSections, setProfileSections] = useState<Record<string, boolean>>({
     identity: true,
@@ -270,7 +269,7 @@ export function ResidentCaseWorkspace({ residentId }: { residentId: number }) {
   const [tlConcerns, setTlConcerns] = useState(false)
   const [tlFollow, setTlFollow] = useState(false)
 
-  const [activityFilterDrawerOpen, setActivityFilterDrawerOpen] = useState(false)
+  const [activityFilterMenuOpen, setActivityFilterMenuOpen] = useState(false)
   const [activityFilterDraft, setActivityFilterDraft] = useState(emptyActivityAdvDraft)
   const [activityAddMenuOpen, setActivityAddMenuOpen] = useState(false)
 
@@ -366,6 +365,8 @@ export function ResidentCaseWorkspace({ residentId }: { residentId: number }) {
   const caseCategory = gf(fields, 'case_category', 'caseCategory')
   const presentAge = gf(fields, 'present_age', 'presentAge')
   const lengthOfStay = gf(fields, 'length_of_stay', 'lengthOfStay')
+  const reintegrationStatusValue = gf(fields, 'reintegration_status', 'reintegrationStatus') || undefined
+  const showReintegrationReadinessUi = !isResidentReintegrated(reintegrationStatusValue)
 
   const latestHealth = useMemo(() => byNewestDate(hl, (row) => row.recordDate)[0] ?? null, [hl])
   const previousHealth = useMemo(() => byNewestDate(hl, (row) => row.recordDate)[1] ?? null, [hl])
@@ -537,9 +538,9 @@ export function ResidentCaseWorkspace({ residentId }: { residentId: number }) {
     return chips
   }, [timelineSearch, timelineFrom, timelineTo, timelineWorker, timelineKinds, tlFollow, tlConcerns])
 
-  const openActivityFilterDrawer = useCallback(() => {
+  const openActivityFilterMenu = useCallback(() => {
     setActivityFilterDraft(draftFromApplied(timelineFrom, timelineTo, timelineWorker, timelineKinds, tlFollow, tlConcerns))
-    setActivityFilterDrawerOpen(true)
+    setActivityFilterMenuOpen(true)
   }, [timelineFrom, timelineTo, timelineWorker, timelineKinds, tlFollow, tlConcerns])
 
   const applyActivityFilters = useCallback(() => {
@@ -551,7 +552,7 @@ export function ResidentCaseWorkspace({ residentId }: { residentId: number }) {
     setTimelineKinds(k)
     setTlFollow(d.followOnly)
     setTlConcerns(d.flaggedOnly)
-    setActivityFilterDrawerOpen(false)
+    setActivityFilterMenuOpen(false)
   }, [activityFilterDraft])
 
   const clearActivityFilterDraft = useCallback(() => {
@@ -821,12 +822,7 @@ export function ResidentCaseWorkspace({ residentId }: { residentId: number }) {
     }
   }, [readiness])
 
-  function closeAddMenu() {
-    setAddMenuOpen(false)
-  }
-
   function bumpCreate(kind: (typeof ACTIVITY_TYPES)[number]['id']) {
-    closeAddMenu()
     if (kind === 'counseling') {
       setSessionWorkflowOpen(true)
       return
@@ -980,7 +976,7 @@ export function ResidentCaseWorkspace({ residentId }: { residentId: number }) {
           caseStatus={gf(fields, 'case_status', 'caseStatus') || undefined}
           currentRiskLevel={gf(fields, 'current_risk_level', 'currentRiskLevel') || undefined}
           reintegrationType={gf(fields, 'reintegration_type', 'reintegrationType') || undefined}
-          reintegrationStatus={gf(fields, 'reintegration_status', 'reintegrationStatus') || undefined}
+          reintegrationStatus={reintegrationStatusValue}
           safehouseName={safehouseName}
           assignedWorker={assignedWorker || undefined}
           admissionLabel={admissionDate ? formatAdminDate(admissionDate) : undefined}
@@ -989,25 +985,23 @@ export function ResidentCaseWorkspace({ residentId }: { residentId: number }) {
           presentAge={presentAge || undefined}
           lengthOfStay={lengthOfStay || undefined}
           readiness={readinessSummary}
+          showReintegrationPanel={showReintegrationReadinessUi}
           onOpenReadiness={() => navigate(`/admin/reintigration-readiness/${residentId}`)}
-          onToggleAddMenu={() => setAddMenuOpen((open) => !open)}
-          onStartSession={() => setSessionWorkflowOpen(true)}
-          addMenuOpen={addMenuOpen}
-          activityTypes={ACTIVITY_TYPES}
-          onSelectActivity={bumpCreate}
         />
       </div>
 
       {error ? <div className={alertError}>{error}</div> : null}
 
-      <div className="flex flex-wrap gap-2 border-b border-border pb-2">
+      <div className="flex border-b border-border">
         {TAB_LABELS.map((tab) => (
           <button
             key={tab.k}
             type="button"
             onClick={() => setMainTab(tab.k)}
-            className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
-              mainTab === tab.k ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted'
+            className={`px-5 py-3 text-sm font-medium transition-colors sm:px-6 ${
+              mainTab === tab.k
+                ? 'border-b-2 border-primary text-foreground -mb-px'
+                : 'border-b-2 border-transparent text-muted-foreground hover:border-border hover:text-foreground'
             }`}
           >
             {tab.label}
@@ -1105,7 +1099,7 @@ export function ResidentCaseWorkspace({ residentId }: { residentId: number }) {
             </div>
           </OverviewSection>
 
-          {readinessSummary ? (
+          {readinessSummary && showReintegrationReadinessUi ? (
             <OverviewSection title="Reintegration readiness">
               <button
                 type="button"
@@ -1129,8 +1123,18 @@ export function ResidentCaseWorkspace({ residentId }: { residentId: number }) {
           <ActivityTabToolbar
             search={timelineSearch}
             onSearchChange={setTimelineSearch}
-            onOpenFilters={openActivityFilterDrawer}
+            filtersOpen={activityFilterMenuOpen}
+            onFiltersOpenChange={(open) => {
+              if (open) openActivityFilterMenu()
+              else setActivityFilterMenuOpen(false)
+            }}
             filtersActive={activityToolbarFiltersActive}
+            filterDraft={activityFilterDraft}
+            setFilterDraft={setActivityFilterDraft}
+            onApplyFilters={applyActivityFilters}
+            onClearFilterDraft={clearActivityFilterDraft}
+            keywordSearch={timelineSearch}
+            onKeywordSearchChange={setTimelineSearch}
             addMenuOpen={activityAddMenuOpen}
             onToggleAddMenu={() => setActivityAddMenuOpen((open) => !open)}
             onAddPick={bumpCreateFromActivityMenu}
@@ -1138,17 +1142,6 @@ export function ResidentCaseWorkspace({ residentId }: { residentId: number }) {
           />
 
           <ActivityActiveFilterChips chips={activityFilterChips} onRemove={removeActivityFilterChip} />
-
-          <ActivityAdvancedFiltersDrawer
-            open={activityFilterDrawerOpen}
-            onClose={() => setActivityFilterDrawerOpen(false)}
-            draft={activityFilterDraft}
-            setDraft={setActivityFilterDraft}
-            keywordSearch={timelineSearch}
-            onKeywordSearchChange={setTimelineSearch}
-            onApply={applyActivityFilters}
-            onClearDraft={clearActivityFilterDraft}
-          />
 
           <div className="space-y-2">
             {timelineFiltered.length === 0 ? (
@@ -1223,7 +1216,14 @@ export function ResidentCaseWorkspace({ residentId }: { residentId: number }) {
               </div>
 
               {expandedGoal ? (
-                <InlineDetailCard title={`${goalCards[expandedGoal].label} details`}>
+                <InlineDetailCard
+                  title={`${goalCards[expandedGoal].label} details`}
+                  titleClassName={
+                    expandedGoal === 'safety'
+                      ? 'font-heading text-2xl font-semibold tracking-tight text-foreground sm:text-3xl'
+                      : 'font-heading text-xl font-semibold tracking-tight text-foreground sm:text-2xl'
+                  }
+                >
                   <GoalDrillIn
                     goal={expandedGoal}
                     data={goalCards[expandedGoal]}
@@ -1603,18 +1603,17 @@ function ProgressRing({ label, progress, children }: { label: string; progress: 
     <div className="flex flex-col items-center text-center" aria-label={`${label}, ${Math.round(normalized)} percent of target`}>
       <div className="relative h-[9.25rem] w-[9.25rem] shrink-0">
         <svg viewBox={`0 0 ${vb} ${vb}`} className="h-full w-full -rotate-90">
-          <circle cx={c} cy={c} r={radius} fill="none" stroke="currentColor" strokeOpacity="0.12" strokeWidth={sw} />
+          <circle cx={c} cy={c} r={radius} fill="none" className="stroke-border/50" strokeWidth={sw} />
           <circle
             cx={c}
             cy={c}
             r={radius}
             fill="none"
-            stroke="currentColor"
+            className="stroke-teal-600 dark:stroke-teal-400"
             strokeWidth={sw}
             strokeLinecap="round"
             strokeDasharray={circumference}
             strokeDashoffset={dashOffset}
-            className="text-primary"
           />
         </svg>
         <div className="absolute inset-0 grid place-items-center px-2 text-center">{children}</div>
@@ -1631,11 +1630,65 @@ function InlineActionButton({ children, onClick }: { children: ReactNode; onClic
   )
 }
 
-function InlineDetailCard({ title, children }: { title: string; children: ReactNode }) {
+function InlineDetailCard({
+  title,
+  titleClassName,
+  children,
+}: {
+  title: string
+  /** Defaults to the standard Goals drill-in title size. */
+  titleClassName?: string
+  children: ReactNode
+}) {
   return (
-    <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
-      <h4 className="text-sm font-semibold text-foreground">{title}</h4>
-      <div className="mt-4">{children}</div>
+    <div className="rounded-2xl border border-border bg-card p-4 shadow-sm sm:p-5">
+      <h4
+        className={
+          titleClassName ?? 'font-heading text-xl font-semibold tracking-tight text-foreground sm:text-2xl'
+        }
+      >
+        {title}
+      </h4>
+      <div className="mt-5">{children}</div>
+    </div>
+  )
+}
+
+/** Small “Stats” kicker, rule, then history title — separates summary blocks from searchable lists. */
+function DrillInHistoryHeading({ historyTitle }: { historyTitle: string }) {
+  return (
+    <div className="space-y-4 pt-1">
+      <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Stats</p>
+      <div className="h-px w-full bg-border" role="presentation" />
+      <h3 className="font-heading text-lg font-semibold tracking-tight text-foreground sm:text-xl">{historyTitle}</h3>
+    </div>
+  )
+}
+
+function DrillInStatCard({
+  label,
+  value,
+  valueTone = 'hero',
+  detail,
+}: {
+  label: string
+  value: string
+  /** `hero`: large metric. `body`: slightly smaller, wraps for longer text (e.g. location). */
+  valueTone?: 'hero' | 'body'
+  /** Secondary line under the value (centered). */
+  detail?: string
+}) {
+  const valueClass =
+    valueTone === 'hero'
+      ? 'mt-3 text-2xl font-bold tabular-nums tracking-tight text-foreground sm:text-3xl'
+      : 'mt-3 max-w-full break-words px-1 text-center text-base font-semibold leading-snug text-foreground sm:text-lg'
+  return (
+    <div className="flex min-h-[9.5rem] flex-col items-center justify-center rounded-xl border border-border bg-card px-4 py-6 text-center">
+      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{label}</p>
+      <p className={valueClass}>{value}</p>
+      {detail ? (
+        <p className="mt-2 max-w-[14rem] text-center text-xs leading-snug text-muted-foreground">{detail}</p>
+      ) : null}
     </div>
   )
 }
@@ -1851,33 +1904,33 @@ function HealthGoalDrillIn({
         {
           key: 'gen',
           name: 'General health',
-          strokeClass: 'stroke-primary',
-          fillClass: 'fill-primary',
-          legendClass: 'bg-primary',
+          strokeClass: 'stroke-teal-600 dark:stroke-teal-400',
+          fillClass: 'fill-teal-600 dark:fill-teal-400',
+          legendClass: 'bg-teal-600 dark:bg-teal-400',
           values: chronological.map((r) => r.healthScore),
         },
         {
           key: 'nut',
           name: 'Nutrition',
-          strokeClass: 'stroke-[#9A5B00]',
-          fillClass: 'fill-[#9A5B00]',
-          legendClass: 'bg-[#9A5B00]',
+          strokeClass: 'stroke-amber-600 dark:stroke-amber-400',
+          fillClass: 'fill-amber-600 dark:fill-amber-400',
+          legendClass: 'bg-amber-600 dark:bg-amber-400',
           values: chronological.map((r) => r.nutritionScore),
         },
         {
           key: 'slp',
           name: 'Sleep quality',
-          strokeClass: 'stroke-sky-600',
-          fillClass: 'fill-sky-600',
-          legendClass: 'bg-sky-600',
+          strokeClass: 'stroke-sky-500 dark:stroke-sky-400',
+          fillClass: 'fill-sky-500 dark:fill-sky-400',
+          legendClass: 'bg-sky-500',
           values: chronological.map((r) => r.sleepQualityScore),
         },
         {
           key: 'en',
           name: 'Energy level',
-          strokeClass: 'stroke-violet-600',
-          fillClass: 'fill-violet-600',
-          legendClass: 'bg-violet-600',
+          strokeClass: 'stroke-violet-500 dark:stroke-violet-400',
+          fillClass: 'fill-violet-500 dark:fill-violet-400',
+          legendClass: 'bg-violet-500',
           values: chronological.map((r) => r.energyLevelScore),
         },
       ],
@@ -1952,18 +2005,19 @@ function HealthGoalDrillIn({
 
   return (
     <div className="space-y-5">
-      <div className="grid gap-5 lg:grid-cols-[1.4fr_0.8fr]">
-        <div className="rounded-xl border border-border bg-background px-4 py-4">
-          <p className="text-sm font-semibold text-foreground">Health</p>
+      <div className="grid gap-4 lg:grid-cols-[1.35fr_0.85fr]">
+        <div className="rounded-lg border border-border/80 bg-white px-3 py-3 shadow-sm dark:bg-card">
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Wellbeing trend</p>
           {chartPack && hasAnyChartPoint ? (
-            <div className="mt-4">
+            <div className="mt-2">
               <SimpleMultiLineChart
                 labels={chartPack.labels}
                 series={chartPack.series}
                 formatY={(n) => n.toFixed(1)}
-                height={240}
+                height={200}
                 yMin={1}
                 yMax={5}
+                variant="minimal"
                 ariaLabel="Wellbeing scores over time"
               />
             </div>
@@ -1972,56 +2026,58 @@ function HealthGoalDrillIn({
           )}
         </div>
 
-        <div className="rounded-xl border border-border bg-muted/20 px-4 py-4">
-          <p className="text-sm font-semibold text-foreground">Latest recap</p>
+        <div className="rounded-lg border border-border/80 bg-white px-3 py-3 shadow-sm dark:bg-card">
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Latest recap</p>
           {latest ? (
-            <div className="mt-3 space-y-3 text-sm">
-              <p className="font-medium text-foreground">{formatAdminDate(latest.recordDate)}</p>
-              <p className="text-muted-foreground">Overall score {data.currentLabel}</p>
-              <div className="grid grid-cols-2 gap-2">
+            <div className="mt-2 space-y-2.5 text-sm">
+              <p className="text-center text-xs font-medium text-muted-foreground">{formatAdminDate(latest.recordDate)}</p>
+              <p className="text-center text-xs text-muted-foreground">Overall {data.currentLabel}</p>
+              <div className="grid grid-cols-2 gap-1.5">
                 <RecapScoreCell label="General health" valueNum={latest.healthScore} />
                 <RecapScoreCell label="Nutrition score" valueNum={latest.nutritionScore} />
                 <RecapScoreCell label="Sleep quality" valueNum={latest.sleepQualityScore} />
                 <RecapScoreCell label="Energy level" valueNum={latest.energyLevelScore} />
               </div>
-              <div className="grid gap-2 border-t border-border/60 pt-3">
+              <div className="grid gap-1.5 border-t border-border/60 pt-2">
                 <MiniMetric label="Weight" value={latest.weightKg != null ? `${latest.weightKg} kg` : '—'} />
                 <MiniMetric label="Height" value={latest.heightCm != null ? `${latest.heightCm} cm` : '—'} />
                 <MiniMetric label="BMI" value={latest.bmi != null ? latest.bmi.toFixed(1) : '—'} />
               </div>
             </div>
           ) : (
-            <p className="mt-3 text-sm text-muted-foreground">No health record yet.</p>
+            <p className="mt-2 text-sm text-muted-foreground">No health record yet.</p>
           )}
         </div>
       </div>
 
       <div className="grid gap-3 md:grid-cols-3">
-        <div className="rounded-xl border border-border bg-card px-4 py-3">
+        <div className="flex min-h-[8.5rem] flex-col items-center justify-center rounded-xl border border-border bg-card px-4 py-6 text-center">
           <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Latest dental</p>
           {latestDental ? (
-            <p className="mt-2 text-sm font-medium text-foreground">{formatAdminDate(latestDental.recordDate)}</p>
+            <p className="mt-3 text-lg font-semibold tabular-nums text-foreground">{formatAdminDate(latestDental.recordDate)}</p>
           ) : (
-            <p className="mt-2 text-sm text-muted-foreground">No checkup flagged yet</p>
+            <p className="mt-3 text-sm text-muted-foreground">No checkup flagged yet</p>
           )}
         </div>
-        <div className="rounded-xl border border-border bg-card px-4 py-3">
+        <div className="flex min-h-[8.5rem] flex-col items-center justify-center rounded-xl border border-border bg-card px-4 py-6 text-center">
           <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Latest medical</p>
           {latestMedical ? (
-            <p className="mt-2 text-sm font-medium text-foreground">{formatAdminDate(latestMedical.recordDate)}</p>
+            <p className="mt-3 text-lg font-semibold tabular-nums text-foreground">{formatAdminDate(latestMedical.recordDate)}</p>
           ) : (
-            <p className="mt-2 text-sm text-muted-foreground">No checkup flagged yet</p>
+            <p className="mt-3 text-sm text-muted-foreground">No checkup flagged yet</p>
           )}
         </div>
-        <div className="rounded-xl border border-border bg-card px-4 py-3">
+        <div className="flex min-h-[8.5rem] flex-col items-center justify-center rounded-xl border border-border bg-card px-4 py-6 text-center">
           <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Latest psychological</p>
           {latestPsych ? (
-            <p className="mt-2 text-sm font-medium text-foreground">{formatAdminDate(latestPsych.recordDate)}</p>
+            <p className="mt-3 text-lg font-semibold tabular-nums text-foreground">{formatAdminDate(latestPsych.recordDate)}</p>
           ) : (
-            <p className="mt-2 text-sm text-muted-foreground">No checkup flagged yet</p>
+            <p className="mt-3 text-sm text-muted-foreground">No checkup flagged yet</p>
           )}
         </div>
       </div>
+
+      <DrillInHistoryHeading historyTitle="Appointment history" />
 
       <div className="space-y-2">
         <div className="flex flex-wrap items-end gap-2">
@@ -2099,13 +2155,18 @@ function HealthGoalDrillIn({
                     </div>
                     <div>
                       <label className={label}>
-                        Notes
+                        <span className="flex items-center justify-between gap-2">
+                          <span>Notes</span>
+                          <span className="text-[10px] font-normal normal-case text-muted-foreground">Editing — save or delete below</span>
+                        </span>
                         <textarea
+                          key={`health-notes-${row.id}`}
                           className={input}
                           rows={5}
                           value={notesDraft}
                           onChange={(e) => setNotesDraft(e.target.value)}
                           onClick={(e) => e.stopPropagation()}
+                          autoFocus
                         />
                       </label>
                       <div className="mt-3 flex flex-wrap gap-2">
@@ -2206,17 +2267,46 @@ function EducationGoalDrillIn({
   const latestProgress = latest?.progressPercent ?? null
   const latestAttendance = latest?.attendanceRate ?? null
 
-  const chartPoints = useMemo(
-    () =>
-      sortedRows
-        .slice()
-        .reverse()
-        .filter((row) => row.attendanceRate != null)
-        .map((row) => ({
-          label: new Date(row.recordDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-          value: (row.attendanceRate ?? 0) * 100,
-        })),
-    [sortedRows],
+  const chronologicalEdu = useMemo(
+    () => [...educationRows].sort((a, b) => new Date(a.recordDate).getTime() - new Date(b.recordDate).getTime()),
+    [educationRows],
+  )
+
+  const eduChartPack = useMemo(() => {
+    if (chronologicalEdu.length === 0) return null
+    const labels = chronologicalEdu.map((row) =>
+      new Date(row.recordDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+    )
+    return {
+      labels,
+      series: [
+        {
+          key: 'att',
+          name: 'Attendance',
+          strokeClass: 'stroke-teal-600 dark:stroke-teal-400',
+          fillClass: 'fill-teal-600 dark:fill-teal-400',
+          legendClass: 'bg-teal-600 dark:bg-teal-400',
+          values: chronologicalEdu.map((r) =>
+            r.attendanceRate != null && Number.isFinite(r.attendanceRate) ? r.attendanceRate * 100 : null,
+          ),
+        },
+        {
+          key: 'prg',
+          name: 'Program progress',
+          strokeClass: 'stroke-violet-500 dark:stroke-violet-400',
+          fillClass: 'fill-violet-500 dark:fill-violet-400',
+          legendClass: 'bg-violet-500',
+          values: chronologicalEdu.map((r) =>
+            r.progressPercent != null && Number.isFinite(r.progressPercent) ? r.progressPercent : null,
+          ),
+        },
+      ],
+    }
+  }, [chronologicalEdu])
+
+  const hasEduChartPoint = useMemo(
+    () => eduChartPack?.series.some((s) => s.values.some((v) => v != null && Number.isFinite(v))) ?? false,
+    [eduChartPack],
   )
 
   const filteredRows = useMemo(() => {
@@ -2268,7 +2358,16 @@ function EducationGoalDrillIn({
     )
     setProgressDraft(selectedRow.progressPercent != null ? String(Math.round(selectedRow.progressPercent)) : '')
     setErr(null)
-  }, [selectedRow?.id, selectedRow?.notes, selectedRow?.schoolName])
+  }, [
+    selectedRow?.id,
+    selectedRow?.notes,
+    selectedRow?.schoolName,
+    selectedRow?.educationLevel,
+    selectedRow?.enrollmentStatus,
+    selectedRow?.completionStatus,
+    selectedRow?.attendanceRate,
+    selectedRow?.progressPercent,
+  ])
 
   async function saveEducation(id: number) {
     setErr(null)
@@ -2313,31 +2412,44 @@ function EducationGoalDrillIn({
 
   return (
     <div className="space-y-5">
-      <div className="rounded-xl border border-border bg-background px-4 py-4">
-        <p className="text-sm font-semibold text-foreground">Education</p>
-        <p className="mt-1 text-xs text-muted-foreground">
-          Participation is tracked as attendance rate (0–100%) per record date.
+      <div className="rounded-lg border border-border/80 bg-white px-3 py-3 shadow-sm dark:bg-card">
+        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Attendance & progress</p>
+        <p className="mt-0.5 text-[11px] text-muted-foreground">
+          Percent attendance and program progress by record date (when captured).
         </p>
-        {chartPoints.length > 0 ? (
-          <div className="mt-4">
-            <SimpleLineChart
-              points={chartPoints}
+        {eduChartPack && hasEduChartPoint ? (
+          <div className="mt-2">
+            <SimpleMultiLineChart
+              labels={eduChartPack.labels}
+              series={eduChartPack.series}
               formatY={(n) => `${Math.round(n)}%`}
-              height={232}
-              ariaLabel="Attendance participation over time"
-              chartCaption="Attendance participation (%)"
+              height={168}
+              yMin={0}
+              yMax={100}
+              variant="minimal"
+              ariaLabel="Attendance and program progress over time"
             />
           </div>
         ) : (
-          <EmptyState title="No attendance data yet" />
+          <div className="mt-3">
+            <EmptyState title="No attendance or progress points yet" />
+          </div>
         )}
       </div>
 
-      <div className="grid gap-4 md:grid-cols-3">
-        <MiniMetric label="Total courses" value={String(distinctCourses || sortedRows.length || 0)} />
-        <MiniMetric label="Progress" value={latestProgress != null ? `${latestProgress}%` : '—'} />
-        <MiniMetric label="Attendance" value={latestAttendance != null ? `${Math.round(latestAttendance * 100)}%` : '—'} />
+      <div className="grid gap-3 md:grid-cols-3">
+        <DrillInStatCard label="Total courses" value={String(distinctCourses || sortedRows.length || 0)} />
+        <DrillInStatCard
+          label="Progress"
+          value={latestProgress != null ? `${Math.round(latestProgress)}%` : '—'}
+        />
+        <DrillInStatCard
+          label="Attendance"
+          value={latestAttendance != null ? `${Math.round(latestAttendance * 100)}%` : '—'}
+        />
       </div>
+
+      <DrillInHistoryHeading historyTitle="Educational history" />
 
       <div className="space-y-2">
         <div className="flex flex-wrap items-end gap-2">
@@ -2376,7 +2488,6 @@ function EducationGoalDrillIn({
         ) : (
           filteredRows.map((row) => {
             const ext = parseEducationExtendedLite(row.extendedJson)
-            const status = ext.attendanceStatus || row.enrollmentStatus || row.completionStatus || 'No status'
             return (
               <div
                 key={row.id}
@@ -2397,10 +2508,7 @@ function EducationGoalDrillIn({
                         Progress {row.progressPercent != null ? `${Math.round(row.progressPercent)}%` : '—'}
                       </span>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">{status}</span>
-                      <span className="text-sm text-muted-foreground">{selectedId === row.id ? 'Hide' : 'Open'}</span>
-                    </div>
+                    <span className="text-sm text-muted-foreground">{selectedId === row.id ? 'Hide' : 'Open'}</span>
                   </div>
                 </button>
                 {selectedId === row.id ? (
@@ -2408,6 +2516,23 @@ function EducationGoalDrillIn({
                     <div className="grid gap-2 sm:grid-cols-2">
                       <MiniMetric label="Program" value={ext.programName || '—'} />
                       <MiniMetric label="Course" value={ext.courseName || '—'} />
+                    </div>
+                    <div>
+                      <label className={label}>
+                        <span className="flex items-center justify-between gap-2">
+                          <span>Notes</span>
+                          <span className="text-[10px] font-normal normal-case text-muted-foreground">Editing — save or delete below</span>
+                        </span>
+                        <textarea
+                          key={`edu-notes-${row.id}`}
+                          className={input}
+                          rows={5}
+                          value={notesDraft}
+                          onChange={(e) => setNotesDraft(e.target.value)}
+                          onClick={(e) => e.stopPropagation()}
+                          autoFocus
+                        />
+                      </label>
                     </div>
                     <div className="grid gap-3 sm:grid-cols-2">
                       <label className={label}>
@@ -2447,10 +2572,6 @@ function EducationGoalDrillIn({
                         />
                       </label>
                     </div>
-                    <label className={label}>
-                      Notes
-                      <textarea className={input} rows={4} value={notesDraft} onChange={(e) => setNotesDraft(e.target.value)} />
-                    </label>
                     <div className="flex flex-wrap gap-2">
                       <button type="button" className={btnPrimary} disabled={saving} onClick={() => void saveEducation(row.id)}>
                         {saving ? 'Saving…' : 'Save changes'}
@@ -2497,16 +2618,25 @@ function EducationGoalDrillIn({
   )
 }
 
+function visitNotesEditableSource(v: HomeVisitation): string {
+  const follow = (v.followUpNotes ?? '').trim()
+  if (follow) return v.followUpNotes ?? ''
+  const obs = (v.observations ?? '').trim()
+  if (obs) return v.observations ?? ''
+  const purpose = (v.purpose ?? '').trim()
+  return purpose ? (v.purpose ?? '') : ''
+}
+
 function SafetyGoalDrillIn({
   visitRows,
   incidentRows,
   relatedPlan: _relatedPlan,
-  onReload: _onReload,
+  onReload,
   onLogIncident,
   onOpenIncident,
   onOpenVisit,
-  onEditIncident,
-  onEditVisit,
+  onEditIncident: _onEditIncident,
+  onEditVisit: _onEditVisit,
   onRequestDeleteIncident,
   onRequestDeleteVisit,
 }: {
@@ -2523,21 +2653,64 @@ function SafetyGoalDrillIn({
   onRequestDeleteVisit: (id: number) => void
 }) {
   void _relatedPlan
-  void _onReload
+  void _onEditIncident
+  void _onEditVisit
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState<'all' | 'visit' | 'incident'>('all')
+  const [locationFilter, setLocationFilter] = useState('')
   const [expandedKey, setExpandedKey] = useState<string | null>(null)
+  const [notesDraft, setNotesDraft] = useState('')
+  const [savingNotes, setSavingNotes] = useState(false)
+  const [notesErr, setNotesErr] = useState<string | null>(null)
 
   const latestVisit = byNewestDate(visitRows, (row) => row.visitDate)[0] ?? null
 
-  const safetyRecords = useMemo(() => {
-    const visitItems = visitRows
+  const purposeSnippet = (t: string | null | undefined, max = 72) => {
+    const s = (t ?? '').trim().replace(/\s+/g, ' ')
+    if (!s) return undefined
+    return s.length > max ? `${s.slice(0, max)}…` : s
+  }
+
+  const locationOptions = useMemo(() => {
+    const s = new Set<string>()
+    visitRows.forEach((v) => {
+      const loc = (v.locationVisited ?? '').trim()
+      if (loc) s.add(loc)
+    })
+    incidentRows.forEach((r) => {
+      const id = (r.fields.safehouse_id ?? '').trim()
+      if (id) s.add(`Safehouse ${id}`)
+    })
+    return Array.from(s).sort((a, b) => a.localeCompare(b))
+  }, [visitRows, incidentRows])
+
+  type SafetyRow = {
+    key: string
+    type: 'visit' | 'incident'
+    visitRow: HomeVisitation | null
+    incidentRow: JsonTableRow | null
+    sort: number
+    date: string
+    location: string
+    chip: string
+    detail: {
+      type: string
+      location: string
+      status: string
+      outcome: string
+      notes: string
+      worker: string
+    }
+  }
+
+  const allSafetyRows = useMemo((): SafetyRow[] => {
+    const visitItems: SafetyRow[] = visitRows
       .filter((row) => row.safetyConcernsNoted || row.followUpNeeded)
       .map((row) => ({
         key: `visit-${row.id}`,
         type: 'visit' as const,
         visitRow: row,
-        incidentRow: null as JsonTableRow | null,
+        incidentRow: null,
         sort: new Date(row.visitDate).getTime(),
         date: row.visitDate,
         location: row.locationVisited || '—',
@@ -2552,10 +2725,10 @@ function SafetyGoalDrillIn({
         },
       }))
 
-    const incidentItems = incidentRows.map((row) => ({
+    const incidentItems: SafetyRow[] = incidentRows.map((row) => ({
       key: `incident-${row.id}`,
       type: 'incident' as const,
-      visitRow: null as HomeVisitation | null,
+      visitRow: null,
       incidentRow: row,
       sort: new Date(row.fields.incident_date ?? '').getTime(),
       date: row.fields.incident_date ?? '',
@@ -2571,149 +2744,280 @@ function SafetyGoalDrillIn({
       },
     }))
 
-    return [...visitItems, ...incidentItems]
-      .sort((a, b) => b.sort - a.sort)
-      .filter((row) => (filter === 'all' ? true : row.type === filter))
-      .filter((row) => {
-        const q = search.trim().toLowerCase()
-        if (!q) return true
-        return `${row.location} ${row.chip} ${row.detail.notes} ${row.detail.status}`.toLowerCase().includes(q)
-      })
-  }, [filter, incidentRows, search, visitRows])
+    return [...visitItems, ...incidentItems].sort((a, b) => b.sort - a.sort)
+  }, [incidentRows, visitRows])
+
+  const safetyRecords = useMemo(() => {
+    let list = allSafetyRows.filter((row) => (filter === 'all' ? true : row.type === filter))
+    if (locationFilter.trim()) {
+      list = list.filter((row) => row.location === locationFilter)
+    }
+    const q = search.trim().toLowerCase()
+    if (q) {
+      list = list.filter((row) =>
+        `${row.location} ${row.chip} ${row.detail.notes} ${row.detail.status}`.toLowerCase().includes(q),
+      )
+    }
+    if (expandedKey != null && !list.some((r) => r.key === expandedKey)) {
+      const sel = allSafetyRows.find((r) => r.key === expandedKey)
+      if (sel) list = [sel, ...list]
+    }
+    return list
+  }, [allSafetyRows, expandedKey, filter, locationFilter, search])
+
+  useEffect(() => {
+    if (expandedKey == null) {
+      setNotesDraft('')
+      return
+    }
+    const row = allSafetyRows.find((r) => r.key === expandedKey)
+    if (!row) {
+      setNotesDraft('')
+      return
+    }
+    if (row.type === 'visit' && row.visitRow) {
+      setNotesDraft(visitNotesEditableSource(row.visitRow))
+    } else if (row.type === 'incident' && row.incidentRow) {
+      setNotesDraft(row.incidentRow.fields.description ?? '')
+    } else {
+      setNotesDraft('')
+    }
+    setNotesErr(null)
+  }, [allSafetyRows, expandedKey])
+
+  async function saveNotesForExpanded() {
+    if (expandedKey == null) return
+    const row = allSafetyRows.find((r) => r.key === expandedKey)
+    if (!row) return
+    setNotesErr(null)
+    setSavingNotes(true)
+    try {
+      if (row.type === 'visit' && row.visitRow) {
+        const trimmed = notesDraft.trim()
+        await patchHomeVisitation(row.visitRow.id, { followUpNotes: trimmed ? trimmed : undefined })
+      } else if (row.type === 'incident' && row.incidentRow) {
+        await patchIncidentReport(row.incidentRow.id, { description: notesDraft })
+      }
+      await onReload()
+    } catch (e) {
+      setNotesErr(e instanceof Error ? e.message : 'Save failed')
+    } finally {
+      setSavingNotes(false)
+    }
+  }
 
   return (
     <div className="space-y-5">
-      <div className="rounded-xl border border-border bg-background px-4 py-4">
-        <p className="text-sm font-semibold text-foreground">Safety</p>
+      <div>
+        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Latest safety visit</p>
         {latestVisit ? (
-          <div className="mt-4 grid gap-4 md:grid-cols-[1fr_1fr_0.8fr_1fr_1fr]">
-            <MiniMetric label="Date" value={formatAdminDate(latestVisit.visitDate)} />
-            <MiniMetric label="Location" value={latestVisit.locationVisited || '—'} />
-            <MiniMetric label="Type" value={latestVisit.visitType || '—'} />
-            <MiniMetric label="Safety concerns" value={latestVisit.safetyConcernsNoted ? 'Yes' : 'No'} />
-            <MiniMetric label="Outcome" value={latestVisit.visitOutcome || '—'} />
+          <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+            <DrillInStatCard label="Date" value={formatAdminDate(latestVisit.visitDate)} detail="Most recent visit on file" />
+            <DrillInStatCard
+              label="Location"
+              value={latestVisit.locationVisited || '—'}
+              valueTone="body"
+              detail={
+                latestVisit.socialWorker?.trim()
+                  ? `Social worker: ${latestVisit.socialWorker}`
+                  : 'Where the visit took place'
+              }
+            />
+            <DrillInStatCard
+              label="Visit type"
+              value={latestVisit.visitType || '—'}
+              detail={purposeSnippet(latestVisit.purpose) ?? 'Purpose of visit'}
+            />
+            <DrillInStatCard
+              label="Safety concerns"
+              value={latestVisit.safetyConcernsNoted ? 'Yes' : 'No'}
+              detail={
+                latestVisit.safetyConcernsNoted
+                  ? 'Concern noted on this visit'
+                  : latestVisit.followUpNeeded
+                    ? 'Follow-up flagged'
+                    : 'No concern flags'
+              }
+            />
+            <DrillInStatCard
+              label="Outcome"
+              value={latestVisit.visitOutcome || '—'}
+              valueTone="body"
+              detail={purposeSnippet(latestVisit.observations, 80) ?? 'Visit outcome summary'}
+            />
           </div>
         ) : (
-          <EmptyState title="No recent safety visit" />
+          <div className="mt-3">
+            <EmptyState title="No recent safety visit" />
+          </div>
         )}
       </div>
 
-      <div className="space-y-2">
-        <div className="flex flex-wrap items-end gap-2">
-          <div className="min-w-[10rem] flex-1">
-            <label className={label} htmlFor="safety-rec-search">
-              Search
-            </label>
-            <input
-              id="safety-rec-search"
-              type="search"
-              className={input}
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Notes, location, type…"
-            />
-          </div>
-          <label className={label}>
-            Filter
-            <select
-              className={input}
-              value={filter}
-              onChange={(e) => setFilter(e.target.value as typeof filter)}
-            >
-              <option value="all">All</option>
-              <option value="visit">Visits</option>
-              <option value="incident">Incidents</option>
-            </select>
-          </label>
-          <InlineActionButton onClick={onLogIncident}>Add</InlineActionButton>
-        </div>
+      <DrillInHistoryHeading historyTitle="Safety history" />
 
-        {safetyRecords.length === 0 ? (
-          <EmptyState title="No safety records yet" />
-        ) : (
-          safetyRecords.map((row) => (
-            <div
-              key={row.key}
-              className={`w-full rounded-xl border bg-card px-4 py-3 ${expandedKey === row.key ? 'border-primary' : 'border-border'}`}
-            >
-              <button
-                type="button"
-                className="w-full text-left hover:opacity-95"
-                onClick={() => setExpandedKey((value) => (value === row.key ? null : row.key))}
-              >
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="font-medium text-foreground">
-                      {formatAdminDate(row.date)}
-                      {row.location !== '—' ? ` · ${row.location}` : ''}
-                    </span>
-                    <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">{row.chip}</span>
-                    {row.detail.outcome !== '—' ? (
-                      <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary">{row.detail.outcome}</span>
-                    ) : null}
-                  </div>
-                  <span className="text-sm text-muted-foreground">{expandedKey === row.key ? 'Hide' : 'Open'}</span>
-                </div>
-              </button>
-              {expandedKey === row.key ? (
-                <div className="mt-4 space-y-4 border-t border-border/60 pt-4">
-                  <div className="grid gap-4 lg:grid-cols-[0.9fr_1.1fr]">
-                    <div className="grid gap-2 sm:grid-cols-2">
-                      <MiniMetric label="Date" value={formatAdminDate(row.date)} />
-                      <MiniMetric label="Location" value={row.detail.location} />
-                      <MiniMetric label="Type" value={row.detail.type} />
-                      <MiniMetric label="Status" value={row.detail.status} />
-                      <MiniMetric label="Outcome" value={row.detail.outcome} />
-                      <MiniMetric label="Worker" value={row.detail.worker} />
-                    </div>
-                    <div className="rounded-lg bg-muted/20 px-4 py-3">
-                      <p className="text-xs uppercase tracking-wide text-muted-foreground">Details</p>
-                      <p className="mt-2 whitespace-pre-wrap text-sm text-foreground">{row.detail.notes}</p>
-                    </div>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    {row.type === 'visit' && row.visitRow ? (
-                      <>
-                        <InlineActionButton onClick={() => onEditVisit(row.visitRow!)}>Edit</InlineActionButton>
-                        <InlineActionButton onClick={() => onOpenVisit(row.visitRow!)}>View</InlineActionButton>
-                        <button
-                          type="button"
-                          className={RESIDENT_SEMANTIC.danger.outlineButton}
-                          onClick={() => onRequestDeleteVisit(row.visitRow!.id)}
-                        >
-                          Delete…
-                        </button>
-                      </>
-                    ) : null}
-                    {row.type === 'incident' && row.incidentRow ? (
-                      <>
-                        <InlineActionButton onClick={() => onEditIncident(row.incidentRow!)}>Edit</InlineActionButton>
-                        <InlineActionButton onClick={() => onOpenIncident(row.incidentRow!)}>View</InlineActionButton>
-                        <button
-                          type="button"
-                          className={RESIDENT_SEMANTIC.danger.outlineButton}
-                          onClick={() => onRequestDeleteIncident(row.incidentRow!.id)}
-                        >
-                          Delete…
-                        </button>
-                      </>
-                    ) : null}
-                  </div>
-                </div>
-              ) : null}
+      <div className="space-y-3">
+        <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Notes & record list</p>
+
+        <div className="space-y-2">
+          <div className="flex flex-wrap items-end gap-2">
+            <div className="min-w-[10rem] flex-1">
+              <label className={label} htmlFor="safety-rec-search">
+                Search
+              </label>
+              <input
+                id="safety-rec-search"
+                type="search"
+                className={input}
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Notes, location, type…"
+              />
             </div>
-          ))
-        )}
+            <label className={label}>
+              Type
+              <select
+                className={input}
+                value={filter}
+                onChange={(e) => setFilter(e.target.value as typeof filter)}
+              >
+                <option value="all">All</option>
+                <option value="visit">Visits</option>
+                <option value="incident">Incidents</option>
+              </select>
+            </label>
+            <label className={label}>
+              Location
+              <select
+                className={input}
+                value={locationFilter}
+                onChange={(e) => setLocationFilter(e.target.value)}
+              >
+                <option value="">All locations</option>
+                {locationOptions.map((loc) => (
+                  <option key={loc} value={loc}>
+                    {loc}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <InlineActionButton onClick={onLogIncident}>Add</InlineActionButton>
+          </div>
+
+          {notesErr ? <div className={alertError}>{notesErr}</div> : null}
+
+          {safetyRecords.length === 0 ? (
+            <EmptyState title="No safety records yet" />
+          ) : (
+            safetyRecords.map((row) => (
+              <div
+                key={row.key}
+                className={`w-full rounded-xl border bg-card px-4 py-3 ${expandedKey === row.key ? 'border-primary' : 'border-border'}`}
+              >
+                <button
+                  type="button"
+                  className="w-full text-left hover:opacity-95"
+                  onClick={() => setExpandedKey((value) => (value === row.key ? null : row.key))}
+                >
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-medium text-foreground">
+                        {formatAdminDate(row.date)}
+                        {row.location !== '—' ? ` · ${row.location}` : ''}
+                      </span>
+                      <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">{row.chip}</span>
+                      {row.detail.outcome !== '—' ? (
+                        <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary">{row.detail.outcome}</span>
+                      ) : null}
+                    </div>
+                    <span className="text-sm text-muted-foreground">{expandedKey === row.key ? 'Hide' : 'Open'}</span>
+                  </div>
+                </button>
+                {expandedKey === row.key ? (
+                  <div className="mt-4 space-y-4 border-t border-border/60 pt-4">
+                    <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                      <MiniMetric label="Date" value={formatAdminDate(row.date)} align="center" />
+                      <MiniMetric label="Location" value={row.detail.location} align="center" />
+                      <MiniMetric label="Type" value={row.detail.type} align="center" />
+                      <MiniMetric label="Status" value={row.detail.status} align="center" />
+                      <MiniMetric label="Outcome" value={row.detail.outcome} align="center" />
+                      <MiniMetric label="Worker" value={row.detail.worker} align="center" />
+                    </div>
+                    <div>
+                      <label className={label}>
+                        <span className="flex items-center justify-between gap-2">
+                          <span>Notes</span>
+                          <span className="text-[10px] font-normal normal-case text-muted-foreground">Editing — save or delete below</span>
+                        </span>
+                        <textarea
+                          key={`safety-notes-${row.key}`}
+                          className={input}
+                          rows={5}
+                          value={notesDraft}
+                          onChange={(e) => setNotesDraft(e.target.value)}
+                          onClick={(e) => e.stopPropagation()}
+                          autoFocus
+                        />
+                      </label>
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          className={btnPrimary}
+                          disabled={savingNotes}
+                          onClick={() => void saveNotesForExpanded()}
+                        >
+                          {savingNotes ? 'Saving…' : 'Save notes'}
+                        </button>
+                        {row.type === 'visit' && row.visitRow ? (
+                          <>
+                            <InlineActionButton onClick={() => onOpenVisit(row.visitRow!)}>Full record</InlineActionButton>
+                            <button
+                              type="button"
+                              className={RESIDENT_SEMANTIC.danger.outlineButton}
+                              onClick={() => onRequestDeleteVisit(row.visitRow!.id)}
+                            >
+                              Delete…
+                            </button>
+                          </>
+                        ) : null}
+                        {row.type === 'incident' && row.incidentRow ? (
+                          <>
+                            <InlineActionButton onClick={() => onOpenIncident(row.incidentRow!)}>Full record</InlineActionButton>
+                            <button
+                              type="button"
+                              className={RESIDENT_SEMANTIC.danger.outlineButton}
+                              onClick={() => onRequestDeleteIncident(row.incidentRow!.id)}
+                            >
+                              Delete…
+                            </button>
+                          </>
+                        ) : null}
+                      </div>
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+            ))
+          )}
+        </div>
       </div>
     </div>
   )
 }
 
-function MiniMetric({ label, value }: { label: string; value: string }) {
+function MiniMetric({
+  label,
+  value,
+  align = 'start',
+}: {
+  label: string
+  value: string
+  align?: 'start' | 'center'
+}) {
+  const alignCls = align === 'center' ? 'text-center' : ''
   return (
-    <div className="rounded-lg border border-border/70 bg-background px-3 py-2">
+    <div className={`rounded-lg border border-border/70 bg-background px-3 py-3 ${alignCls}`}>
       <p className="text-[11px] uppercase tracking-wide text-muted-foreground">{label}</p>
-      <p className="mt-1 text-sm font-medium text-foreground">{value}</p>
+      <p className="mt-1.5 text-base font-semibold text-foreground">{value}</p>
     </div>
   )
 }

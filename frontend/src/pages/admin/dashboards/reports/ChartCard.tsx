@@ -134,6 +134,7 @@ export function SimpleMultiLineChart({
   ariaLabel,
   yMin,
   yMax,
+  variant = 'default',
 }: {
   labels: string[]
   series: {
@@ -149,6 +150,8 @@ export function SimpleMultiLineChart({
   ariaLabel: string
   yMin?: number
   yMax?: number
+  /** `minimal`: flat white-friendly panel, lighter grid — for embedded resident health cards. */
+  variant?: 'default' | 'minimal'
 }) {
   const [hoverI, setHoverI] = useState<number | null>(null)
   if (labels.length === 0) return null
@@ -157,8 +160,8 @@ export function SimpleMultiLineChart({
   const maxV = yMax ?? (flat.length ? Math.max(...flat, 5) : 5)
   const span = Math.max(maxV - minV, 0.01)
   const w = 400
-  const pad = 28
-  const bottomPad = 22
+  const pad = variant === 'minimal' ? 32 : 28
+  const bottomPad = variant === 'minimal' ? 26 : 22
   const innerW = w - pad * 2
   const innerH = height - pad - bottomPad
   const n = labels.length
@@ -172,12 +175,21 @@ export function SimpleMultiLineChart({
 
   const bandW = n <= 1 ? innerW : innerW / (n - 1)
 
+  const surfaceClass =
+    variant === 'minimal'
+      ? 'relative rounded-md p-1'
+      : 'relative rounded-xl border border-border/60 bg-gradient-to-b from-muted/25 to-muted/5 p-3 shadow-sm'
+
+  const gridStroke = variant === 'minimal' ? 'stroke-border/30' : 'stroke-border/40'
+  const scaleTextClass = variant === 'minimal' ? 'fill-muted-foreground/80 text-[9px]' : 'fill-muted-foreground text-[10px]'
+  const xLabelClass =
+    variant === 'minimal'
+      ? 'fill-muted-foreground text-[9px] pointer-events-none'
+      : 'fill-muted-foreground text-[8px] pointer-events-none'
+
   return (
-    <div className="space-y-3">
-      <div
-        className="relative rounded-xl border border-border/60 bg-gradient-to-b from-muted/25 to-muted/5 p-3 shadow-sm"
-        onMouseLeave={() => setHoverI(null)}
-      >
+    <div className={variant === 'minimal' ? 'space-y-2' : 'space-y-3'}>
+      <div className={surfaceClass} onMouseLeave={() => setHoverI(null)}>
         {hoverI != null && labels[hoverI] ? (
           <div
             className="pointer-events-none absolute right-3 top-3 z-10 max-w-[16rem] rounded-lg border border-border bg-card/95 px-3 py-2 text-xs shadow-md backdrop-blur-sm"
@@ -200,8 +212,11 @@ export function SimpleMultiLineChart({
         ) : null}
         <svg viewBox={`0 0 ${w} ${height}`} className="h-auto w-full" role="img" aria-label={ariaLabel}>
           <title>{ariaLabel}</title>
-          <text x={pad} y={16} className="fill-muted-foreground text-[10px]">
-            Scale {formatY(maxV)} – {formatY(minV)}
+          {variant === 'minimal' ? (
+            <line x1={pad} y1={pad} x2={pad} y2={pad + innerH} className="stroke-border/40" strokeWidth="1" />
+          ) : null}
+          <text x={variant === 'minimal' ? pad + 4 : pad} y={variant === 'minimal' ? 14 : 16} className={scaleTextClass}>
+            {variant === 'minimal' ? `${formatY(maxV)} → ${formatY(minV)}` : `Scale ${formatY(maxV)} – ${formatY(minV)}`}
           </text>
           {[0, 0.25, 0.5, 0.75, 1].map((t) => {
             const y = pad + innerH * (1 - t)
@@ -212,9 +227,9 @@ export function SimpleMultiLineChart({
                 y1={y}
                 x2={w - pad}
                 y2={y}
-                className="stroke-border/40"
+                className={gridStroke}
                 strokeWidth="1"
-                strokeDasharray="4 6"
+                strokeDasharray={variant === 'minimal' ? '2 5' : '4 6'}
               />
             )
           })}
@@ -240,10 +255,11 @@ export function SimpleMultiLineChart({
                 key={`${s.key}-${segIdx}`}
                 d={pathD}
                 fill="none"
-                strokeWidth="3"
+                strokeWidth={variant === 'minimal' ? 2.25 : 3}
                 strokeLinecap="round"
                 strokeLinejoin="round"
                 className={s.strokeClass}
+                opacity={variant === 'minimal' ? 0.92 : 1}
               />
             ))
           })}
@@ -255,7 +271,7 @@ export function SimpleMultiLineChart({
             }),
           )}
           {labels.map((lab, i) => (
-            <text key={`${lab}-${i}`} x={xAt(i)} y={height - 6} textAnchor="middle" className="fill-muted-foreground text-[8px] pointer-events-none">
+            <text key={`${lab}-${i}`} x={xAt(i)} y={height - 6} textAnchor="middle" className={xLabelClass}>
               {lab}
             </text>
           ))}
@@ -273,10 +289,13 @@ export function SimpleMultiLineChart({
           ))}
         </svg>
       </div>
-      <ul className="flex flex-wrap gap-x-4 gap-y-1 text-[11px]" aria-label="Legend">
+      <ul
+        className={`flex flex-wrap gap-x-3 gap-y-1 ${variant === 'minimal' ? 'text-[10px]' : 'text-[11px]'}`}
+        aria-label="Legend"
+      >
         {series.map((s) => (
           <li key={s.key} className="flex items-center gap-1.5">
-            <span className={`h-2 w-4 shrink-0 rounded-sm ${s.legendClass}`} />
+            <span className={`h-1.5 w-3.5 shrink-0 rounded-full ${s.legendClass}`} />
             <span className="text-muted-foreground">{s.name}</span>
           </li>
         ))}

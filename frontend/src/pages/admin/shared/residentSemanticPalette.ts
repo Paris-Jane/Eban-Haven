@@ -17,7 +17,8 @@ export const RESIDENT_SEMANTIC = {
     bgSoftHover: 'bg-[#E8F7EE]/70',
     listRow: 'border-[#B7E4C7] bg-[#E8F7EE]/40 hover:bg-[#E8F7EE]/70',
     dot: 'bg-[#166534]',
-    bar: 'bg-[#166534]',
+    /** Softer fill for stacked / wide bars (cohort bar, etc.) — not the dark chip text color. */
+    bar: 'bg-[#7aab8c]',
   },
   warning: {
     chip: 'border-[#F3D19C] bg-[#FFF4E5] text-[#9A5B00]',
@@ -29,7 +30,8 @@ export const RESIDENT_SEMANTIC = {
     bgSoftHover: 'bg-[#FFF4E5]/80',
     listRow: 'border-[#F3D19C] bg-[#FFF4E5]/50 hover:bg-[#FFF4E5]/80',
     dot: 'bg-[#9A5B00]',
-    bar: 'bg-[#9A5B00]',
+    /** Clear gold-amber for bar segments — avoids muddy brown while staying soft. */
+    bar: 'bg-[#e4c65d]',
   },
   danger: {
     chip: 'border-[#F5B5B2] bg-[#FDECEC] text-[#B42318]',
@@ -42,7 +44,8 @@ export const RESIDENT_SEMANTIC = {
     /** Full class string for selectable list rows (Tailwind JIT sees complete literals). */
     listRow: 'border-[#F5B5B2] bg-[#FDECEC]/50 hover:bg-[#FDECEC]/80',
     dot: 'bg-[#B42318]',
-    bar: 'bg-[#B42318]',
+    /** Dusty rose-red for wide fills — less harsh than the danger text hex. */
+    bar: 'bg-[#d67b73]',
     outlineButton: 'rounded-lg border border-[#F5B5B2] px-3 py-2 text-sm font-medium text-[#B42318] hover:bg-[#FDECEC]/80',
     outlineButtonWide: 'rounded-lg border border-[#F5B5B2] px-4 py-2 text-sm font-medium text-[#B42318] hover:bg-[#FDECEC]/80',
   },

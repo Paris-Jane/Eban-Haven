@@ -115,7 +115,7 @@ export function PlansTabContent({
     <div className="space-y-6">
       {err && <div className={alertError}>{err}</div>}
       <SectionHeader
-        title={titleOverride ?? (layout === 'workspace' ? 'Plans & goals' : 'Intervention plans')}
+        title={titleOverride ?? (layout === 'workspace' ? 'Goals' : 'Intervention plans')}
         description={
           descriptionOverride ??
           (layout === 'workspace'

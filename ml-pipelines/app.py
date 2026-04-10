@@ -84,14 +84,14 @@ _HIGHER_IS_BETTER = {
 }
 
 _FEATURE_LABELS: dict[str, str] = {
-    "days_in_program":          "Time in programe",
+    "days_in_program":          "Time in program",
     "current_risk_level":       "Current risk level",
     "reintegration_type":       "Reintegration type",
     "case_status":              "Case status",
     "total_sessions":           "Counselling sessions",
     "pct_progress_noted":       "Session progress rate",
     "pct_concerns_flagged":     "Concern rate",
-    "latest_attendance_rate":   "Programme attendance",
+    "latest_attendance_rate":   "program attendance",
     "avg_progress_percent":     "Educational progress",
     "avg_general_health_score": "General health score",
     "pct_psych_checkup_done":   "Psych check-up rate",
@@ -104,14 +104,14 @@ _FEATURE_LABELS: dict[str, str] = {
 }
 
 _FEATURE_SUGGESTIONS: dict[str, str] = {
-    "days_in_program":          "Continue the resident in the programme to build stability and skills over time.",
+    "days_in_program":          "Continue the resident in the program to build stability and skills over time.",
     "current_risk_level":       "Reduce current safety and stability risks before moving toward reintegration.",
     "reintegration_type":       "Clarify the most appropriate reintegration pathway and prepare the resident for it.",
     "case_status":              "Resolve outstanding case-management blockers that are slowing reintegration decisions.",
     "total_sessions":           "Schedule additional counselling or therapeutic sessions.",
     "pct_progress_noted":       "Ensure progress is consistently documented in each session.",
     "pct_concerns_flagged":     "Address outstanding concerns raised during sessions with the resident.",
-    "latest_attendance_rate":   "Work with the resident to improve programme attendance.",
+    "latest_attendance_rate":   "Work with the resident to improve program attendance.",
     "avg_progress_percent":     "Develop a focused education or skills plan to boost academic progress.",
     "avg_general_health_score": "Arrange a health assessment and follow-up medical support.",
     "pct_psych_checkup_done":   "Book pending psychological check-ups with the resident.",

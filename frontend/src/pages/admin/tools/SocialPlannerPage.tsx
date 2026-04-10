@@ -169,9 +169,9 @@ function FacebookBrandIcon({ className }: { className?: string }) {
   )
 }
 
-/** Brand marks use #f9f2e6; shell is dark enough for contrast on the queue card. */
+/** Cream tile (#f9f2e6) per spec; logos use a dark stroke so they read on the light background. */
 const platformIconShell =
-  'flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-[#5c5348] text-[#f9f2e6] dark:bg-[#3d3834] dark:text-[#f9f2e6]'
+  'flex h-6 w-6 shrink-0 items-center justify-center rounded-md border border-[#e6dcc8] bg-[#f9f2e6] text-[#3f372f] dark:border-[#e6dcc8]/40 dark:bg-[#f9f2e6] dark:text-[#2a241c]'
 
 function PlatformIcon({ platform }: { platform: string }) {
   const lp = platform.toLowerCase()
@@ -857,7 +857,7 @@ export function SocialPlannerPage() {
                             Goal *
                             <textarea
                               className={`${input} mt-1 min-h-20 resize-y`}
-                              placeholder="e.g. raise awareness about our safe shelter programme and invite supporters to donate."
+                              placeholder="e.g. raise awareness about our safe shelter program and invite supporters to donate."
                               value={brief.goal}
                               onChange={(e) => setBrief((c) => ({ ...c, goal: e.target.value }))}
                             />

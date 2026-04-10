@@ -3,7 +3,6 @@ import { ChevronDown, Filter, X } from 'lucide-react'
 import { formatAdminDate } from '../adminDataTable/adminFormatters'
 import { btnPrimary, input, label } from '../adminStyles'
 import { RESIDENT_SEMANTIC } from '../residentSemanticPalette'
-import { CaseDrawer } from './caseUi'
 import type { TimelineItem, TimelineKind } from './caseWorkspaceModel'
 
 export const ALL_TIMELINE_KINDS: TimelineKind[] = ['process', 'visit', 'incident', 'education', 'health', 'plan']
@@ -15,6 +14,43 @@ const KIND_LABELS: Record<TimelineKind, string> = {
   education: 'Education',
   health: 'Health',
   plan: 'Plan',
+}
+
+/** Selected-state chip colors per record type (inactive uses shared muted style). */
+const KIND_CHIP_ON: Record<TimelineKind, string> = {
+  process: 'border-[#93C5FD] bg-[#E8F1FF] text-[#1D4ED8]',
+  visit: 'border-[#C4B5FD] bg-[#F3EEFD] text-[#5B21B6]',
+  incident: `${RESIDENT_SEMANTIC.danger.border} ${RESIDENT_SEMANTIC.danger.bgSoft} ${RESIDENT_SEMANTIC.danger.text}`,
+  education: `${RESIDENT_SEMANTIC.warning.border} ${RESIDENT_SEMANTIC.warning.bgSoft} ${RESIDENT_SEMANTIC.warning.text}`,
+  health: `${RESIDENT_SEMANTIC.success.border} ${RESIDENT_SEMANTIC.success.bgSoft} ${RESIDENT_SEMANTIC.success.text}`,
+  plan: `${RESIDENT_SEMANTIC.neutral.chip}`,
+}
+
+const KIND_CHIP_OFF = 'border-border bg-card text-muted-foreground hover:bg-muted/40'
+
+function kindsIncludeAll(kinds: Set<TimelineKind>) {
+  return ALL_TIMELINE_KINDS.every((k) => kinds.has(k))
+}
+
+function FilterToggle({ label, checked, onChange }: { label: string; checked: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <div className="flex items-center justify-between gap-3 rounded-lg border border-border bg-muted/20 px-3 py-2.5">
+      <span className="text-sm font-medium text-foreground">{label}</span>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={checked}
+        onClick={() => onChange(!checked)}
+        className={`relative h-7 w-11 shrink-0 rounded-full transition-colors ${checked ? 'bg-primary' : 'bg-muted'}`}
+      >
+        <span
+          className={`absolute top-0.5 h-6 w-6 rounded-full bg-background shadow transition-transform ${
+            checked ? 'translate-x-5' : 'translate-x-0.5'
+          }`}
+        />
+      </button>
+    </div>
+  )
 }
 
 function toneChipClass(tone: 'danger' | 'warning' | 'default' | 'success') {
@@ -102,8 +138,15 @@ export type ActivityFilterChip = {
 type ActivityToolbarProps = {
   search: string
   onSearchChange: (v: string) => void
-  onOpenFilters: () => void
+  filtersOpen: boolean
+  onFiltersOpenChange: (open: boolean) => void
   filtersActive: boolean
+  filterDraft: ActivityAdvFilterDraft
+  setFilterDraft: Dispatch<SetStateAction<ActivityAdvFilterDraft>>
+  onApplyFilters: () => void
+  onClearFilterDraft: () => void
+  keywordSearch: string
+  onKeywordSearchChange: (v: string) => void
   addMenuOpen: boolean
   onToggleAddMenu: () => void
   onAddPick: (id: 'counseling' | 'visit' | 'incident' | 'health' | 'education' | 'plan') => void
@@ -113,58 +156,195 @@ type ActivityToolbarProps = {
 export function ActivityTabToolbar({
   search,
   onSearchChange,
-  onOpenFilters,
+  filtersOpen,
+  onFiltersOpenChange,
   filtersActive,
+  filterDraft,
+  setFilterDraft,
+  onApplyFilters,
+  onClearFilterDraft,
+  keywordSearch,
+  onKeywordSearchChange,
   addMenuOpen,
   onToggleAddMenu,
   onAddPick,
   addOptions,
 }: ActivityToolbarProps) {
   const addRef = useRef<HTMLDivElement>(null)
+  const filterRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    if (!addMenuOpen) return
+    if (!addMenuOpen && !filtersOpen) return
     function onDocClick(e: globalThis.MouseEvent) {
-      if (addRef.current && !addRef.current.contains(e.target as Node)) {
+      const t = e.target as Node
+      if (addMenuOpen && addRef.current && !addRef.current.contains(t)) {
         onToggleAddMenu()
+      }
+      if (filtersOpen && filterRef.current && !filterRef.current.contains(t)) {
+        onFiltersOpenChange(false)
       }
     }
     document.addEventListener('mousedown', onDocClick)
     return () => document.removeEventListener('mousedown', onDocClick)
-  }, [addMenuOpen, onToggleAddMenu])
+  }, [addMenuOpen, filtersOpen, onToggleAddMenu, onFiltersOpenChange])
+
+  function toggleKind(kind: TimelineKind) {
+    setFilterDraft((prev) => {
+      const next = new Set(prev.kinds)
+      if (next.has(kind)) next.delete(kind)
+      else next.add(kind)
+      return { ...prev, kinds: next }
+    })
+  }
+
+  function selectAllKinds() {
+    setFilterDraft((d) => ({ ...d, kinds: new Set(ALL_TIMELINE_KINDS) }))
+  }
+
+  const allOn = kindsIncludeAll(filterDraft.kinds)
 
   return (
-    <div className="flex flex-col gap-4 border-b border-border pb-5 lg:flex-row lg:items-end lg:justify-between lg:gap-6">
-      <div className="min-w-0 shrink-0">
-        <h3 className="text-base font-semibold text-foreground">Activity</h3>
-        <p className="mt-0.5 text-sm text-muted-foreground">All records in one timeline</p>
-      </div>
-
-      <div className="flex min-w-0 flex-1 flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end sm:gap-2 lg:max-w-3xl">
-        <label className="min-w-0 w-full sm:flex-1 sm:max-w-md">
-          <span className="sr-only">Search activity</span>
-          <input
-            type="search"
-            className={input}
-            value={search}
-            onChange={(e) => onSearchChange(e.target.value)}
-            placeholder="Search activity"
-            aria-label="Search activity"
-          />
-        </label>
+    <div className="space-y-4 border-b border-border pb-5">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div className="min-w-0">
+          <h3 className="text-base font-semibold text-foreground">Activity</h3>
+          <p className="mt-0.5 text-sm text-muted-foreground">All records in one timeline</p>
+        </div>
         <div className="flex shrink-0 flex-wrap items-center gap-2">
-          <button
-            type="button"
-            onClick={onOpenFilters}
-            className={`inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
-              filtersActive
-                ? 'border-primary/50 bg-primary/5 text-foreground'
-                : 'border-border text-foreground hover:bg-muted/50'
-            }`}
-          >
-            <Filter className="h-4 w-4 shrink-0 opacity-70" aria-hidden />
-            Filters
-          </button>
+          <div className="relative" ref={filterRef}>
+            <button
+              type="button"
+              onClick={() => onFiltersOpenChange(!filtersOpen)}
+              aria-expanded={filtersOpen}
+              aria-haspopup="dialog"
+              className={`inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
+                filtersActive || filtersOpen
+                  ? 'border-primary/50 bg-primary/5 text-foreground'
+                  : 'border-border text-foreground hover:bg-muted/50'
+              }`}
+            >
+              <Filter className="h-4 w-4 shrink-0 opacity-70" aria-hidden />
+              Filters
+              <ChevronDown className={`h-4 w-4 transition-transform ${filtersOpen ? 'rotate-180' : ''}`} aria-hidden />
+            </button>
+
+            {filtersOpen ? (
+              <div
+                className="absolute right-0 z-50 mt-2 w-[min(calc(100vw-2rem),22rem)] rounded-xl border border-border bg-card p-4 shadow-lg"
+                role="dialog"
+                aria-label="Activity filters"
+              >
+                <div className="max-h-[min(70vh,32rem)] space-y-4 overflow-y-auto">
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <label className={label}>
+                      From date
+                      <input
+                        type="date"
+                        className={input}
+                        value={filterDraft.dateFrom}
+                        onChange={(e) => setFilterDraft((d) => ({ ...d, dateFrom: e.target.value }))}
+                      />
+                    </label>
+                    <label className={label}>
+                      To date
+                      <input
+                        type="date"
+                        className={input}
+                        value={filterDraft.dateTo}
+                        onChange={(e) => setFilterDraft((d) => ({ ...d, dateTo: e.target.value }))}
+                      />
+                    </label>
+                  </div>
+
+                  <label className={label}>
+                    Worker
+                    <input
+                      className={input}
+                      value={filterDraft.worker}
+                      onChange={(e) => setFilterDraft((d) => ({ ...d, worker: e.target.value }))}
+                      placeholder="Name or ID"
+                    />
+                  </label>
+
+                  <label className={label}>
+                    Keyword
+                    <p className="mb-1.5 text-xs font-normal text-muted-foreground">Matches title, summary, and worker.</p>
+                    <input
+                      className={input}
+                      value={keywordSearch}
+                      onChange={(e) => onKeywordSearchChange(e.target.value)}
+                      placeholder="Narrow the list…"
+                    />
+                  </label>
+
+                  <div>
+                    <p className={`${label} mb-2`}>Record types</p>
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={selectAllKinds}
+                        className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
+                          allOn
+                            ? 'border-primary/50 bg-primary/10 text-foreground ring-1 ring-primary/20'
+                            : `${KIND_CHIP_OFF} border-dashed`
+                        }`}
+                      >
+                        All
+                      </button>
+                      {ALL_TIMELINE_KINDS.map((kind) => {
+                        const on = filterDraft.kinds.has(kind)
+                        return (
+                          <button
+                            key={kind}
+                            type="button"
+                            onClick={() => toggleKind(kind)}
+                            className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
+                              on ? KIND_CHIP_ON[kind] : KIND_CHIP_OFF
+                            }`}
+                          >
+                            {KIND_LABELS[kind]}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+
+                  <div className="space-y-2 rounded-xl border border-border bg-muted/15 p-3">
+                    <FilterToggle
+                      label="Follow-up only"
+                      checked={filterDraft.followOnly}
+                      onChange={(v) => setFilterDraft((d) => ({ ...d, followOnly: v }))}
+                    />
+                    <FilterToggle
+                      label="Flagged only"
+                      checked={filterDraft.flaggedOnly}
+                      onChange={(v) => setFilterDraft((d) => ({ ...d, flaggedOnly: v }))}
+                    />
+                  </div>
+
+                  <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border pt-3">
+                    <button
+                      type="button"
+                      className="rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground"
+                      onClick={onClearFilterDraft}
+                    >
+                      Clear all
+                    </button>
+                    <button
+                      type="button"
+                      className={btnPrimary}
+                      onClick={() => {
+                        onApplyFilters()
+                        onFiltersOpenChange(false)
+                      }}
+                    >
+                      Apply filters
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : null}
+          </div>
 
           <div className="relative" ref={addRef}>
             <button
@@ -198,6 +378,18 @@ export function ActivityTabToolbar({
           </div>
         </div>
       </div>
+
+      <label className="block w-full min-w-0">
+        <span className="sr-only">Search activity</span>
+        <input
+          type="search"
+          className={`${input} w-full`}
+          value={search}
+          onChange={(e) => onSearchChange(e.target.value)}
+          placeholder="Search activity"
+          aria-label="Search activity"
+        />
+      </label>
     </div>
   )
 }
@@ -225,140 +417,6 @@ export function ActivityActiveFilterChips({ chips, onRemove }: ActivityFilterChi
         </button>
       ))}
     </div>
-  )
-}
-
-type ActivityAdvancedFiltersDrawerProps = {
-  open: boolean
-  onClose: () => void
-  draft: ActivityAdvFilterDraft
-  setDraft: Dispatch<SetStateAction<ActivityAdvFilterDraft>>
-  keywordSearch: string
-  onKeywordSearchChange: (v: string) => void
-  onApply: () => void
-  onClearDraft: () => void
-}
-
-export function ActivityAdvancedFiltersDrawer({
-  open,
-  onClose,
-  draft,
-  setDraft,
-  keywordSearch,
-  onKeywordSearchChange,
-  onApply,
-  onClearDraft,
-}: ActivityAdvancedFiltersDrawerProps) {
-  if (!open) return null
-
-  function toggleKind(kind: TimelineKind) {
-    setDraft((prev) => {
-      const next = new Set(prev.kinds)
-      if (next.has(kind)) next.delete(kind)
-      else next.add(kind)
-      return { ...prev, kinds: next }
-    })
-  }
-
-  return (
-    <CaseDrawer
-      title="Filter activity"
-      onClose={onClose}
-      footer={
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <button
-            type="button"
-            className="rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground"
-            onClick={onClearDraft}
-          >
-            Clear all
-          </button>
-          <button type="button" className={btnPrimary} onClick={onApply}>
-            Apply filters
-          </button>
-        </div>
-      }
-    >
-      <div className="space-y-6">
-        <div className="grid gap-4 sm:grid-cols-2">
-          <label className={label}>
-            From date
-            <input
-              type="date"
-              className={input}
-              value={draft.dateFrom}
-              onChange={(e) => setDraft((d) => ({ ...d, dateFrom: e.target.value }))}
-            />
-          </label>
-          <label className={label}>
-            To date
-            <input
-              type="date"
-              className={input}
-              value={draft.dateTo}
-              onChange={(e) => setDraft((d) => ({ ...d, dateTo: e.target.value }))}
-            />
-          </label>
-        </div>
-
-        <label className={label}>
-          Worker
-          <input
-            className={input}
-            value={draft.worker}
-            onChange={(e) => setDraft((d) => ({ ...d, worker: e.target.value }))}
-            placeholder="Name or ID"
-          />
-        </label>
-
-        <label className={label}>
-          Keyword
-          <p className="mb-1.5 text-xs font-normal text-muted-foreground">Matches title, summary, and worker (same as toolbar search).</p>
-          <input
-            className={input}
-            value={keywordSearch}
-            onChange={(e) => onKeywordSearchChange(e.target.value)}
-            placeholder="Narrow the list…"
-          />
-        </label>
-
-        <fieldset className="space-y-2">
-          <legend className={`${label} mb-2 block`}>Record types</legend>
-          <div className="flex flex-wrap gap-2">
-            {ALL_TIMELINE_KINDS.map((kind) => (
-              <label
-                key={kind}
-                className={`flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm ${
-                  draft.kinds.has(kind) ? 'border-primary/40 bg-primary/5' : 'border-border bg-background'
-                }`}
-              >
-                <input type="checkbox" checked={draft.kinds.has(kind)} onChange={() => toggleKind(kind)} />
-                {KIND_LABELS[kind]}
-              </label>
-            ))}
-          </div>
-        </fieldset>
-
-        <div className="space-y-3 rounded-xl border border-border bg-muted/20 px-4 py-3">
-          <label className="flex cursor-pointer items-center gap-3 text-sm font-medium text-foreground">
-            <input
-              type="checkbox"
-              checked={draft.followOnly}
-              onChange={(e) => setDraft((d) => ({ ...d, followOnly: e.target.checked }))}
-            />
-            Follow-up only
-          </label>
-          <label className="flex cursor-pointer items-center gap-3 text-sm font-medium text-foreground">
-            <input
-              type="checkbox"
-              checked={draft.flaggedOnly}
-              onChange={(e) => setDraft((d) => ({ ...d, flaggedOnly: e.target.checked }))}
-            />
-            Flagged only
-          </label>
-        </div>
-      </div>
-    </CaseDrawer>
   )
 }
 
