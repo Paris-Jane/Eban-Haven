@@ -717,7 +717,7 @@ export function SocialPlannerPage() {
                         onClick={() => setStartMode('quick')}
                         className="flex flex-col gap-3 rounded-xl border border-border bg-background p-5 text-left transition-colors hover:border-primary/30 hover:bg-primary/5 hover:shadow-sm"
                       >
-                        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#f9f2e6] text-amber-600">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
                           <Zap className="h-5 w-5" />
                         </div>
                         <div>
@@ -1227,7 +1227,7 @@ export function SocialPlannerPage() {
                       {/* Expanded details */}
                       {isExpanded && (
                         <div className="border-t border-border/50 bg-muted/20 px-5 py-4">
-                          {/* Action row: Edit, Delete, Find photos */}
+                          {/* Action row: Edit, Delete, Find photos, Publish */}
                           <div className="mb-3 flex flex-wrap items-center gap-2">
                             <button
                               type="button"
@@ -1275,6 +1275,22 @@ export function SocialPlannerPage() {
                                 {imageSearchKey === queueKey ? 'Hide photos' : 'Find photos'}
                               </button>
                             )}
+                            <button
+                              type="button"
+                              className={`${btnPrimary} ml-auto inline-flex items-center gap-1.5 px-3 py-2 text-xs disabled:opacity-50`}
+                              onClick={() =>
+                                void runLockedPlannedPostUpdate(
+                                  `facebook-${post.id}`,
+                                  'Failed to schedule to Facebook.',
+                                  () => schedulePlannedSocialPostToFacebook(post.id),
+                                )}
+                              disabled={savingIds.has(`facebook-${post.id}`)}
+                            >
+                              {savingIds.has(`facebook-${post.id}`)
+                                ? <LoaderCircle className="h-3.5 w-3.5 animate-spin" />
+                                : <SendHorizonal className="h-3.5 w-3.5" />}
+                              Publish
+                            </button>
                           </div>
 
                           {/* Image search */}
@@ -1329,26 +1345,6 @@ export function SocialPlannerPage() {
                               {post.schedulingError}
                             </p>
                           )}
-
-                          {/* Publish — bottom right */}
-                          <div className="mt-4 flex justify-end border-t border-border/50 pt-3">
-                            <button
-                              type="button"
-                              className={`${btnPrimary} inline-flex items-center gap-1.5 px-3 py-2 text-xs disabled:opacity-50`}
-                              onClick={() =>
-                                void runLockedPlannedPostUpdate(
-                                  `facebook-${post.id}`,
-                                  'Failed to schedule to Facebook.',
-                                  () => schedulePlannedSocialPostToFacebook(post.id),
-                                )}
-                              disabled={savingIds.has(`facebook-${post.id}`)}
-                            >
-                              {savingIds.has(`facebook-${post.id}`)
-                                ? <LoaderCircle className="h-3.5 w-3.5 animate-spin" />
-                                : <SendHorizonal className="h-3.5 w-3.5" />}
-                              Publish
-                            </button>
-                          </div>
                         </div>
                       )}
                     </div>
