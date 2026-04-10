@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import ReactMarkdown from 'react-markdown'
 import {
+  ArrowLeft,
   Bot,
   CalendarClock,
   CheckCheck,
@@ -585,6 +586,12 @@ export function SocialPlannerPage() {
     setImageSearchKey(null)
   }
 
+  function returnToModePicker() {
+    setStartMode('pick')
+    setDraft('')
+    setError(null)
+  }
+
   const statusOptions = ['All', ...Array.from(new Set(plannedPosts.map((p) => p.status)))]
   const filteredPosts = statusFilter === 'All'
     ? plannedPosts
@@ -638,6 +645,16 @@ export function SocialPlannerPage() {
                 </div>
               </div>
               <div className="flex items-center gap-2">
+                {startMode === 'chat' && messages.length === 1 && (
+                  <button
+                    type="button"
+                    onClick={returnToModePicker}
+                    className="flex shrink-0 items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+                  >
+                    <ArrowLeft className="h-3.5 w-3.5" />
+                    Back
+                  </button>
+                )}
                 {loading && (
                   <button
                     type="button"
