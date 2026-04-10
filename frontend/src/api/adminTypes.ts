@@ -261,6 +261,24 @@ export type IncidentReport = {
   followUpRequired: boolean
 }
 
+export type ReintegrationImprovementArea = {
+  feature: string
+  label: string
+  resident_value: number
+  benchmark_value: number
+  gap_score: number
+  suggestion: string
+}
+
+export type ReintegrationReadinessResult = {
+  resident_id: number | null
+  reintegration_probability: number
+  prediction: 'Ready' | 'Not Ready'
+  risk_tier: 'High Readiness' | 'Moderate Readiness' | 'Low Readiness'
+  threshold_used: number
+  top_improvements: ReintegrationImprovementArea[]
+}
+
 export type ReportsSummary = {
   totalResidents: number
   activeResidents: number

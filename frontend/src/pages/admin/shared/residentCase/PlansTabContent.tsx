@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react'
 import {
   createInterventionPlan,
   deleteInterventionPlan,
@@ -40,6 +40,7 @@ export function PlansTabContent({
   titleOverride,
   descriptionOverride,
   addLabel = 'Add plan',
+  summaryContent,
 }: {
   residentId: number
   plans: InterventionPlan[]
@@ -54,6 +55,7 @@ export function PlansTabContent({
   titleOverride?: string
   descriptionOverride?: string
   addLabel?: string
+  summaryContent?: ReactNode
 }) {
   const [q, setQ] = useState('')
   const [df, setDf] = useState('')
@@ -162,6 +164,7 @@ export function PlansTabContent({
         }
         actions={<QuickActionButton onClick={() => setCreateOpen(true)}>{addLabel}</QuickActionButton>}
       />
+      {summaryContent ? <div>{summaryContent}</div> : null}
       <div className="flex flex-wrap items-end gap-3">
         <div className="min-w-[12rem] flex-1">
           <SearchField value={q} onChange={setQ} placeholder="Category, description, status…" />

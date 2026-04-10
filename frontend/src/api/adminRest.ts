@@ -178,6 +178,15 @@ export async function getReintegrationReadinessCohort(signal?: AbortSignal): Pro
   return parseJson(await apiFetch('/api/residents/reintegration-readiness/cohort', { signal }))
 }
 
+export async function getResidentReintegrationReadiness(
+  residentId: number,
+  signal?: AbortSignal,
+): Promise<T.ReintegrationReadinessResult> {
+  return parseJson<T.ReintegrationReadinessResult>(
+    await apiFetch(`/api/residents/${residentId}/reintegration-readiness`, { signal }),
+  )
+}
+
 export async function patchResident(
   id: number,
   fields: Record<string, string | null>,

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import {
   createIncidentReport,
   deleteHomeVisitation,
@@ -8,6 +8,7 @@ import {
   getHomeVisitations,
   getInterventionPlans,
   getProcessRecordings,
+  getResidentReintegrationReadiness,
   getResident,
   getSafehouses,
   listEducationRecords,
@@ -21,6 +22,7 @@ import {
   type InterventionPlan,
   type JsonTableRow,
   type ProcessRecording,
+  type ReintegrationReadinessResult,
   type ResidentDetail,
   type SafehouseOption,
 } from '../../../../api/admin'
@@ -42,6 +44,7 @@ import {
   type WorkspaceQuickAction,
 } from './caseWorkspaceModel'
 import { CaseDrawer, EmptyState, ToggleField } from './caseUi'
+import { deriveReadinessPrediction, deriveReadinessTier } from '../../../../components/ml/reintegrationReadinessShared'
 
 function gf(fields: Record<string, string>, ...keys: string[]): string {
   for (const k of keys) {
@@ -188,6 +191,7 @@ function toneClass(tone: 'danger' | 'warning' | 'default' | 'success') {
 }
 
 export function ResidentCaseWorkspace({ residentId }: { residentId: number }) {
+  const navigate = useNavigate()
   const [mainTab, setMainTab] = useState<MainWorkspaceTab>('overview')
   const [detail, setDetail] = useState<ResidentDetail | null>(null)
   const [safehouses, setSafehouses] = useState<SafehouseOption[]>([])
@@ -204,8 +208,7 @@ export function ResidentCaseWorkspace({ residentId }: { residentId: number }) {
   const [profileSaving, setProfileSaving] = useState(false)
   const [addMenuOpen, setAddMenuOpen] = useState(false)
   const [sessionWorkflowOpen, setSessionWorkflowOpen] = useState(false)
-  const [expandedState, setExpandedState] = useState<GoalKey | null>('health')
-  const [expandedGoal, setExpandedGoal] = useState<GoalKey | null>(null)
+  const [expandedGoal, setExpandedGoal] = useState<GoalKey | null>('health')
   const [profileSections, setProfileSections] = useState<Record<string, boolean>>({
     identity: true,
     admission: false,
@@ -238,6 +241,7 @@ export function ResidentCaseWorkspace({ residentId }: { residentId: number }) {
   const [deleteIncidentId, setDeleteIncidentId] = useState<number | null>(null)
   const [drawerErr, setDrawerErr] = useState<string | null>(null)
   const [drawerSaving, setDrawerSaving] = useState(false)
+  const [readiness, setReadiness] = useState<ReintegrationReadinessResult | null>(null)
 
   const load = useCallback(async () => {
     if (!Number.isFinite(residentId) || residentId <= 0) return
@@ -290,6 +294,20 @@ export function ResidentCaseWorkspace({ residentId }: { residentId: number }) {
   useEffect(() => {
     void load()
   }, [load])
+
+  useEffect(() => {
+    let cancelled = false
+    void getResidentReintegrationReadiness(residentId)
+      .then((result) => {
+        if (!cancelled) setReadiness(result)
+      })
+      .catch(() => {
+        if (!cancelled) setReadiness(null)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [residentId])
 
   const fields = detail?.fields ?? {}
   const internalCode = gf(fields, 'internal_code', 'internalCode') || `Resident #${residentId}`
@@ -401,6 +419,14 @@ export function ResidentCaseWorkspace({ residentId }: { residentId: number }) {
   const unresolvedIncidents = useMemo(
     () => inc.filter((row) => (row.fields.resolved ?? '').toLowerCase() !== 'true'),
     [inc],
+  )
+
+  const activePlans = useMemo(
+    () =>
+      plans.filter(
+        (row) => !row.status.toLowerCase().includes('closed') && !row.status.toLowerCase().includes('achieved') && !row.status.toLowerCase().includes('completed'),
+      ),
+    [plans],
   )
 
   const timelineAll = useMemo(() => buildTimelineItems(proc, vis, edu, hl, plans, inc), [proc, vis, edu, hl, plans, inc])
@@ -530,6 +556,36 @@ export function ResidentCaseWorkspace({ residentId }: { residentId: number }) {
     return byNewestDate(tasks, (row) => row.date).slice(0, 8)
   }, [plans, proc, unresolvedIncidents, vis])
 
+  const currentFocus = useMemo(() => {
+    const primaryPlan =
+      byNewestDate(
+        activePlans,
+        (row) => row.updatedAt || row.targetDate || row.createdAt,
+      )[0] ?? null
+    const topTask = openTasks[0] ?? null
+    const primaryFocusArea =
+      primaryPlan?.planCategory ||
+      (unresolvedIncidents.length > 0
+        ? 'Safety'
+        : latestEducation && latestEducation.attendanceRate != null && previousEducation?.attendanceRate != null && latestEducation.attendanceRate < previousEducation.attendanceRate
+          ? 'Education'
+          : latestHealth && latestHealth.healthScore != null && previousHealth?.healthScore != null && latestHealth.healthScore < previousHealth.healthScore
+            ? 'Health'
+            : 'Case support')
+
+    return {
+      area: primaryFocusArea,
+      activePlan: primaryPlan?.planDescription || 'No active plan on file.',
+      nextStep: topTask ? `${topTask.source} · ${topTask.summary}` : 'No urgent follow-up right now.',
+      context:
+        primaryPlan?.targetDate
+          ? `Target ${formatAdminDate(primaryPlan.targetDate)}`
+          : topTask?.date
+            ? `Next dated item ${formatAdminDate(topTask.date)}`
+            : '',
+    }
+  }, [activePlans, latestEducation, latestHealth, openTasks, previousEducation, previousHealth, unresolvedIncidents.length])
+
   const emotionalCounts = useMemo(() => {
     const map = new Map<string, number>()
     for (const row of proc) {
@@ -539,29 +595,52 @@ export function ResidentCaseWorkspace({ residentId }: { residentId: number }) {
     return [...map.entries()].sort((a, b) => b[1] - a[1])
   }, [proc])
 
-  const keySignals = useMemo(() => {
-    const signals: string[] = []
-    if (latestEducation?.attendanceRate != null && previousEducation?.attendanceRate != null && latestEducation.attendanceRate < previousEducation.attendanceRate) {
-      signals.push('Attendance dropped on the latest record.')
-    }
-    if (latestHealth?.healthScore != null && previousHealth?.healthScore != null && latestHealth.healthScore < previousHealth.healthScore) {
-      signals.push('Health score is trending down.')
-    }
-    if (emotionalCounts[0] && emotionalCounts[0][1] >= 2) {
-      signals.push(`Repeated emotional state: ${emotionalCounts[0][0]}.`)
-    }
-    if (vis.filter((row) => row.safetyConcernsNoted || row.followUpNeeded).length >= 2) {
-      signals.push('Recent visits show safety or follow-up flags.')
-    }
+  const signalGroups = useMemo(() => {
+    const good: string[] = []
+    const watch: string[] = []
+    const risk: string[] = []
+    const latestVisit = byNewestDate(vis, (row) => row.visitDate)[0] ?? null
+
     const incidentsIn60Days = inc.filter((row) => {
       const t = new Date(row.fields.incident_date ?? '').getTime()
       return Number.isFinite(t) && t >= Date.now() - 60 * 86400000
     }).length
-    if (incidentsIn60Days === 0) signals.push('No incidents logged in the last 60 days.')
+    if (incidentsIn60Days === 0) good.push('No incidents in 60 days')
+
     const recentProgress = proc.filter((row) => row.progressNoted).slice(0, 3).length
-    if (recentProgress > 0) signals.push(`Progress noted in ${recentProgress} recent session${recentProgress === 1 ? '' : 's'}.`)
-    return signals.slice(0, 6)
-  }, [emotionalCounts, inc, latestEducation, latestHealth, previousEducation, previousHealth, proc, vis])
+    if (recentProgress > 0) good.push(`Progress noted in ${recentProgress} recent sessions`)
+
+    if (latestEducation?.attendanceRate != null && latestEducationPlan?.targetValue != null && latestEducation.attendanceRate >= latestEducationPlan.targetValue) {
+      good.push('Attendance is meeting target')
+    }
+
+    if (latestEducation?.attendanceRate != null && previousEducation?.attendanceRate != null && latestEducation.attendanceRate < previousEducation.attendanceRate) {
+      watch.push('Attendance dropped on latest record')
+    }
+    if (latestHealth?.healthScore != null && previousHealth?.healthScore != null && latestHealth.healthScore < previousHealth.healthScore) {
+      watch.push('Health score trending down')
+    }
+    if (emotionalCounts[0] && emotionalCounts[0][1] >= 2) {
+      watch.push(`Repeated ${emotionalCounts[0][0].toLowerCase()} state`)
+    }
+
+    if (latestVisit?.safetyConcernsNoted) risk.push('Safety concern on last visit')
+    if (proc.slice(0, 3).some((row) => row.concernsFlagged)) risk.push('Recent sessions flagged concerns')
+    if (unresolvedIncidents.length > 0) risk.push(`${unresolvedIncidents.length} unresolved incident${unresolvedIncidents.length === 1 ? '' : 's'}`)
+
+    return { good: good.slice(0, 3), watch: watch.slice(0, 3), risk: risk.slice(0, 3) }
+  }, [emotionalCounts, inc, latestEducation, latestEducationPlan, latestHealth, previousEducation, previousHealth, proc, unresolvedIncidents.length, vis])
+
+  const criticalBackground = useMemo(
+    () =>
+      [
+        gf(fields, 'current_risk_level', 'currentRiskLevel') ? `Risk ${gf(fields, 'current_risk_level', 'currentRiskLevel')}` : '',
+        gf(fields, 'reintegration_status', 'reintegrationStatus') ? `Reintegration ${gf(fields, 'reintegration_status', 'reintegrationStatus')}` : '',
+        gf(fields, 'special_needs_diagnosis', 'specialNeedsDiagnosis') ? `Special needs: ${gf(fields, 'special_needs_diagnosis', 'specialNeedsDiagnosis')}` : '',
+        gf(fields, 'notes_restricted', 'notesRestricted') ? 'Restricted case notes present' : '',
+      ].filter(Boolean),
+    [fields],
+  )
 
   const recentConcerns = useMemo(
     () =>
@@ -585,6 +664,24 @@ export function ResidentCaseWorkspace({ residentId }: { residentId: number }) {
     () => timelineAll.slice(0, 4).map((row) => `${formatAdminDate(row.dateIso)} · ${row.title} · ${row.summary}`),
     [timelineAll],
   )
+
+  const readinessSummary = useMemo(() => {
+    if (!readiness) return null
+    const percent = Math.round(readiness.reintegration_probability * 100)
+    const tier = deriveReadinessTier(readiness.reintegration_probability)
+    const label =
+      tier === 'High Readiness'
+        ? 'Approaching readiness'
+        : tier === 'Moderate Readiness'
+          ? 'Building readiness'
+          : 'Needs more support'
+    return {
+      percent,
+      label,
+      prediction: deriveReadinessPrediction(readiness.reintegration_probability),
+      topImprovement: readiness.top_improvements[0]?.label ?? 'Maintain current support plan',
+    }
+  }, [readiness])
 
   function closeAddMenu() {
     setAddMenuOpen(false)
@@ -820,16 +917,45 @@ export function ResidentCaseWorkspace({ residentId }: { residentId: number }) {
             )}
           </OverviewSection>
 
-          <OverviewSection title="Current state">
+          <OverviewSection title="Current focus">
+            <div className="rounded-2xl border border-border bg-card px-5 py-5">
+              <div className="grid gap-5 md:grid-cols-3">
+                <FocusCell label="Primary focus area" value={currentFocus.area} />
+                <FocusCell label="Active plan" value={currentFocus.activePlan} />
+                <FocusCell label="Next step" value={currentFocus.nextStep} />
+              </div>
+              {currentFocus.context ? <p className="mt-4 text-sm text-muted-foreground">{currentFocus.context}</p> : null}
+            </div>
+          </OverviewSection>
+
+          <OverviewSection title="Signals">
+            <div className="rounded-2xl border border-border bg-card p-5">
+              <div className="grid gap-5 lg:grid-cols-3">
+              <SignalGroupCard title="Good" tone="success" items={signalGroups.good} />
+              <SignalGroupCard title="Watch" tone="warning" items={signalGroups.watch} />
+              <SignalGroupCard title="Risk" tone="danger" items={signalGroups.risk} />
+              </div>
+            </div>
+          </OverviewSection>
+
+          <OverviewSection title="Overview">
             <div className="grid gap-4 lg:grid-cols-3">
               {(Object.values(currentStateCards) as CurrentStateCard[]).map((item) => (
                 <button
                   key={item.key}
                   type="button"
-                  onClick={() => setExpandedState((value) => (value === item.key ? null : item.key))}
-                  className={`rounded-2xl border p-4 text-left transition-colors ${
-                    expandedState === item.key ? 'border-primary bg-primary/5' : 'border-border bg-card hover:bg-muted/40'
-                  }`}
+                  onClick={() => {
+                    if (item.key === 'health') {
+                      setMainTab('activity')
+                      if (latestHealth) setTlHealthId(latestHealth.id)
+                    } else if (item.key === 'education') {
+                      setMainTab('activity')
+                      if (latestEducation) setTlEduId(latestEducation.id)
+                    } else {
+                      setMainTab('safety')
+                    }
+                  }}
+                  className="rounded-2xl border border-border bg-card p-4 text-left transition-colors hover:bg-muted/40"
                 >
                   <div className="flex items-center justify-between gap-3">
                     <p className="text-sm font-semibold text-foreground">{item.label}</p>
@@ -844,167 +970,12 @@ export function ResidentCaseWorkspace({ residentId }: { residentId: number }) {
                 </button>
               ))}
             </div>
-
-            {expandedState ? (
-              <InlineDetailCard title={`${currentStateCards[expandedState].label} details`}>
-                {expandedState === 'health' ? (
-                  <StateDetailList
-                    rows={byNewestDate(hl, (row) => row.recordDate).slice(0, 4).map((row) => ({
-                      id: row.id,
-                      title: formatAdminDate(row.recordDate),
-                      subtitle: row.notes || 'Health record',
-                      meta: row.healthScore != null ? `Score ${row.healthScore}` : 'No score',
-                      onOpen: () => {
-                        setMainTab('activity')
-                        setTlHealthId(row.id)
-                      },
-                    }))}
-                    emptyLabel="No health records yet."
-                    primaryAction={<InlineActionButton onClick={() => bumpCreate('health')}>Add health record</InlineActionButton>}
-                    secondaryAction={<InlineActionButton onClick={() => setMainTab('activity')}>View activity</InlineActionButton>}
-                  />
-                ) : null}
-                {expandedState === 'education' ? (
-                  <StateDetailList
-                    rows={byNewestDate(edu, (row) => row.recordDate).slice(0, 4).map((row) => ({
-                      id: row.id,
-                      title: formatAdminDate(row.recordDate),
-                      subtitle: row.notes || 'Education record',
-                      meta: row.attendanceRate != null ? `Attendance ${attendanceLabel(row.attendanceRate)}` : 'No attendance value',
-                      onOpen: () => {
-                        setMainTab('activity')
-                        setTlEduId(row.id)
-                      },
-                    }))}
-                    emptyLabel="No education records yet."
-                    primaryAction={<InlineActionButton onClick={() => bumpCreate('education')}>Add education record</InlineActionButton>}
-                    secondaryAction={<InlineActionButton onClick={() => setMainTab('activity')}>View activity</InlineActionButton>}
-                  />
-                ) : null}
-                {expandedState === 'safety' ? (
-                  <StateDetailList
-                    rows={[
-                      ...unresolvedIncidents.slice(0, 3).map((row) => ({
-                        id: row.id,
-                        title: row.fields.incident_type || 'Incident',
-                        subtitle: row.fields.description || 'Unresolved incident',
-                        meta: row.fields.incident_date ? formatAdminDate(row.fields.incident_date) : 'No date',
-                        onOpen: () => setIncidentDrawer({ mode: 'view', row }),
-                      })),
-                      ...vis
-                        .filter((row) => row.safetyConcernsNoted || row.followUpNeeded)
-                        .slice(0, 3)
-                        .map((row) => ({
-                          id: row.id + 100000,
-                          title: `Visit · ${formatAdminDate(row.visitDate)}`,
-                          subtitle: row.followUpNotes || row.observations || 'Safety-related visit',
-                          meta: row.safetyConcernsNoted ? 'Safety concern' : 'Follow-up needed',
-                          onOpen: () => setVisitDrawer({ mode: 'view', row }),
-                        })),
-                    ]}
-                    emptyLabel="No recent safety issues."
-                    primaryAction={<InlineActionButton onClick={() => bumpCreate('incident')}>Log incident</InlineActionButton>}
-                    secondaryAction={<InlineActionButton onClick={() => setMainTab('safety')}>Open safety tab</InlineActionButton>}
-                  />
-                ) : null}
-              </InlineDetailCard>
-            ) : null}
-          </OverviewSection>
-
-          <OverviewSection title="Goals">
-            <div className="grid gap-4 lg:grid-cols-3">
-              {(Object.values(goalCards) as GoalCardData[]).map((goal) => (
-                <button
-                  key={goal.key}
-                  type="button"
-                  onClick={() => setExpandedGoal((value) => (value === goal.key ? null : goal.key))}
-                  className={`rounded-2xl border p-4 text-left transition-colors ${
-                    expandedGoal === goal.key ? 'border-primary bg-primary/5' : 'border-border bg-card hover:bg-muted/40'
-                  }`}
-                >
-                  <ProgressRing label={goal.label} progress={percentage(goal.current, goal.target)}>
-                    <div className="text-xl font-semibold tabular-nums text-foreground">{goal.currentLabel}</div>
-                    <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Current</div>
-                  </ProgressRing>
-                  <p className="mt-4 text-sm text-muted-foreground">Target {goal.targetLabel}</p>
-                  <p className="mt-2 line-clamp-2 text-sm text-foreground">{goal.detail}</p>
-                </button>
-              ))}
-            </div>
-
-            {expandedGoal ? (
-              <InlineDetailCard title={`${goalCards[expandedGoal].label} details`}>
-                <div className="space-y-4">
-                  <div className="flex flex-wrap gap-3">
-                    <MetaPill label="Target" value={goalCards[expandedGoal].targetLabel} />
-                    <MetaPill label="Current" value={goalCards[expandedGoal].currentLabel} />
-                    <MetaPill label="Progress" value={`${Math.round(percentage(goalCards[expandedGoal].current, goalCards[expandedGoal].target))}%`} />
-                  </div>
-                  <p className="text-sm text-muted-foreground">{goalCards[expandedGoal].detail}</p>
-                  {expandedGoal === 'health' ? (
-                    <div className="flex flex-wrap gap-2">
-                      <InlineActionButton onClick={() => bumpCreate('health')}>Add health record</InlineActionButton>
-                      <InlineActionButton onClick={() => setMainTab('plans')}>Open plans</InlineActionButton>
-                    </div>
-                  ) : null}
-                  {expandedGoal === 'education' ? (
-                    <div className="flex flex-wrap gap-2">
-                      <InlineActionButton onClick={() => bumpCreate('education')}>Add education record</InlineActionButton>
-                      <InlineActionButton onClick={() => setMainTab('plans')}>Open plans</InlineActionButton>
-                    </div>
-                  ) : null}
-                  {expandedGoal === 'safety' ? (
-                    <div className="flex flex-wrap gap-2">
-                      <InlineActionButton onClick={() => bumpCreate('incident')}>Log incident</InlineActionButton>
-                      <InlineActionButton onClick={() => setMainTab('safety')}>Open safety</InlineActionButton>
-                    </div>
-                  ) : null}
-                </div>
-              </InlineDetailCard>
-            ) : null}
-          </OverviewSection>
-
-          <OverviewSection title="Open tasks / follow-ups">
-            {openTasks.length === 0 ? (
-              <EmptyState title="No open follow-ups" hint="New follow-up items from sessions, visits, incidents, and plans will show here." />
-            ) : (
-              <div className="space-y-2">
-                {openTasks.map((item) => (
-                  <div key={item.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-card px-4 py-3">
-                    <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{item.source}</span>
-                        <span className="text-xs text-muted-foreground">{formatAdminDate(item.date)}</span>
-                      </div>
-                      <p className="mt-1 text-sm text-foreground">{item.summary}</p>
-                    </div>
-                    <button type="button" className="text-sm font-medium text-primary hover:underline" onClick={() => runWorkspaceAction(item.action)}>
-                      View
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </OverviewSection>
-
-          <OverviewSection title="Key signals">
-            {keySignals.length === 0 ? (
-              <EmptyState title="No strong signals yet" hint="Signals will appear as more resident activity is recorded." />
-            ) : (
-              <div className="flex flex-wrap gap-2">
-                {keySignals.map((signal) => (
-                  <span key={signal} className="rounded-full border border-border bg-card px-3 py-2 text-sm text-foreground">
-                    {signal}
-                  </span>
-                ))}
-              </div>
-            )}
           </OverviewSection>
 
           <OverviewSection title="Recent activity">
             <div className="space-y-2">
-              {timelineAll.slice(0, 5).map((item) => (
-                <TimelineRow key={item.key} item={item} onOpen={onTimelineSelect} onEdit={openTimelineEdit} onDelete={requestDeleteFromTimeline} />
+              {timelineAll.slice(0, 4).map((item) => (
+                <CompactActivityRow key={item.key} item={item} onOpen={onTimelineSelect} onEdit={openTimelineEdit} />
               ))}
             </div>
             <div className="pt-2">
@@ -1013,6 +984,23 @@ export function ResidentCaseWorkspace({ residentId }: { residentId: number }) {
               </button>
             </div>
           </OverviewSection>
+
+          {readinessSummary ? (
+            <OverviewSection title="Reintegration readiness">
+              <button
+                type="button"
+                onClick={() => navigate(`/admin/reintigration-readiness/${residentId}`)}
+                className="flex w-full flex-wrap items-center justify-between gap-4 rounded-2xl border border-border bg-card px-5 py-4 text-left transition-colors hover:bg-muted/40"
+              >
+                <div>
+                  <p className="text-sm font-semibold text-foreground">{readinessSummary.percent}% readiness</p>
+                  <p className="mt-1 text-sm text-muted-foreground">{readinessSummary.label}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">{readinessSummary.topImprovement}</p>
+                </div>
+                <div className="text-sm font-medium text-primary">Open readiness page</div>
+              </button>
+            </OverviewSection>
+          ) : null}
         </div>
       ) : null}
 
@@ -1068,6 +1056,14 @@ export function ResidentCaseWorkspace({ residentId }: { residentId: number }) {
                 Flagged only
               </label>
             </div>
+
+            <div className="flex flex-wrap gap-2 border-t border-border pt-4">
+              {ACTIVITY_TYPES.map((activity) => (
+                <InlineActionButton key={activity.id} onClick={() => bumpCreate(activity.id)}>
+                  {activity.label}
+                </InlineActionButton>
+              ))}
+            </div>
           </div>
 
           <EducationSection
@@ -1110,6 +1106,59 @@ export function ResidentCaseWorkspace({ residentId }: { residentId: number }) {
           layout="workspace"
           focusPlanId={focusPlanId}
           onFocusPlanConsumed={() => setFocusPlanId(null)}
+          summaryContent={
+            <div className="space-y-4">
+              <div className="grid gap-4 lg:grid-cols-3">
+                {(Object.values(goalCards) as GoalCardData[]).map((goal) => (
+                  <button
+                    key={goal.key}
+                    type="button"
+                    onClick={() => setExpandedGoal((value) => (value === goal.key ? null : goal.key))}
+                    className={`rounded-2xl border p-4 text-left transition-colors ${
+                      expandedGoal === goal.key ? 'border-primary bg-muted/20' : 'border-border bg-card hover:bg-muted/30'
+                    }`}
+                  >
+                    <ProgressRing label={goal.label} progress={percentage(goal.current, goal.target)}>
+                      <div className="text-xl font-semibold tabular-nums text-foreground">{goal.currentLabel}</div>
+                      <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Current</div>
+                    </ProgressRing>
+                    <div className="mt-4 flex items-center justify-between gap-3">
+                      <p className="text-sm text-muted-foreground">Target {goal.targetLabel}</p>
+                      <TrendBadge trend={currentStateCards[goal.key].trend} />
+                    </div>
+                    <p className="mt-2 line-clamp-2 text-sm text-foreground">{goal.detail}</p>
+                  </button>
+                ))}
+              </div>
+
+              {expandedGoal ? (
+                <InlineDetailCard title={`${goalCards[expandedGoal].label} details`}>
+                  <GoalDrillIn
+                    goal={expandedGoal}
+                    data={goalCards[expandedGoal]}
+                    healthRows={hl}
+                    educationRows={edu}
+                    visitRows={vis}
+                    incidentRows={inc}
+                    relatedPlan={expandedGoal === 'health' ? latestHealthPlan : expandedGoal === 'education' ? latestEducationPlan : latestSafetyPlan}
+                    onAddHealth={() => bumpCreate('health')}
+                    onAddEducation={() => bumpCreate('education')}
+                    onLogIncident={() => bumpCreate('incident')}
+                    onOpenHealth={(id) => {
+                      setMainTab('activity')
+                      setTlHealthId(id)
+                    }}
+                    onOpenEducation={(id) => {
+                      setMainTab('activity')
+                      setTlEduId(id)
+                    }}
+                    onOpenIncident={(row) => setIncidentDrawer({ mode: 'view', row })}
+                    onOpenVisit={(row) => setVisitDrawer({ mode: 'view', row })}
+                  />
+                </InlineDetailCard>
+              ) : null}
+            </div>
+          }
         />
       ) : null}
 
@@ -1210,6 +1259,19 @@ export function ResidentCaseWorkspace({ residentId }: { residentId: number }) {
               Edit profile
             </button>
           </div>
+
+          {criticalBackground.length > 0 ? (
+            <div className="rounded-2xl border border-amber-400/40 bg-amber-500/5 px-5 py-4">
+              <p className="text-sm font-semibold text-foreground">Critical background</p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {criticalBackground.map((item) => (
+                  <span key={item} className="rounded-full bg-background px-3 py-1.5 text-sm text-foreground">
+                    {item}
+                  </span>
+                ))}
+              </div>
+            </div>
+          ) : null}
 
           <ProfileSection
             title="Identity & case basics"
@@ -1480,6 +1542,44 @@ function InlineDetailCard({ title, children }: { title: string; children: ReactN
   )
 }
 
+function FocusCell({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="min-w-0">
+      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
+      <p className="mt-1.5 text-sm leading-6 text-foreground">{value}</p>
+    </div>
+  )
+}
+
+function SignalGroupCard({
+  title,
+  tone,
+  items,
+}: {
+  title: string
+  tone: 'success' | 'warning' | 'danger'
+  items: string[]
+}) {
+  return (
+    <div className="min-w-0">
+      <p className={`text-sm font-semibold ${tone === 'success' ? 'text-emerald-700 dark:text-emerald-300' : tone === 'warning' ? 'text-amber-800 dark:text-amber-200' : 'text-destructive'}`}>
+        {title}
+      </p>
+      <div className="mt-3 flex flex-wrap gap-2">
+        {items.length === 0 ? (
+          <span className="rounded-full bg-muted/60 px-3 py-1.5 text-sm text-muted-foreground">No items</span>
+        ) : (
+          items.map((item) => (
+            <span key={item} className={`rounded-full px-3 py-1.5 text-sm ${toneClass(tone)}`}>
+              {item}
+            </span>
+          ))
+        )}
+      </div>
+    </div>
+  )
+}
+
 function SummaryTile({ label, value }: { label: string; value: string | number }) {
   return (
     <div className="rounded-2xl border border-border bg-card px-4 py-4">
@@ -1490,28 +1590,34 @@ function SummaryTile({ label, value }: { label: string; value: string | number }
 }
 
 function ProgressRing({ label, progress, children }: { label: string; progress: number; children: ReactNode }) {
+  const normalized = Math.max(0, Math.min(progress, 100))
+  const radius = 22
+  const circumference = 2 * Math.PI * radius
+  const dashOffset = circumference * (1 - normalized / 100)
   return (
-    <div className="flex items-center gap-4">
-      <div
-        className="grid h-24 w-24 place-items-center rounded-full"
-        style={{ background: `conic-gradient(var(--primary) ${progress}%, rgba(148, 163, 184, 0.15) ${progress}% 100%)` }}
-      >
-        <div className="grid h-16 w-16 place-items-center rounded-full bg-card text-center">{children}</div>
+    <div className="flex items-center gap-3">
+      <div className="relative h-16 w-16 shrink-0">
+        <svg viewBox="0 0 52 52" className="h-16 w-16 -rotate-90">
+          <circle cx="26" cy="26" r={radius} fill="none" stroke="currentColor" strokeOpacity="0.14" strokeWidth="4" />
+          <circle
+            cx="26"
+            cy="26"
+            r={radius}
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="4"
+            strokeLinecap="round"
+            strokeDasharray={circumference}
+            strokeDashoffset={dashOffset}
+            className="text-primary"
+          />
+        </svg>
+        <div className="absolute inset-0 grid place-items-center text-center">{children}</div>
       </div>
       <div className="min-w-0">
         <p className="text-sm font-semibold text-foreground">{label}</p>
-        <p className="mt-1 text-xs uppercase tracking-wide text-muted-foreground">{Math.round(progress)}% of target</p>
+        <p className="mt-1 text-xs uppercase tracking-wide text-muted-foreground">{Math.round(normalized)}% of target</p>
       </div>
-    </div>
-  )
-}
-
-function MetaPill({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-full border border-border bg-muted/20 px-3 py-1.5 text-sm text-foreground">
-      <span className="text-muted-foreground">{label}</span>
-      {' · '}
-      <span className="font-medium">{value}</span>
     </div>
   )
 }
@@ -1530,37 +1636,139 @@ function TrendBadge({ trend }: { trend: 'up' | 'down' | 'flat' }) {
   return <span>Flat</span>
 }
 
-function StateDetailList({
-  rows,
-  emptyLabel,
-  primaryAction,
-  secondaryAction,
+function CompactActivityRow({
+  item,
+  onOpen,
+  onEdit,
 }: {
-  rows: { id: number; title: string; subtitle: string; meta: string; onOpen: () => void }[]
-  emptyLabel: string
-  primaryAction: ReactNode
-  secondaryAction?: ReactNode
+  item: TimelineItem
+  onOpen: (item: TimelineItem) => void
+  onEdit: (item: TimelineItem) => void
 }) {
   return (
+    <div className="rounded-xl border border-border bg-card px-4 py-3">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs font-medium uppercase tracking-wide text-primary">{item.title}</span>
+            <span className="text-xs text-muted-foreground">{formatAdminDate(item.dateIso)}</span>
+          </div>
+          <p className="mt-1 line-clamp-2 text-sm text-foreground">{item.summary}</p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <InlineActionButton onClick={() => onOpen(item)}>View</InlineActionButton>
+          <InlineActionButton onClick={() => onEdit(item)}>Open</InlineActionButton>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function GoalDrillIn({
+  goal,
+  data,
+  healthRows,
+  educationRows,
+  visitRows,
+  incidentRows,
+  relatedPlan,
+  onAddHealth,
+  onAddEducation,
+  onLogIncident,
+  onOpenHealth,
+  onOpenEducation,
+  onOpenIncident,
+  onOpenVisit,
+}: {
+  goal: GoalKey
+  data: GoalCardData
+  healthRows: HealthRecord[]
+  educationRows: EducationRecord[]
+  visitRows: HomeVisitation[]
+  incidentRows: JsonTableRow[]
+  relatedPlan: InterventionPlan | null
+  onAddHealth: () => void
+  onAddEducation: () => void
+  onLogIncident: () => void
+  onOpenHealth: (id: number) => void
+  onOpenEducation: (id: number) => void
+  onOpenIncident: (row: JsonTableRow) => void
+  onOpenVisit: (row: HomeVisitation) => void
+}) {
+  const rows =
+    goal === 'health'
+      ? byNewestDate(healthRows, (row) => row.recordDate).slice(0, 3).map((row) => ({
+          key: `h-${row.id}`,
+          title: formatAdminDate(row.recordDate),
+          body: row.notes || 'Health record',
+          meta: row.healthScore != null ? `Score ${row.healthScore}` : 'No score',
+          onOpen: () => onOpenHealth(row.id),
+        }))
+      : goal === 'education'
+        ? byNewestDate(educationRows, (row) => row.recordDate).slice(0, 3).map((row) => ({
+            key: `e-${row.id}`,
+            title: formatAdminDate(row.recordDate),
+            body: row.notes || 'Education record',
+            meta: row.attendanceRate != null ? `Attendance ${attendanceLabel(row.attendanceRate)}` : 'No attendance',
+            onOpen: () => onOpenEducation(row.id),
+          }))
+        : [
+            ...incidentRows.slice(0, 3).map((row) => ({
+              key: `i-${row.id}`,
+              title: row.fields.incident_type || 'Incident',
+              body: row.fields.description || 'No description',
+              meta: row.fields.incident_date ? formatAdminDate(row.fields.incident_date) : 'No date',
+              onOpen: () => onOpenIncident(row),
+            })),
+            ...visitRows
+              .filter((row) => row.safetyConcernsNoted || row.followUpNeeded)
+              .slice(0, 2)
+              .map((row) => ({
+                key: `v-${row.id}`,
+                title: `Visit · ${formatAdminDate(row.visitDate)}`,
+                body: row.followUpNotes || row.observations || 'Safety-related visit',
+                meta: row.followUpNeeded ? 'Follow-up needed' : 'Safety concern',
+                onOpen: () => onOpenVisit(row),
+              })),
+          ]
+
+  return (
     <div className="space-y-4">
-      {rows.length === 0 ? (
-        <EmptyState title={emptyLabel} />
-      ) : (
-        <div className="space-y-2">
-          {rows.map((row) => (
-            <button key={row.id} type="button" onClick={row.onOpen} className="w-full rounded-xl border border-border bg-muted/10 px-4 py-3 text-left hover:bg-muted/40">
+      <div className="grid gap-4 md:grid-cols-3">
+        <FocusCell label="Target" value={data.targetLabel} />
+        <FocusCell label="Current" value={data.currentLabel} />
+        <FocusCell label="Progress" value={`${Math.round(percentage(data.current, data.target))}%`} />
+      </div>
+      <p className="text-sm text-muted-foreground">{data.detail}</p>
+      {relatedPlan ? (
+        <div className="rounded-xl bg-muted/20 px-4 py-4">
+          <div className="flex flex-wrap items-center gap-2">
+            <CategoryBadge>{relatedPlan.planCategory}</CategoryBadge>
+            <StatusBadge status={relatedPlan.status} />
+          </div>
+          <p className="mt-2 text-sm text-foreground">{relatedPlan.planDescription}</p>
+          {relatedPlan.targetDate ? <p className="mt-1 text-xs text-muted-foreground">Target {formatAdminDate(relatedPlan.targetDate)}</p> : null}
+        </div>
+      ) : null}
+      <div className="space-y-2">
+        {rows.length === 0 ? (
+          <EmptyState title="No related records yet" />
+        ) : (
+          rows.map((row) => (
+            <button key={row.key} type="button" onClick={row.onOpen} className="w-full rounded-xl border border-border/70 bg-background px-4 py-3 text-left hover:bg-muted/30">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="font-medium text-foreground">{row.title}</span>
                 <span className="text-xs text-muted-foreground">{row.meta}</span>
               </div>
-              <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{row.subtitle}</p>
+              <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{row.body}</p>
             </button>
-          ))}
-        </div>
-      )}
+          ))
+        )}
+      </div>
       <div className="flex flex-wrap gap-2">
-        {primaryAction}
-        {secondaryAction}
+        {goal === 'health' ? <InlineActionButton onClick={onAddHealth}>Add health record</InlineActionButton> : null}
+        {goal === 'education' ? <InlineActionButton onClick={onAddEducation}>Add education record</InlineActionButton> : null}
+        {goal === 'safety' ? <InlineActionButton onClick={onLogIncident}>Log incident</InlineActionButton> : null}
       </div>
     </div>
   )

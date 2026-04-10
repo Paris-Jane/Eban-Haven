@@ -25,6 +25,7 @@ export {
   getResidents,
   getResident,
   getReintegrationReadinessCohort,
+  getResidentReintegrationReadiness,
   patchResident,
   createResident,
   deleteResident,
