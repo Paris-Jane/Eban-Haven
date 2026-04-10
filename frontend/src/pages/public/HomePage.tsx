@@ -221,7 +221,7 @@ export function HomePage() {
         </div>
       </section>
 
-      <section className="relative overflow-hidden bg-muted/35 py-20 lg:py-28">
+      <section className="relative overflow-hidden py-20 lg:py-28" style={{ backgroundColor: '#c8dcd9' }}>
         <div className="absolute inset-x-0 top-0 h-px bg-border/70" />
         <div className="absolute inset-x-0 bottom-0 h-px bg-border/70" />
         <div className="mx-auto max-w-7xl px-6 lg:px-8">
@@ -234,16 +234,6 @@ export function HomePage() {
               We support trusted in-country partners with shelter, trauma-informed care, and safe pathways back to
               school, family, and community life.
             </p>
-            <div className="mx-auto mt-8 max-w-2xl rounded-2xl border border-border/70 bg-background/70 px-6 py-5">
-              <p className="text-sm leading-relaxed text-muted-foreground">
-                Ghanaian women and girls, especially adolescents, can face heightened risk of violence,
-                exploitation, and interrupted education. Poverty, mobility, and uneven access to services can leave
-                survivors isolated.
-              </p>
-              <p className="mt-4 text-sm leading-relaxed text-muted-foreground">
-                Investing in girls in Ghana strengthens families, communities, and the leaders of tomorrow.
-              </p>
-            </div>
           </div>
         </div>
       </section>

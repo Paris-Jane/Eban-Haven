@@ -5,6 +5,7 @@ import {
   Bell,
   Bot,
   CalendarClock,
+  CheckCheck,
   ChevronDown,
   ChevronUp,
   Clock,
@@ -517,44 +518,24 @@ export function SocialPlannerPage() {
     }
   }
 
-  async function requestSchedule(post: PlannedSocialPost) {
-    const key = `schedule-${post.id}`
-    setSavingIds((c) => new Set(c).add(key))
-    try {
-      const updated = await requestSchedulePlannedSocialPost(post.id)
-      setPlannedPosts((c) => c.map((p) => (p.id === updated.id ? updated : p)))
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to request scheduling.')
-    } finally {
-      setSavingIds((c) => { const n = new Set(c); n.delete(key); return n })
-    }
-  }
-
-  async function sendToFacebook(post: PlannedSocialPost) {
-    const key = `facebook-${post.id}`
-    setSavingIds((c) => new Set(c).add(key))
-    try {
-      const updated = await schedulePlannedSocialPostToFacebook(post.id)
-      setPlannedPosts((c) => c.map((p) => (p.id === updated.id ? updated : p)))
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to schedule to Facebook.')
-    } finally {
-      setSavingIds((c) => { const n = new Set(c); n.delete(key); return n })
-    }
-  }
-
-  async function markReady(post: PlannedSocialPost) {
-    const key = `ready-${post.id}`
-    setSavingIds((c) => new Set(c).add(key))
-    try {
-      const updated = await patchPlannedSocialPostStatus(post.id, 'Ready')
-      setPlannedPosts((c) => c.map((p) => (p.id === updated.id ? updated : p)))
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update status.')
-    } finally {
-      setSavingIds((c) => { const n = new Set(c); n.delete(key); return n })
-    }
-  }
+  const runLockedPlannedPostUpdate = useCallback(
+    async (lockKey: string, fallbackError: string, update: () => Promise<PlannedSocialPost>) => {
+      setSavingIds((c) => new Set(c).add(lockKey))
+      try {
+        const updated = await update()
+        setPlannedPosts((c) => c.map((p) => (p.id === updated.id ? updated : p)))
+      } catch (err) {
+        setError(err instanceof Error ? err.message : fallbackError)
+      } finally {
+        setSavingIds((c) => {
+          const n = new Set(c)
+          n.delete(lockKey)
+          return n
+        })
+      }
+    },
+    [],
+  )
 
   async function deletePost(id: number) {
     const key = `delete-${id}`
@@ -1270,7 +1251,7 @@ export function SocialPlannerPage() {
                                 </button>
                               )}
                             </div>
-                            <div className="flex items-center gap-2">
+                            <div className="flex flex-wrap items-center gap-2">
                               {post.imageIdea && (
                                 <button
                                   type="button"
@@ -1283,8 +1264,47 @@ export function SocialPlannerPage() {
                               )}
                               <button
                                 type="button"
+                                title="Mark as ready to publish"
+                                className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-2.5 py-1.5 text-xs font-medium text-foreground hover:bg-muted/50 disabled:opacity-50"
+                                onClick={() =>
+                                  void runLockedPlannedPostUpdate(
+                                    `ready-${post.id}`,
+                                    'Failed to update status.',
+                                    () => patchPlannedSocialPostStatus(post.id, 'Ready'),
+                                  )}
+                                disabled={savingIds.has(`ready-${post.id}`) || post.status === 'Ready'}
+                              >
+                                {savingIds.has(`ready-${post.id}`)
+                                  ? <LoaderCircle className="h-3 w-3 animate-spin" />
+                                  : <CheckCheck className="h-3 w-3" />}
+                                Ready
+                              </button>
+                              <button
+                                type="button"
+                                title="Add to schedule queue"
+                                className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-2.5 py-1.5 text-xs font-medium text-foreground hover:bg-muted/50 disabled:opacity-50"
+                                onClick={() =>
+                                  void runLockedPlannedPostUpdate(
+                                    `schedule-${post.id}`,
+                                    'Failed to request scheduling.',
+                                    () => requestSchedulePlannedSocialPost(post.id),
+                                  )}
+                                disabled={savingIds.has(`schedule-${post.id}`)}
+                              >
+                                {savingIds.has(`schedule-${post.id}`)
+                                  ? <LoaderCircle className="h-3 w-3 animate-spin" />
+                                  : <CalendarClock className="h-3 w-3" />}
+                                Queue
+                              </button>
+                              <button
+                                type="button"
                                 className={`${btnPrimary} inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs disabled:opacity-50`}
-                                onClick={() => void sendToFacebook(post)}
+                                onClick={() =>
+                                  void runLockedPlannedPostUpdate(
+                                    `facebook-${post.id}`,
+                                    'Failed to schedule to Facebook.',
+                                    () => schedulePlannedSocialPostToFacebook(post.id),
+                                  )}
                                 disabled={savingIds.has(`facebook-${post.id}`)}
                               >
                                 {savingIds.has(`facebook-${post.id}`)
